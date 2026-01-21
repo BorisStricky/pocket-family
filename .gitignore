@@ -1,0 +1,21 @@
+# Personal files
+personal/
+
+# Environment files (sensitive data)
+.env
+.env.local
+.env.*.local
+.env.development
+.env.production
+.env.test
+
+# Python cache
+__pycache__/
+*.pyc
+
+# Frontend
+frontend/node_modules
+frontend/.vite/
+frontend/dist
+
+# Note: .env.example files are intentionally not ignored - they should be committed

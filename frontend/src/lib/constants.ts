@@ -1,0 +1,48 @@
+// src/lib/constants.ts
+// App-wide constants for storage keys, API endpoints, etc.
+
+/**
+ * LocalStorage keys for token storage
+ */
+export const STORAGE_KEYS = {
+  ACCESS_TOKEN: 'pf_access_token',
+  REFRESH_TOKEN: 'pf_refresh_token',
+} as const;
+
+/**
+ * API endpoint paths (relative to VITE_API_URL)
+ */
+export const API_ENDPOINTS = {
+  // Auth
+  LOGIN: '/auth/login',
+  SIGNUP: '/auth/signup',
+  LOGOUT: '/auth/logout',
+  REFRESH: '/auth/refresh',
+
+  // Tenants/Families
+  TENANTS: '/tenants',
+  TENANT_BY_ID: '/tenants/:id',
+  TENANT_SWITCH: '/tenants/:id/switch',
+
+  // Health check
+  PING: '/ping',
+} as const;
+
+/**
+ * Route paths for navigation
+ */
+export const ROUTES = {
+  HOME: '/',
+  LOGIN: '/login',
+  SIGNUP: '/signup',
+  PASSWORD_RESET: '/password-reset',
+
+  // Protected routes
+  APP: '/app',
+  DASHBOARD: '/app',
+  TRANSACTIONS: '/app/transactions',
+  ACCOUNTS: '/app/accounts',
+  BUDGETS: '/app/budgets',
+  REPORTS: '/app/reports',
+  SETTINGS: '/app/settings',
+} as const;

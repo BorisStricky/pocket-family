@@ -1,0 +1,63 @@
+{
+  "name": "Personal Finance - Backend Development",
+  "dockerComposeFile": [
+    "../../docker-compose.yaml",
+    "../../docker-compose.dev.yml"
+  ],
+  "context": "../..",
+  "service": "backend",
+  "workspaceFolder": "/workspace",
+  "remoteUser": "devuser",
+  "overrideCommand": false,
+  "shutdownAction": "stopCompose",
+
+  "extensions": [
+    "ms-python.python",
+    "ms-python.vscode-pylance",
+    "ms-python.debugpy",
+    "jebbs.plantuml",
+    "eamodio.gitlens",
+    "esbenp.prettier-vscode",
+    "dbaeumer.vscode-eslint",
+    "anthropic.claude-code"
+  ],
+
+  "settings": {
+    "terminal.integrated.shell.linux": "/bin/bash",
+    "python.defaultInterpreterPath": "/usr/local/bin/python",
+    "python.linting.enabled": true,
+    "python.linting.pylintEnabled": true,
+    "plantuml.jar": "/usr/share/plantuml/plantuml.jar",
+    "[python]": {
+      "editor.formatOnSave": true,
+      "editor.defaultFormatter": "ms-python.python"
+    }
+  },
+
+  "postCreateCommand": "python -m pip install --upgrade pip && pip install -r backend/requirements.txt || true",
+
+  "mounts": [
+    "source=${localWorkspaceFolder},target=/workspace,type=bind,consistency=cached"
+  ],
+
+  "remoteEnv": {
+    "SSH_AUTH_SOCK": "${localEnv:SSH_AUTH_SOCK}",
+    "CHOKIDAR_USEPOLLING": "true"
+  },
+
+  "forwardPorts": [8000, 5173, 5432],
+  "portsAttributes": {
+    "8000": {
+      "label": "Backend API (FastAPI)",
+      "onAutoForward": "notify"
+    },
+    "5173": {
+      "label": "Frontend Dev Server (Vite)",
+      "onAutoForward": "notify"
+    },
+    "5432": {
+      "label": "PostgreSQL Database",
+      "onAutoForward": "silent"
+    }
+  }
+}

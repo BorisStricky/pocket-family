@@ -1,0 +1,59 @@
+version: "3.8"
+
+services:
+  frontend:
+    extends:
+      file: docker-compose.yaml
+      service: frontend
+    build:
+      context: .
+      dockerfile: Dockerfile.frontend.dev
+    image: pocket-family-frontend-dev:latest
+    user: node
+    volumes:
+      - ./:/workspace:cached
+      # Named volume for node_modules to avoid Windows symlink issues
+      # This masks the host's node_modules with a container-managed volume
+      - frontend_node_modules:/workspace/frontend/node_modules
+    ports:
+      - "5173:5173"
+    environment:
+      - CHOKIDAR_USEPOLLING=true
+      - NODE_ENV=development
+      - VITE_API_URL=http://localhost:8000
+    command: sh -c "cd /workspace/frontend && npm ci --prefer-offline --no-audit --progress=false && npm run dev -- --host"
+    stdin_open: true
+    tty: true
+
+  backend:
+    extends:
+      file: docker-compose.yaml
+      service: backend
+    build:
+      context: .
+      dockerfile: Dockerfile.backend.dev
+    image: pocket-family-backend-dev:latest
+    volumes:
+      - ./:/workspace:cached
+    command: sh -c "cd /workspace/backend/api && uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload"
+    stdin_open: true
+    tty: true
+
+  db:
+    extends:
+      file: docker-compose.yaml
+      service: db
+    image: postgres:15-alpine
+    volumes:
+      - pgdata-dev:/var/lib/postgresql/data-dev
+
+volumes:
+  pgdata:
+  pgdata-dev:
+  # Named volume for frontend node_modules - isolates container deps from host
+  # Fixes Windows/WSL2 symlink issues when mounting host directories
+  frontend_node_modules:
+
+networks:
+  pfin-net:
+    driver: bridge

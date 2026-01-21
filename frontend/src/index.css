@@ -1,0 +1,24 @@
+/* frontend/src/index.css
+   Minimal Tailwind-ready stylesheet
+*/
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* AG Grid styles - Import these in main.tsx instead of CSS file */
+/* import 'ag-grid-community/styles/ag-grid.css'; */
+/* import 'ag-grid-community/styles/ag-theme-alpine.css'; */
+/* import 'ag-theme-overrides.css'; */
+
+/* Optional custom reset */
+html, body {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans", sans-serif;
+  background-color: #f8fafc; /* slate-50 */
+}

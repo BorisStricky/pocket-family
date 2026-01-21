@@ -1,0 +1,56 @@
+# docker-compose.yml (v3.8)
+version: "3.8"
+
+services:
+  db:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: pfinancedb
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    networks:
+      - pfin-net
+
+  backend:
+    build:
+      context: ./backend  
+      dockerfile: api/Dockerfile   # your uploaded backend Dockerfile at ./backend/Dockerfile
+    restart: unless-stopped
+    env_file:
+      - .env   # optional: keep your env vars here
+    # environment:
+    #   # fallback defaults (override in env_file or CI)
+    #   DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/pfinancedb
+    #   # Add any other env vars your backend needs, e.g. SECRET_KEY, REDIS_URL, etc.
+    depends_on:
+      - db
+    ports:
+      - "8000:8000"
+    networks:
+      - pfin-net
+    volumes:
+      - ./backend/api/:/app
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    ports:
+      - "3000:80"   # host:container (nginx serves on 80)
+    environment:
+      - VITE_API_BASE=http://localhost:8000   # if your frontend reads this at build/runtime
+    depends_on:
+      - backend
+    networks:
+      - pfin-net
+
+volumes:
+  pgdata:
+
+networks:
+  pfin-net:
+    driver: bridge

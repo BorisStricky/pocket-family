@@ -1,0 +1,99 @@
+@startuml
+hide circle
+skinparam linetype ortho
+
+entity "user" as User {
+  * id : uuid <<pk>>
+  email : string
+  password_hash : string
+  --
+  name : string
+  created_at : datetime
+}
+
+entity "Family" as Tenant {
+  * id : uuid <<pk>>
+  --
+  name : string
+  created_at : datetime
+}
+
+entity "membership" as Membership {
+  * id : uuid <<pk>>
+  tenant_id : uuid <<fk Tenant.id>>
+  user_id : uuid   <<fk User.id>>
+  --
+  role : string
+  created_at : datetime
+}
+
+entity "account" as Account {
+  * id : uuid <<pk>>
+  user_id : uuid <<fk User.id>>
+  --
+  name : string
+  type : string
+  currency : string
+  balance : decimal
+  created_at : datetime
+  updated_at : datetime
+}
+
+entity "category" as Category {
+  * id : uuid <<pk>>
+  tenant_id : uuid <<fk Tenant.id>>
+  name : string
+  --
+  parent_id : uuid
+  kind : string
+  created_at : datetime
+  updated_at : datetime
+}
+
+entity "transaction" as Transaction {
+  * id : uuid <<pk>>
+  tenant_id : uuid <<fk Tenant.id>>
+  amount : decimal
+  --
+  account_id : uuid <<fk Account.id>>
+  category_id : uuid <<fk Category.id>>
+  currency : string
+  date : date
+  type : string
+  description : string
+  created_by : uuid <<fk User.id>>
+  created_at : datetime
+  updated_at : datetime
+  reconciled : boolean
+  source : string
+}
+
+entity "account_share" as AccountShare {
+  * id : uuid <<pk>>
+  account_id : uuid <<fk Account.id>>
+  membership_id : <<fk Membership.id>>
+  visibility : string    ' hidden | visible
+  granted_by : uuid <<fk User.id>>
+  granted_at : datetime
+}
+
+' Relationships
+User ||--o{ Membership : "has"
+Tenant ||--o{ Membership : "has"
+
+User ||--o{ Account : "owns"
+Tenant ||--o{ Category : "owns"
+Tenant ||--o{ Transaction : "owns"
+
+Account ||--o{ Transaction : "source_of"
+Category ||--o{ Transaction : "classifies"
+User ||--o{ Transaction : "created"
+
+' Account sharing rules
+Account ||--o{ AccountShare : "shares"
+User ||--o{ AccountShare : "granted_by"
+
+' Optional: Category tree
+Category }o--|| Category : "parent"
+
+@enduml

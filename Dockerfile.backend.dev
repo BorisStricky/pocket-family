@@ -1,0 +1,67 @@
+# Dockerfile.dev — minimal devcontainer image (Python 3.13 + Java)
+FROM python:3.11-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Install system packages (git, build tools, Java for PlantUML)
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends \
+      build-essential git openssh-client curl ca-certificates \
+      wget unzip default-jdk-headless \
+    && rm -rf /var/lib/apt/lists/*
+
+# (Optional) download PlantUML jar so the extension doesn't need to fetch it
+RUN mkdir -p /usr/share/plantuml && \
+    curl -fSL --retry 5 --retry-delay 2 \
+      "https://github.com/plantuml/plantuml/releases/latest/download/plantuml.jar" \
+      -o /usr/share/plantuml/plantuml.jar && \
+    chmod 644 /usr/share/plantuml/plantuml.jar
+
+# install Java native libs, fonts, and Graphviz for PlantUML
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    default-jre \
+    graphviz \
+    fontconfig \
+    fonts-dejavu-core \
+    libfreetype6 \
+    libharfbuzz0b \
+    libxcb1 \
+    libx11-6 \
+    libxext6 \
+    libxrender1 \
+    libxrandr2 \
+    libxinerama1 \
+    libxss1 \
+    ca-certificates \
+  && rm -rf /var/lib/apt/lists/*
+
+
+# Create non-root user (UID=1000 to match frontend node user)
+ARG USERNAME=devuser
+ARG UID=1000
+ARG GID=1000
+RUN groupadd -g ${GID} ${USERNAME} || true && \
+    useradd -m -u ${UID} -g ${GID} ${USERNAME} || true
+
+USER ${USERNAME}
+ENV HOME=/home/${USERNAME}
+ENV PATH="${HOME}/.local/bin:${PATH}"
+WORKDIR /workspace
+
+# Copy only requirements to leverage build cache (adjust path if needed)
+COPY --chown=${USERNAME}:${USERNAME} backend/requirements.txt ./requirements.txt
+
+# Install python deps (wheel caching)
+RUN python -m pip install --upgrade pip wheel setuptools && \
+    pip wheel --no-deps --wheel-dir /wheels -r ./requirements.txt || true && \
+    pip install --no-cache-dir --no-index --find-links=/wheels -r ./requirements.txt || \
+      (echo "Falling back to direct pip install" && pip install -r ./requirements.txt)
+
+# Useful dev tools (optional)
+RUN pip install --no-cache-dir uvicorn[standard] alembic pytest
+
+# Leave /workspace as the mounted workspace
+VOLUME [ "/workspace" ]
+WORKDIR /workspace
+
+CMD ["bash"]

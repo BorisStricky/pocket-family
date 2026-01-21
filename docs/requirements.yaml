@@ -1,0 +1,170 @@
+version: 0.1
+date: 2025-11-08
+author: Boris
+status: Draft
+
+overview:
+  purpose: "Provide individuals and families with an intuitive, enjoyable, and secure way to plan and manage their finances."
+  scope: >
+    The app enables users to record, analyze, and plan personal and shared family expenses.
+    Users can create family groups, track spending, set budgets, manage recurring expenses,
+    and optionally define savings goals.
+  stakeholders:
+    - Product Owner
+    - Engineering Team (Backend, Frontend, DevOps)
+    - QA & Testing
+    - End Users (Individuals and Families)
+
+business_requirements:
+  - id: BR-001
+    description: "The system must help individuals and families plan and manage their finances in an easy, simple, and enjoyable way."
+    priority: Must
+    rationale: "Defines the product’s core value proposition."
+  - id: BR-002
+    description: "The system must allow multiple users to share expenses within a family group."
+    priority: Must
+    rationale: "Enables collaborative finance management."
+  - id: BR-003
+    description: "The system should support recurring expenses and budgets for proactive planning."
+    priority: Should
+    rationale: "Improves user engagement and usefulness over time."
+  - id: BR-004
+    description: "The system could include savings goal tracking."
+    priority: Could
+    rationale: "Provides advanced value for users to plan their finances."
+  - id: BR-005
+    description: "The system should provide a clean, intuitive interface and clear data visualizations."
+    priority: Should
+    rationale: "Drives adoption and retention."
+  - id: BR-006
+    description: "The system could include multiple account tracking."
+    priority: Could
+    rationale: "Allows more control and analysis dimension for the users."
+
+functional_requirements:
+  - id: FR-001
+    title: "Expense Recording"
+    description: "Users can record day-to-day expenses with amount, category, date, description, and account source."
+    priority: Must
+    acceptance_criteria:
+      - "User can create, edit, and delete expenses."
+      - "Each expense is associated with a user and their family account."
+  - id: FR-002
+    title: "Expense Analysis"
+    description: "Users can analyze expenses by time period, category, and user."
+    priority: Must
+    acceptance_criteria:
+      - "System provides filtered and aggregated views (e.g., total per category per month)."
+  - id: FR-003
+    title: "Family Creation"
+    description: "Users can create a family account and invite others."
+    priority: Must
+    acceptance_criteria:
+      - "Owner can invite users by email."
+      - "Invitees can accept and join the family."
+  - id: FR-004
+    title: "Family Memberships"
+    description: "Users can belong to multiple families and switch between them."
+    priority: Could
+    acceptance_criteria:
+      - "Users can switch active family context via the UI."
+  - id: FR-005
+    title: "Recurring Expenses"
+    description: "Users can define recurring expenses such as rent or utilities."
+    priority: Should
+    acceptance_criteria:
+      - "Recurring entries auto-generate at configured intervals."
+  - id: FR-006
+    title: "Budget Planning"
+    description: "Users can create budgets per category."
+    priority: Should
+    acceptance_criteria:
+      - "When spending exceeds the limit, a warning or alert appears."
+  - id: FR-007
+    title: "Savings Tracking"
+    description: "Users can set savings goals and track monthly progress."
+    priority: Could
+    acceptance_criteria:
+      - "Dashboard displays progress vs. target."
+  - id: FR-008
+    title: "Multi-Account Support"
+    description: "Users can register multiple accounts (bank, cash, card) and tag expenses."
+    priority: Could
+    acceptance_criteria:
+      - "Reports can be filtered by account."
+  - id: FR-009
+    title: "Bulk Import"
+    description: "Users can upload a CSV to bulk import expenses."
+    priority: Should
+    acceptance_criteria:
+      - "Upload triggers background import."
+      - "Valid rows become expenses; errors are logged."
+  - id: FR-010
+    title: "Authentication"
+    description: "Secure user login with email and password."
+    priority: Must
+    acceptance_criteria:
+      - "Valid credentials return JWT."
+      - "Invalid credentials return HTTP 401."
+  - id: FR-011
+    title: "Authorization"
+    description: "Enforce per-family data isolation and access control."
+    priority: Must
+    acceptance_criteria:
+      - "Cross-family access attempt is rejected with HTTP 403."
+
+non_functional_requirements:
+  - id: NFR-001
+    category: Performance
+    description: "API should respond in under 300 ms for 95th percentile requests."
+    priority: Should
+    metric: "p95 < 300 ms"
+  - id: NFR-002
+    category: Scalability
+    description: "System should handle 10× user growth without major redesign."
+    priority: Could
+    metric: "Support 100k monthly active users."
+  - id: NFR-003
+    category: Security
+    description: "Enforce strict per-family data isolation across API, DB, and storage layers."
+    priority: Must
+    metric: "Cross-tenant leakage = 0 in tests."
+  - id: NFR-004
+    category: Availability
+    description: "Maintain uptime of 99.9 %."
+    priority: Should
+    metric: "Monitored via SLA dashboards."
+  - id: NFR-005
+    category: Usability
+    description: "UI must be intuitive and mobile-friendly."
+    priority: Must
+    metric: "90 % of new users can record an expense unaided."
+  - id: NFR-006
+    category: Reliability
+    description: "CSV import jobs process ≥ 99.5 % valid records correctly."
+    priority: Should
+    metric: "Job completion logged and monitored."
+  - id: NFR-007
+    category: Data Integrity
+    description: "Every expense traceable to creator, family, and source."
+    priority: Must
+    metric: "Immutable audit logs."
+  - id: NFR-008
+    category: Privacy
+    description: "Must comply with GDPR and regional privacy laws."
+    priority: Should
+    metric: "Support data export and deletion."
+
+traceability_matrix:
+  - requirement_id: FR-001
+    github_issue: TBD
+    test_case: test_expense_crud.py
+  - requirement_id: FR-003
+    github_issue: TBD
+    test_case: test_family_invite.py
+  - requirement_id: FR-009
+    github_issue: TBD
+    test_case: test_csv_import.py
+  - requirement_id: NFR-003
+    github_issue: TBD
+    test_case: test_tenant_isolation.py

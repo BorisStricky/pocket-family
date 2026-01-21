@@ -1,0 +1,23 @@
+@startuml
+actor User
+node "Browser (React SPA)" as FE
+node "CDN" as CDN
+node "API Gateway / Load Balancer" as LB
+node "FastAPI App (API)" as API
+database "Postgres" as DB
+storage "S3 / MinIO" as S3
+queue "Redis (Broker)" as REDIS
+node "Celery Workers" as W
+node "Email Provider" as EMAIL
+FE --> CDN
+CDN --> FE
+FE -> LB : HTTPS requests
+LB -> API : Auth + API
+API -> DB : queries (tenant_id)
+API -> S3 : upload/download CSV
+API -> REDIS : enqueue import job
+REDIS -> W : tasks
+W -> S3 : download CSV
+W -> DB : insert transactions
+W -> EMAIL : send notifications
+@enduml

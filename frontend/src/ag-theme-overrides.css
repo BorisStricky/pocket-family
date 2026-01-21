@@ -1,0 +1,47 @@
+/* src/ag-theme-overrides.css
+   Load this AFTER ag-theme-alpine.css so these rules override defaults.
+*/
+
+/* Remove cell borders (horizontal and vertical) so the grid appears like the site example */
+.ag-theme-alpine .ag-cell,
+.ag-theme-alpine .ag-header-cell {
+  border-right: 0 !important;
+  border-bottom: 0 !important;
+  box-shadow: none !important;
+}
+
+/* Remove header bottom line if you prefer a cleaner header (optional) */
+.ag-theme-alpine .ag-header {
+  border-bottom: 0 !important;
+}
+
+/* Full-row hover highlight (applies to every cell in the hovered row) */
+.ag-theme-alpine .ag-row:hover .ag-cell {
+  /* match Alpine subtle hover — tweak alpha/color if you want */
+  background-color: rgba(0, 112, 243, 0.06) !important;
+}
+
+/* Row selection highlight (stronger than hover) */
+.ag-theme-alpine .ag-row-selected .ag-cell {
+  background-color: rgba(0, 112, 243, 0.12) !important;
+}
+
+/* Make rows a bit taller (backup in case rowHeight prop doesn't apply) */
+.ag-theme-alpine .ag-row,
+.ag-theme-alpine .ag-cell {
+  min-height: 44px;
+  height: 44px;
+  line-height: 44px;
+  display: flex;
+  align-items: center;
+}
+
+/* Make header cells align visually with taller rows */
+.ag-theme-alpine .ag-header-cell {
+  display: flex !important;           /* let AG Grid manage header internals */
+  height: auto;             /* avoid clipping filter editors */
+  min-height: 0;
+  padding-top: 0;           /* optional: keep default spacing */
+  padding-bottom: 0;
+  align-items: initial;
+}
