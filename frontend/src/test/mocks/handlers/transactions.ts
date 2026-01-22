@@ -209,8 +209,8 @@ export const transactionHandlers = [
     return HttpResponse.json(newTransaction, { status: 201 });
   }),
 
-  // PUT /transactions/:id - Update existing transaction
-  http.put(`${API_BASE}/transactions/:id`, async ({ params, request }) => {
+  // PATCH /transactions/:id - Update existing transaction
+  http.patch(`${API_BASE}/transactions/:id`, async ({ params, request }) => {
     const { id } = params;
 
     // Simulate 401 for unauthenticated requests

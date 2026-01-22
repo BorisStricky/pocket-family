@@ -121,7 +121,7 @@ export async function updateTransaction(
   data: TransactionUpdate
 ): Promise<TransactionRead> {
   return apiFetch(`/transactions/${transactionId}`, {
-    method: 'PUT',
+    method: 'PATCH',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(data),
   });

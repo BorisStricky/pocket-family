@@ -50,6 +50,11 @@ export async function apiFetch(path: string, init: RequestInit = {}) {
     credentials: 'include'  // Send cookies with cross-origin requests
   });
 
+  // Handle 204 No Content - no body to parse
+  if (res.status === 204) {
+    return { ok: true };
+  }
+
   // Parse response based on Content-Type
   const ct = res.headers.get('content-type') || '';
   let payload: any = null;
