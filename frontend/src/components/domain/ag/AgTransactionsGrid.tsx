@@ -90,12 +90,14 @@ export function AgTransactionsGrid({
       field: 'account_name',
       headerName: 'Account',
       sortable: true,
+      filter: true, // Enable AG Grid text filter - icon appears next to header
       width: 150,
     },
     {
       field: 'category_name',
       headerName: 'Category',
       sortable: true,
+      filter: true, // Enable AG Grid text filter - icon appears next to header
       width: 150,
       valueFormatter: (params) => {
         // Show category name or "Uncategorized" if not assigned

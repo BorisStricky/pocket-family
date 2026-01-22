@@ -204,11 +204,12 @@ Users can view, create, edit, and delete transactions. First full CRUD feature w
 
 #### Success Criteria
 
-- [ ] Users can view list of transactions in AG Grid table
-- [ ] Users can filter transactions by date, category, account
-- [ ] Users can create new transaction via modal form
+- [X] Users can view list of transactions in AG Grid table
+- [X] Users can filter transactions by date, and description
+- [ ] Users can filter transactions by category, account
+- [X] Users can create new transaction via modal form
 - [ ] Users can edit existing transaction
-- [ ] Users can delete transaction (with confirmation)
+- [X] Users can delete transaction (with confirmation)
 - [ ] AG Grid wrapper created for reuse in other features
 
 Read the details in .active_context/sprint_2.md for detailed info

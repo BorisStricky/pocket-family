@@ -84,9 +84,16 @@ export function TransactionDetailPage() {
   const handleDelete = () => {
     deleteTransaction(transactionId!, {
       onSuccess: () => {
+        // Close modal immediately to prevent visual glitch during navigation
+        setDeleteDialogOpen(false);
         // Navigate back to list page on successful deletion
         // The list will automatically refetch without the deleted transaction
         navigate(`/app/${familyId}/transactions`);
+      },
+      onError: (error) => {
+        // Log error to help debug why deletion callback isn't running
+        console.error('Delete transaction error:', error);
+        // Keep modal open on error so user can retry
       },
     });
   };
