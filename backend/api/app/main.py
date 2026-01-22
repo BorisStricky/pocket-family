@@ -14,8 +14,10 @@ app.add_middleware(
         "http://localhost:3000",  # Alternative frontend port
     ],
     allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
+    # Restrict to only necessary HTTP methods for security
+    allow_methods=["GET", "POST", "PUT", "DELETE", "PATCH"],
+    # Restrict to only necessary headers for security
+    allow_headers=["Content-Type", "Authorization"],
 )
 
 @app.on_event("startup")

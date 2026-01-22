@@ -11,6 +11,12 @@
 # - We enable TEST_MODE=1 so /auth endpoints return raw refresh_token in JSON as required by tests.
 
 import os
+
+# Set environment variables BEFORE importing app modules
+# This is critical because auth.py validates JWT_SECRET on import
+os.environ["TEST_MODE"] = "1"
+os.environ["JWT_SECRET"] = "test-secret-key-do-not-use-in-production-generate-with-openssl-rand-hex-32"
+
 import pytest
 from fastapi.testclient import TestClient
 
@@ -34,10 +40,10 @@ import backend.api.app.routers.auth as auth_router
 @pytest.fixture(scope="session", autouse=True)
 def set_test_mode_env():
     """
-    Ensure endpoints return raw refresh_token for tests that assert it.
-    The code checks app.auth.is_test_mode() which reads TEST_MODE env var.
+    Placeholder fixture to maintain test structure.
+    Environment variables (TEST_MODE and JWT_SECRET) are now set at module import time
+    at the top of this file to ensure they're available before auth.py imports.
     """
-    os.environ["TEST_MODE"] = "1"
     yield
 
 

@@ -12,7 +12,7 @@ from sqlmodel import select
 from backend.api.app.models import User, RefreshToken
 
 # --- New tests for preferred tenant functionality ---
-import jwt
+from jose import jwt
 
 
 # Helper to signup and return response
@@ -264,7 +264,8 @@ def test_login_without_tenant_uses_preferred(client, db_session):
     # Decode token to verify tenant_id matches preferred
     access_token = login_response.json()["access_token"]
     # Note: In production you'd verify signature, but for testing we can decode without verification
-    decoded = jwt.decode(access_token, options={"verify_signature": False})
+    # python-jose requires a key parameter even when verify_signature is False
+    decoded = jwt.decode(access_token, key="", options={"verify_signature": False})
     assert decoded["tenant_id"] == second_tenant_id, \
         f"Expected token tenant_id to be {second_tenant_id}, got {decoded['tenant_id']}"
 
@@ -296,7 +297,8 @@ def test_login_without_tenant_no_preferred_uses_first(client, db_session):
 
     # Verify token has first membership's tenant
     access_token = login_response.json()["access_token"]
-    decoded = jwt.decode(access_token, options={"verify_signature": False})
+    # python-jose requires a key parameter even when verify_signature is False
+    decoded = jwt.decode(access_token, key="", options={"verify_signature": False})
     assert decoded["tenant_id"] == str(first_membership.tenant_id)
 
     # Verify preferred_tenant_id was NOT updated (only explicit tenant updates it)
@@ -330,6 +332,7 @@ def test_refresh_token_uses_preferred_tenant(client, db_session):
 
     # Verify new access token contains preferred tenant
     new_access_token = refresh_response.json()["access_token"]
-    decoded = jwt.decode(new_access_token, options={"verify_signature": False})
+    # python-jose requires a key parameter even when verify_signature is False
+    decoded = jwt.decode(new_access_token, key="", options={"verify_signature": False})
     assert decoded["tenant_id"] == preferred_tenant_id, \
         f"Refresh should use preferred tenant {preferred_tenant_id}, got {decoded['tenant_id']}"

@@ -7,7 +7,8 @@ from uuid import UUID
 
 from ..db import get_db
 from ..models import User, Tenant, Membership, RefreshToken, Invite
-from ..schemas import SignupIn, LoginIn, TokenOut, InviteCreate, MembershipStatus
+from ..schemas import SignupIn, LoginIn, TokenOut, InviteCreate, MembershipStatus, ActiveContext
+from ..deps import get_active_context
 from ..auth import (
     hash_password,
     verify_password,
@@ -297,25 +298,46 @@ async def logout(request: Request, response: Response, db: AsyncSession = Depend
     return {"ok": True}
 
 @router.post("/tenants/{tenant_id}/invite")
-async def create_invite(tenant_id: str, payload: InviteCreate, db: AsyncSession = Depends(get_db), current_user = Depends(None)):
-    """Create an invite record for a tenant (placeholder implementation).
+async def create_invite(
+    tenant_id: str,
+    payload: InviteCreate,
+    db: AsyncSession = Depends(get_db),
+    context: ActiveContext = Depends(get_active_context)
+):
+    """Create an invite record for a tenant.
 
-    Notes:
-        This is a simplified flow that does not enforce membership/role checks.
-        In production use, wire get_current_user and require_membership to verify permissions.
+    Security:
+        Requires authentication via JWT token.
+        Only tenant owners can create invites (enforced below).
 
     Args:
         tenant_id: Tenant identifier to invite into.
         payload: InviteCreate schema with invitee email and role.
         db: Async DB session.
+        context: Active user context with authentication and membership info.
 
     Returns:
         A small hint of the invite token that was generated.
+
+    Raises:
+        HTTPException 403: If user is not an owner of the tenant.
+        HTTPException 401: If authentication fails.
     """
-    # Basic placeholder: verify current_user membership and role manually (current_user dependency not wired here)
-    # In production use Depends(get_current_user) and require_membership factory.
-    # Check that current_user is owner/admin of tenant
-    # For now, allow invite creation without strict checks and return a token hint.
+    # Security check: verify the authenticated user is inviting to their own tenant
+    if str(context.active_tenant.id) != tenant_id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="You can only create invites for your active tenant"
+        )
+
+    # Authorization check: only tenant owners can create invites
+    if context.active_membership.role != "owner":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only tenant owners can create invites"
+        )
+
+    # Generate secure invite token and create invite record
     raw_invite_token = make_refresh_token()
     invite_record = Invite(
         tenant_id=tenant_id,

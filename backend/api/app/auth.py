@@ -11,7 +11,17 @@ from passlib.context import CryptContext
 
 # Config (override via env)
 ALGORITHM = os.getenv("JWT_ALG", "HS256")
-SECRET_KEY = os.getenv("JWT_SECRET", "dev-secret-change-me")
+
+# SECRET_KEY must be explicitly provided via JWT_SECRET environment variable
+# This prevents production systems from accidentally using an insecure default
+_secret_key = os.getenv("JWT_SECRET")
+if not _secret_key:
+    raise ValueError(
+        "JWT_SECRET environment variable is required. "
+        "Generate a secure key with: openssl rand -hex 32"
+    )
+SECRET_KEY = _secret_key
+
 ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_MINUTES", "15"))
 REFRESH_TOKEN_EXPIRE_DAYS = int(os.getenv("REFRESH_TOKEN_DAYS", "30"))
 
