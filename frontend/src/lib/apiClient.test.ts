@@ -393,8 +393,13 @@ describe('apiClient', () => {
         });
 
       // Act & Assert - Should throw ApiError after retry fails
-      await expect(apiFetch('/protected')).rejects.toThrow(ApiError);
-      await expect(apiFetch('/protected')).rejects.toThrow('API error 401');
+      // Use toMatchObject to verify multiple properties in a single call
+      // (calling apiFetch twice would exhaust the mockResolvedValueOnce sequence)
+      await expect(apiFetch('/protected')).rejects.toMatchObject({
+        name: 'ApiError',
+        status: 401,
+        message: 'API error 401',
+      });
 
       // Verify only 3 calls were made (original, refresh, retry - no second refresh)
       expect(global.fetch).toHaveBeenCalledTimes(3);

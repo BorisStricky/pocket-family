@@ -177,13 +177,9 @@ export async function apiFetch(path: string, init: ApiFetchInit = {}) {
         _isRetry: true, // Mark as retry to prevent another refresh attempt
       });
     } catch (refreshError) {
-      // Refresh failed - re-throw the original 401 error
-      // The auth failure callback will have already been triggered to logout the user
-      throw new ApiError(
-        `API error ${res.status}`,
-        res.status,
-        payload
-      );
+      // Re-throw the actual refresh error (network error, ApiError, etc.)
+      // The auth failure callback has already been triggered to logout the user
+      throw refreshError;
     }
   }
 
