@@ -5,6 +5,7 @@ import React from 'react';
 import { describe, it, expect, beforeEach } from 'vitest';
 import { renderHook, waitFor } from '@testing-library/react';
 import { http, HttpResponse } from 'msw';
+import { QueryClient } from '@tanstack/react-query';
 import { useTransaction } from '../hooks/useTransaction';
 import { createTestQueryClient, TestWrapper } from '@/test/utils';
 import { server } from '@/test/mocks/server';
@@ -245,7 +246,17 @@ describe('useTransaction hook', () => {
         })
       );
 
-      const queryClient = createTestQueryClient();
+      // Create a query client with caching enabled for this test
+      // Default test client has gcTime: 0 and staleTime: 0 which prevents caching
+      const queryClient = new QueryClient({
+        defaultOptions: {
+          queries: {
+            retry: false,
+            gcTime: Infinity,     // Keep data in cache indefinitely
+            staleTime: 60000,     // Data stays fresh for 60 seconds
+          },
+        },
+      });
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <TestWrapper queryClient={queryClient}>{children}</TestWrapper>
       );

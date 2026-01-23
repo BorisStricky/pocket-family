@@ -76,7 +76,7 @@ describe('AgTransactionsGrid component', () => {
   });
 
   describe('Empty state', () => {
-    it('should show empty state when no transactions', () => {
+    it('should show empty state when no transactions', async () => {
       // Act
       renderWithProviders(
         <AgTransactionsGrid
@@ -85,8 +85,10 @@ describe('AgTransactionsGrid component', () => {
         />
       );
 
-      // Assert - Should show empty state message
-      expect(screen.getByText(/no transactions/i)).toBeInTheDocument();
+      // Assert - Wait for AG Grid to render empty state overlay
+      await waitFor(() => {
+        expect(screen.getByText(/no transactions/i)).toBeInTheDocument();
+      });
     });
 
     it('should not call onRowClick in empty state', async () => {
@@ -99,8 +101,8 @@ describe('AgTransactionsGrid component', () => {
         />
       );
 
-      // Act - Try to interact with empty grid
-      const emptyMessage = screen.getByText(/no transactions/i);
+      // Act - Wait for empty message to appear, then try to interact
+      const emptyMessage = await screen.findByText(/no transactions/i);
       await user.click(emptyMessage);
 
       // Assert - Should not trigger row click
@@ -109,7 +111,7 @@ describe('AgTransactionsGrid component', () => {
   });
 
   describe('Loading state', () => {
-    it('should show loading indicator when isLoading is true', () => {
+    it('should show loading indicator when isLoading is true', async () => {
       // Act
       renderWithProviders(
         <AgTransactionsGrid
@@ -119,11 +121,13 @@ describe('AgTransactionsGrid component', () => {
         />
       );
 
-      // Assert - Should show loading state
-      expect(screen.getByText(/loading/i)).toBeInTheDocument();
+      // Assert - Wait for AG Grid to render loading overlay
+      await waitFor(() => {
+        expect(screen.getByText(/loading/i)).toBeInTheDocument();
+      });
     });
 
-    it('should hide loading indicator when data loads', () => {
+    it('should hide loading indicator when data loads', async () => {
       // Arrange - Render with loading state first
       const { rerender } = renderWithProviders(
         <AgTransactionsGrid
@@ -133,7 +137,9 @@ describe('AgTransactionsGrid component', () => {
         />
       );
 
-      expect(screen.getByText(/loading/i)).toBeInTheDocument();
+      await waitFor(() => {
+        expect(screen.getByText(/loading/i)).toBeInTheDocument();
+      });
 
       // Act - Rerender with data
       const transactions = createMockTransactionList(3);
@@ -145,13 +151,15 @@ describe('AgTransactionsGrid component', () => {
         />
       );
 
-      // Assert - Loading should be gone, data visible
-      expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
+      // Assert - Wait for loading to disappear
+      await waitFor(() => {
+        expect(screen.queryByText(/loading/i)).not.toBeInTheDocument();
+      });
     });
   });
 
   describe('Data formatting', () => {
-    it('should format currency amounts correctly', () => {
+    it('should format currency amounts correctly', async () => {
       // Arrange
       const transactions = [
         createMockTransaction({ amount: '1234.56', currency: 'USD' }),
@@ -165,12 +173,13 @@ describe('AgTransactionsGrid component', () => {
         />
       );
 
-      // Assert - Amount should be formatted as currency
-      // Note: Exact format depends on cell renderer implementation
-      expect(screen.getByText(/1,234.56/)).toBeInTheDocument();
+      // Assert - Wait for AG Grid to render and format currency
+      await waitFor(() => {
+        expect(screen.getByText(/1,234.56/)).toBeInTheDocument();
+      });
     });
 
-    it('should format dates correctly', () => {
+    it('should format dates correctly', async () => {
       // Arrange
       const transactions = [
         createMockTransaction({ transaction_date: '2026-01-12' }),
@@ -184,16 +193,18 @@ describe('AgTransactionsGrid component', () => {
         />
       );
 
-      // Assert - Date should be formatted for display
-      // Format may be MM/DD/YYYY or other localized format
-      expect(screen.getByText(/01\/12\/2026|2026-01-12/)).toBeInTheDocument();
+      // Assert - Wait for AG Grid to render and format dates
+      // Date formatter converts to DD/MM/YYYY format
+      await waitFor(() => {
+        expect(screen.getByText(/12\/01\/2026/)).toBeInTheDocument();
+      });
     });
 
-    it('should display transaction type as expense or income', () => {
-      // Arrange
+    it('should display transaction type as expense or income', async () => {
+      // Arrange - Use transactions without category names to avoid duplicate "expense" text
       const transactions = [
-        createMockTransaction({ transaction_type: 'expense' }),
-        createMockTransaction({ transaction_type: 'income' }),
+        createMockTransaction({ transaction_type: 'expense', category_name: null }),
+        createMockTransaction({ transaction_type: 'income', category_name: null }),
       ];
 
       // Act
@@ -204,9 +215,11 @@ describe('AgTransactionsGrid component', () => {
         />
       );
 
-      // Assert - Both types should be visible
-      expect(screen.getByText(/expense/i)).toBeInTheDocument();
-      expect(screen.getByText(/income/i)).toBeInTheDocument();
+      // Assert - Wait for AG Grid to render both types (capitalized by formatter)
+      await waitFor(() => {
+        expect(screen.getByText('Expense')).toBeInTheDocument();
+        expect(screen.getByText('Income')).toBeInTheDocument();
+      });
     });
 
     it('should show category name or uncategorized', () => {
@@ -435,10 +448,10 @@ describe('AgTransactionsGrid component', () => {
   });
 
   describe('Column customization', () => {
-    it('should render custom cell renderers for type column', () => {
-      // Arrange
+    it('should render custom cell renderers for type column', async () => {
+      // Arrange - Use transaction without category name to avoid duplicate "expense" text
       const transactions = [
-        createMockTransaction({ transaction_type: 'expense' }),
+        createMockTransaction({ transaction_type: 'expense', category_name: null }),
       ];
 
       // Act
@@ -449,9 +462,10 @@ describe('AgTransactionsGrid component', () => {
         />
       );
 
-      // Assert - Expense should be rendered with custom styling (e.g., chip)
-      // Note: Specific implementation depends on cell renderer
-      expect(screen.getByText(/expense/i)).toBeInTheDocument();
+      // Assert - Wait for AG Grid to render with custom cell renderer (capitalized)
+      await waitFor(() => {
+        expect(screen.getByText('Expense')).toBeInTheDocument();
+      });
     });
 
     it('should show reconciled indicator when transaction is reconciled', () => {
