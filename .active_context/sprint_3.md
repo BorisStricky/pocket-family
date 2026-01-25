@@ -158,9 +158,11 @@ interface AccountShareUpdate {
 
 ---
 
-## Implementation Steps (Sprint 3)
+## Implementation Milestones and Steps (Sprint 3)
+IMPORTANT ORCHESTRATION NOTE: Ask for user to verify and confirm after each milestone before continuing!!!
 
-### Step 0: Backend Enhancements
+### Milestone 0 - Backend
+#### Step 0: Backend Enhancements
 - [ ] Add `tenant_id: Optional[UUID]` query parameter to `GET /accounts` endpoint
   - When provided: validate user membership, return only accounts shared with that tenant
   - When omitted: keep current behavior (all user's accounts + all shared)
@@ -181,59 +183,64 @@ interface AccountShareUpdate {
   - Consider adding balance updates for update/delete operations as well
 - [ ] Add backend tests for enhanced endpoint behavior (with and without share_with)
 
-### Step 1: Accounts API & Hooks
+### Milestone 1 - Accounts Page
+#### Step 1: Accounts API & Hooks
 - [ ] Implement `accountsApi.ts` (CRUD functions)
 - [ ] Create React Query hooks: `useAccounts`, `useCreateAccount`, etc.
 - [ ] Define account types in `src/types/`
 
-### Step 2: AG Grid Wrapper
+#### Step 2: AG Grid Wrapper
 - [ ] Create `AgAccountsGrid` component
 - [ ] Define column definitions (name, type, currency, balance, actions)
 - [ ] Add cell renderers (currency formatter, account type badge)
 - [ ] Integrate with `useAccounts` hook
 
-### Step 3: Account Form
+#### Step 3: Account Form
 - [ ] Build `AccountForm` component
 - [ ] Add fields: name, account type select, currency select, initial balance
 - [ ] Add validation (name required, balance >= 0)
 
-### Step 4: Accounts Page
+#### Step 4: Accounts Page
 - [ ] Create `AccountsPage` with grid or card layout
 - [ ] Add "Add Account" button
 - [ ] Add row/card click → navigate to detail page
 
-### Step 5: Account Detail Page
+#### Step 5: Account Detail Page
 - [ ] Create `AccountDetailPage`
 - [ ] Show `AccountSummary` component
 - [ ] Reuse `AgTransactionsGrid` with filter: `accountId`
 - [ ] Add edit and delete buttons
 
-### Step 6: Add/Edit Flow
+### Milestone 2 - CRUD
+#### Step 6: Add/Edit Flow
 - [ ] Create nested route for `/new`
 - [ ] Wire up `useCreateAccount` and `useUpdateAccount`
 - [ ] Add success/error toasts
 
-### Step 7: Delete Flow
+#### Step 7: Delete Flow
 - [ ] Add delete button in account detail
 - [ ] Show `DeleteConfirmDialog`
 - [ ] Wire up `useDeleteAccount`
 - [ ] Handle cascade (warn if account has transactions)
 
-### Step 8: Testing & Polish
+### Milestone 3 - Testing & Polish
+#### Step 8: Testing & Polish
 - [ ] Test full CRUD flow
 - [ ] Test account detail page with filtered transactions
 - [ ] Add empty state (no accounts)
 - [ ] Update transaction form to use account select
   - **Note**: Replace placeholder comment in `src/features/transactions/components/TransactionForm.tsx` (lines 142-144) with dynamic account loading from `useAccounts` hook
 
-### Step 9: User Menu Enhancement
+### Milestone 4 - Global
+#### Step 9: User Menu Enhancement
 - [ ] Add "See All Accounts" menu item to TopNav user menu (after email, before Logout)
 - [ ] Create `AllAccountsPage` component at `src/features/accounts/pages/AllAccountsPage.tsx`
 - [ ] Add Global accounts view route `/app/accounts` in router (outside family context, protected)
   - **Route ordering:** `/app/accounts` (exact) must be defined BEFORE `/app/accounts/:accountId` (parameterized) to avoid conflicts
 - [ ] Implement `useAllAccounts` hook (calls `GET /accounts` without `tenant_id` param)
 
-### Step 10: Account Sharing Feature
+### Milestone 5 - Sharing
+#### Step 10: Account Sharing Feature
 - [ ] Implement `accountSharesApi.ts` (CRUD functions for shares)
 - [ ] Create React Query hooks: `useAccountShares`, `useCreateAccountShare`, `useUpdateAccountShare`, `useDeleteAccountShare`
 - [ ] Create `AccountShareList` component
@@ -254,7 +261,7 @@ interface AccountShareUpdate {
   - Add `AccountShareList` below AccountSummary (owner only)
   - Determine ownership by comparing `account.user_id` with current user id from auth context
 
-### Step 11: Account Sharing Testing
+#### Step 11: Account Sharing Testing
 - [ ] Test `useAccountShares` hook (mock API responses)
 - [ ] Test `AccountShareList` component (owner vs non-owner views)
 - [ ] Test `ShareAccountDialog` component (form validation, family filtering)
