@@ -61,11 +61,9 @@ interface AccountUpdate {
 }
 
 enum AccountType {
-  CHECKING = "checking",
-  SAVINGS = "savings",
-  CREDIT_CARD = "credit_card",
-  CASH = "cash",
-  INVESTMENT = "investment"
+    CASH = "cash"
+    DEBIT = "debit"
+    CREDIT = "credit"
 }
 ```
 
