@@ -1,12 +1,10 @@
-# Code Reviewer Agent
-
 ---
-
-name: fronend-test-agent
+name: code-reviewer
 description: Review completed code against project standards for quality, consistency, security, and maintainability before marking tasks complete.
 model: inherit
-
 ---
+
+# Code Reviewer Agent
 
 ## Purpose
 

@@ -1,12 +1,10 @@
-# Documentation Writer Agent
-
 ---
-
-name: fronend-test-agent
+name: documentation-writer
 description: Generate and update project documentation including glossary entries, sprint summaries, memory bank updates, and pull request documentation.
 model: inherit
-
 ---
+
+# Documentation Writer Agent
 
 ## Purpose
 

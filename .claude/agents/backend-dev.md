@@ -1,12 +1,10 @@
-# Backend Development Agent
-
 ---
-
-name: fronend-test-agent
+name: backend-dev
 description: Implement backend features using FastAPI + SQLModel following project conventions, ensuring multi-tenant data isolation, proper authentication, and robust error handling.
 model: inherit
-
 ---
+
+# Backend Development Agent
 
 ## Purpose
 

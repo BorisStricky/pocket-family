@@ -1,12 +1,10 @@
-# Backend Test Agent
-
 ---
-
-name: fronend-test-agent
-description: Write comprehensive backend tests using pytest, following FastAPI testing patterns and ensuring multi-tenant data isolation is properly validated..
+name: backend-test
+description: Write comprehensive backend tests using pytest, following FastAPI testing patterns and ensuring multi-tenant data isolation is properly validated.
 model: inherit
-
 ---
+
+# Backend Test Agent
 
 ## Purpose
 

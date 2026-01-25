@@ -1,12 +1,10 @@
-# Frontend Development Agent
-
 ---
-
-name: fronend-test-agent
+name: frontend-dev
 description: Implement frontend features using React + TypeScript + MUI following project conventions, ensuring code quality, proper state management, and seamless API integration.
 model: inherit
-
 ---
+
+# Frontend Development Agent
 
 ## Purpose
 
