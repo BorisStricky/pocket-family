@@ -4,6 +4,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { STORAGE_KEYS } from '@/lib/constants';
 import { getUserFromToken, isTokenExpired } from '@/lib/jwtUtils';
+import { setAuthFailureCallback } from '@/lib/apiClient';
 import type { User, TokenResponse } from '@/types';
 
 interface AuthContextValue {
@@ -74,6 +75,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
   }, []);
+
+  // Register auth failure callback with apiClient on mount
+  // This allows the API client to trigger logout when the refresh token expires or is invalid
+  // Without this, users would see API errors instead of being redirected to login
+  useEffect(() => {
+    setAuthFailureCallback(() => {
+      // Clear auth state and redirect to login page
+      clearAuth();
+      // Force navigation to login page when refresh token is invalid/expired
+      window.location.href = '/login';
+    });
+  }, [clearAuth]);
 
   const value: AuthContextValue = {
     user,

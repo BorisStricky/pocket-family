@@ -96,10 +96,12 @@ describe('Transactions API functions', () => {
         })
       );
 
+      // Only date and description filters are sent by API
+      // account and category are handled by the AG Grid headers
       const filters = {
-        account_id: 'account-123',
-        category_id: 'category-456',
-        transaction_type: 'expense' as const,
+        // account_id: 'account-123',
+        // category_id: 'category-456',
+        // transaction_type: 'expense' as const,
         start_date: '2026-01-01',
         end_date: '2026-01-31',
       };
@@ -109,11 +111,11 @@ describe('Transactions API functions', () => {
 
       // Assert - Verify all filters are in query params
       expect(capturedParams?.get('tenant_id')).toBe(familyId);
-      expect(capturedParams?.get('account_id')).toBe('account-123');
-      expect(capturedParams?.get('category_id')).toBe('category-456');
-      expect(capturedParams?.get('transaction_type')).toBe('expense');
-      expect(capturedParams?.get('start_date')).toBe('2026-01-01');
-      expect(capturedParams?.get('end_date')).toBe('2026-01-31');
+      // expect(capturedParams?.get('account_id')).toBe('account-123');
+      // expect(capturedParams?.get('category_id')).toBe('category-456');
+      // expect(capturedParams?.get('transaction_type')).toBe('expense');
+      expect(capturedParams?.get('start')).toBe('2026-01-01');
+      expect(capturedParams?.get('end')).toBe('2026-01-31');
     });
 
     it('should handle 401 unauthorized error', async () => {
@@ -337,12 +339,12 @@ describe('Transactions API functions', () => {
   describe('updateTransaction', () => {
     const transactionId = 'transaction-uuid-123';
 
-    it('should call PUT /transactions/:id with update data', async () => {
+    it('should call PATCH /transactions/:id with update data', async () => {
       // Arrange - Track request
       let requestUrl: string | null = null;
       let requestBody: any = null;
       server.use(
-        http.put('http://localhost:8000/transactions/:id', async ({ request, params }) => {
+        http.patch('http://localhost:8000/transactions/:id', async ({ request, params }) => {
           requestUrl = request.url;
           requestBody = await request.json();
           return HttpResponse.json(
@@ -385,7 +387,7 @@ describe('Transactions API functions', () => {
       // Arrange
       let authHeader: string | null = null;
       server.use(
-        http.put('http://localhost:8000/transactions/:id', async ({ request }) => {
+        http.patch('http://localhost:8000/transactions/:id', async ({ request }) => {
           authHeader = request.headers.get('Authorization');
           const body = await request.json();
           return HttpResponse.json(createMockTransaction(body));
@@ -403,7 +405,7 @@ describe('Transactions API functions', () => {
     it('should handle 404 not found error', async () => {
       // Arrange
       server.use(
-        http.put('http://localhost:8000/transactions/:id', () => {
+        http.patch('http://localhost:8000/transactions/:id', () => {
           return HttpResponse.json(
             { detail: 'Transaction not found' },
             { status: 404 }

@@ -3,8 +3,8 @@
 // Uses global fetch mocking (not MSW) because we're testing the fetch wrapper itself
 
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { apiFetch, ApiError } from './apiClient';
-import { STORAGE_KEYS } from './constants';
+import { apiFetch, ApiError, setAuthFailureCallback } from './apiClient';
+import { STORAGE_KEYS, API_ENDPOINTS } from './constants';
 
 describe('apiClient', () => {
   // Store original fetch to restore after tests
@@ -302,6 +302,251 @@ describe('apiClient', () => {
         'https://external-api.com/data',
         expect.any(Object)
       );
+    });
+  });
+
+  describe('Token Refresh', () => {
+    it('should automatically refresh token on 401 and retry request', async () => {
+      // Arrange - Set expired token in localStorage
+      const oldToken = 'expired-token';
+      const newToken = 'new-access-token';
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, oldToken);
+
+      const mockData = { id: 1, name: 'Success after refresh' };
+
+      // Mock fetch to return 401 first, then successful refresh, then successful retry
+      (global.fetch as any)
+        .mockResolvedValueOnce({
+          // First call: Original request returns 401
+          ok: false,
+          status: 401,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ detail: 'Token expired' }),
+        })
+        .mockResolvedValueOnce({
+          // Second call: Refresh endpoint returns new token
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ access_token: newToken }),
+        })
+        .mockResolvedValueOnce({
+          // Third call: Retry of original request succeeds
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => mockData,
+        });
+
+      // Act - Call apiFetch (should trigger refresh and retry)
+      const result = await apiFetch('/protected/resource');
+
+      // Assert - Verify refresh flow
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+
+      // Verify first call was with old token
+      const firstCall = (global.fetch as any).mock.calls[0];
+      expect(firstCall[0]).toBe('http://localhost:8000/protected/resource');
+
+      // Verify second call was to refresh endpoint
+      const secondCall = (global.fetch as any).mock.calls[1];
+      expect(secondCall[0]).toContain(API_ENDPOINTS.REFRESH);
+
+      // Verify third call was retry with new token
+      const thirdCall = (global.fetch as any).mock.calls[2];
+      const retryHeaders = thirdCall[1].headers as Headers;
+      expect(retryHeaders.get('Authorization')).toBe(`Bearer ${newToken}`);
+
+      // Verify localStorage was updated with new token
+      expect(localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)).toBe(newToken);
+
+      // Verify final result
+      expect(result).toEqual(mockData);
+    });
+
+    it('should not retry if request is already a retry (prevent infinite loop)', async () => {
+      // Arrange - Set token
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, 'token');
+
+      // Mock fetch to return 401 on original, successful refresh, then 401 on retry
+      (global.fetch as any)
+        .mockResolvedValueOnce({
+          // First call: Original request returns 401
+          ok: false,
+          status: 401,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ detail: 'Token expired' }),
+        })
+        .mockResolvedValueOnce({
+          // Second call: Refresh succeeds
+          ok: true,
+          status: 200,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ access_token: 'new-token' }),
+        })
+        .mockResolvedValueOnce({
+          // Third call: Retry still returns 401
+          ok: false,
+          status: 401,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ detail: 'Still unauthorized' }),
+        });
+
+      // Act & Assert - Should throw ApiError after retry fails
+      // Use toMatchObject to verify multiple properties in a single call
+      // (calling apiFetch twice would exhaust the mockResolvedValueOnce sequence)
+      await expect(apiFetch('/protected')).rejects.toMatchObject({
+        name: 'ApiError',
+        status: 401,
+        message: 'API error 401',
+      });
+
+      // Verify only 3 calls were made (original, refresh, retry - no second refresh)
+      expect(global.fetch).toHaveBeenCalledTimes(3);
+    });
+
+    it('should trigger auth failure callback when refresh fails', async () => {
+      // Arrange - Set up callback spy
+      const authFailureCallback = vi.fn();
+      setAuthFailureCallback(authFailureCallback);
+
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, 'expired-token');
+
+      // Mock fetch to return 401 on original, then 401 on refresh (expired refresh token)
+      (global.fetch as any)
+        .mockResolvedValueOnce({
+          // First call: Original request returns 401
+          ok: false,
+          status: 401,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ detail: 'Token expired' }),
+        })
+        .mockResolvedValueOnce({
+          // Second call: Refresh also returns 401 (refresh token expired)
+          ok: false,
+          status: 401,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ detail: 'Refresh token expired' }),
+        });
+
+      // Act & Assert - Should throw error and call callback
+      await expect(apiFetch('/protected')).rejects.toThrow(ApiError);
+
+      // Verify callback was called
+      expect(authFailureCallback).toHaveBeenCalledTimes(1);
+
+      // Verify only 2 calls were made (original, refresh - no retry)
+      expect(global.fetch).toHaveBeenCalledTimes(2);
+    });
+
+    it('should handle 401 on refresh endpoint (expired refresh token)', async () => {
+      // Arrange - Set up callback
+      const authFailureCallback = vi.fn();
+      setAuthFailureCallback(authFailureCallback);
+
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, 'token');
+
+      // Mock 401 on original request, 401 on refresh
+      (global.fetch as any)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ detail: 'Unauthorized' }),
+        })
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ detail: 'Refresh token invalid' }),
+        });
+
+      // Act & Assert
+      await expect(apiFetch('/api/data')).rejects.toThrow(ApiError);
+
+      // Verify callback was triggered for logout
+      expect(authFailureCallback).toHaveBeenCalled();
+
+      // Verify localStorage was NOT updated (refresh failed)
+      expect(localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN)).toBe('token');
+    });
+
+    it('should handle network errors during refresh gracefully', async () => {
+      // Arrange - Set up callback
+      const authFailureCallback = vi.fn();
+      setAuthFailureCallback(authFailureCallback);
+
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, 'token');
+
+      // Mock 401 on original, network error on refresh
+      (global.fetch as any)
+        .mockResolvedValueOnce({
+          ok: false,
+          status: 401,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ detail: 'Unauthorized' }),
+        })
+        .mockRejectedValueOnce(new TypeError('Network request failed'));
+
+      // Act & Assert
+      await expect(apiFetch('/api/data')).rejects.toThrow(TypeError);
+
+      // Verify callback was triggered
+      expect(authFailureCallback).toHaveBeenCalled();
+    });
+
+    it('should queue concurrent 401 requests during single refresh', async () => {
+      // Arrange - Set token
+      const newToken = 'refreshed-token';
+      localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, 'old-token');
+
+      // Mock all requests to return 401, then single refresh success, then all retries succeed
+      const mockSuccess = {
+        ok: true,
+        status: 200,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ data: 'success' }),
+      };
+
+      const mock401 = {
+        ok: false,
+        status: 401,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({ detail: 'Unauthorized' }),
+      };
+
+      // Mock sequence: 3x 401, 1x refresh success, 3x retry success
+      (global.fetch as any)
+        .mockResolvedValueOnce(mock401)  // First request 401
+        .mockResolvedValueOnce(mock401)  // Second request 401
+        .mockResolvedValueOnce(mock401)  // Third request 401
+        .mockResolvedValueOnce({         // Refresh succeeds
+          ok: true,
+          headers: new Headers({ 'content-type': 'application/json' }),
+          json: async () => ({ access_token: newToken }),
+        })
+        .mockResolvedValueOnce(mockSuccess)  // First retry succeeds
+        .mockResolvedValueOnce(mockSuccess)  // Second retry succeeds
+        .mockResolvedValueOnce(mockSuccess); // Third retry succeeds
+
+      // Act - Make 3 concurrent requests
+      const results = await Promise.all([
+        apiFetch('/api/resource1'),
+        apiFetch('/api/resource2'),
+        apiFetch('/api/resource3'),
+      ]);
+
+      // Assert - All requests should succeed
+      expect(results).toHaveLength(3);
+      expect(results.every(r => r.data === 'success')).toBe(true);
+
+      // Verify only ONE refresh call was made (fetch call #4)
+      const calls = (global.fetch as any).mock.calls;
+      const refreshCalls = calls.filter((call: any) => call[0].includes(API_ENDPOINTS.REFRESH));
+      expect(refreshCalls).toHaveLength(1);
+
+      // Verify total of 7 calls: 3 initial 401s, 1 refresh, 3 retries
+      expect(global.fetch).toHaveBeenCalledTimes(7);
     });
   });
 });

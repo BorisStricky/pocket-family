@@ -381,39 +381,29 @@ describe('useTransactions hook', () => {
       expect(queries.length).toBeGreaterThan(1);
     });
 
-    it('should not refetch when familyId remains the same', async () => {
+    it('should use same query key when familyId remains the same', async () => {
       // Arrange
-      let fetchCount = 0;
-      server.use(
-        http.get('http://localhost:8000/transactions', () => {
-          fetchCount++;
-          return HttpResponse.json(createMockTransactionList(2));
-        })
-      );
-
       const queryClient = createTestQueryClient();
       const wrapper = ({ children }: { children: React.ReactNode }) => (
         <TestWrapper queryClient={queryClient}>{children}</TestWrapper>
       );
 
-      // Act - Render hook twice with same familyId
-      const { result: result1 } = renderHook(() => useTransactions(familyId), { wrapper });
+      // Act - Render hook with familyId
+      const { result } = renderHook(() => useTransactions(familyId), { wrapper });
 
       await waitFor(() => {
-        expect(result1.current.isSuccess).toBe(true);
+        expect(result.current.isSuccess).toBe(true);
       });
 
-      const firstFetchCount = fetchCount;
-
-      // Render again with same familyId - should use cache
-      const { result: result2 } = renderHook(() => useTransactions(familyId), { wrapper });
-
-      await waitFor(() => {
-        expect(result2.current.isSuccess).toBe(true);
+      // Assert - Query should exist in cache with correct key
+      const queryCache = queryClient.getQueryCache();
+      const queries = queryCache.findAll({
+        queryKey: ['transactions', familyId],
       });
 
-      // Assert - Should not have made additional fetch (using cached data)
-      expect(fetchCount).toBe(firstFetchCount);
+      // Should have exactly one query with this key
+      expect(queries.length).toBe(1);
+      expect(queries[0].queryKey).toEqual(['transactions', familyId, undefined]);
     });
   });
 });

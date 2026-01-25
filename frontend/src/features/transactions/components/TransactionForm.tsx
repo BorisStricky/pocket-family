@@ -81,7 +81,7 @@ export function TransactionForm({
     control,
     register,
     handleSubmit,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<TransactionCreate>({
     defaultValues: initialData
       ? {
@@ -264,16 +264,16 @@ export function TransactionForm({
 
         {/* Form Action Buttons */}
         <Stack direction="row" spacing={2} justifyContent="flex-end">
-          <Button onClick={onCancel} disabled={isLoading} variant="outlined">
+          <Button onClick={onCancel} disabled={isLoading || isSubmitting} variant="outlined">
             Cancel
           </Button>
           <Button
             type="submit"
-            disabled={isLoading}
+            disabled={isLoading || isSubmitting}
             variant="contained"
             color="primary"
           >
-            {isLoading ? "Saving..." : isEditMode ? "Update" : "Save"}
+            {isLoading || isSubmitting ? "Saving..." : isEditMode ? "Update" : "Save"}
           </Button>
         </Stack>
       </Stack>
