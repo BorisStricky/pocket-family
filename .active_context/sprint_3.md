@@ -9,8 +9,11 @@ Users can manage financial accounts (bank, credit card, cash). Reuses AG Grid pa
 - [ ] Users can edit account details
 - [ ] Users can view account detail page with filtered transactions
 - [ ] Users can view all of their accounts inside the family
-- [ ] Users can view all of their accounts accross familes 
+- [ ] Users can view all of their accounts accross familes
 - [ ] Account select dropdowns work in transaction forms
+- [ ] Users can share accounts with families from account detail page
+- [ ] Users can remove account shares from account detail page
+- [ ] Users can view list of families an account is shared with
 
 ---
 
@@ -26,6 +29,10 @@ Users can manage financial accounts (bank, credit card, cash). Reuses AG Grid pa
 | [ ] | useUpdateAccount | `src/features/accounts/hooks/useUpdateAccount.ts` | Update account mutation | • Call `PATCH /accounts/{id}`<br>• Invalidate account queries |
 | [ ] | useDeleteAccount | `src/features/accounts/hooks/useDeleteAccount.ts` | Delete account mutation | • Call `DELETE /accounts/{id}`<br>• Invalidate account list |
 | [ ] | useAllAccounts | `src/features/accounts/hooks/useAllAccounts.ts` | Fetch all user's accounts (global view) | • Query key: `['accounts', 'all']`<br>• Call `GET /accounts` without tenant_id |
+| [ ] | useAccountShares | `src/features/accounts/hooks/useAccountShares.ts` | Fetch shares for an account | • Query key: `['accountShares', accountId]`<br>• Call `GET /accounts/{accountId}/shares`<br>• Only account owner can view |
+| [ ] | useCreateAccountShare | `src/features/accounts/hooks/useCreateAccountShare.ts` | Share account with a family | • Call `POST /accounts/{accountId}/shares`<br>• Invalidate `['accountShares', accountId]` |
+| [ ] | useUpdateAccountShare | `src/features/accounts/hooks/useUpdateAccountShare.ts` | Update share visibility | • Call `PATCH /accounts/{accountId}/shares/{tenantId}`<br>• Invalidate account share queries |
+| [ ] | useDeleteAccountShare | `src/features/accounts/hooks/useDeleteAccountShare.ts` | Remove account share | • Call `DELETE /accounts/{accountId}/shares/{tenantId}`<br>• Invalidate `['accountShares', accountId]` |
 
 ### API Functions
 
@@ -36,17 +43,30 @@ Users can manage financial accounts (bank, credit card, cash). Reuses AG Grid pa
 | [ ] | createAccount | `src/features/accounts/api/accountsApi.ts` | POST | `/accounts` | `AccountCreate` | `AccountRead` | operationId: `create_account_accounts_post` |
 | [ ] | updateAccount | `src/features/accounts/api/accountsApi.ts` | PATCH | `/accounts/{account_id}` | `AccountUpdate` | `AccountRead` | operationId: `update_account_accounts__account_id__patch` |
 | [ ] | deleteAccount | `src/features/accounts/api/accountsApi.ts` | DELETE | `/accounts/{account_id}` | - | `204 No Content` | operationId: `delete_account_accounts__account_id__delete` |
+| [ ] | getAccountShares | `src/features/accounts/api/accountSharesApi.ts` | GET | `/accounts/{account_id}/shares` | - | `AccountShareRead[]` | operationId: `get_account_shares_accounts__account_id__shares_get` |
+| [ ] | createAccountShare | `src/features/accounts/api/accountSharesApi.ts` | POST | `/accounts/{account_id}/shares` | `AccountShareCreate` | `AccountShareRead` | operationId: `create_account_share_accounts__account_id__shares_post` |
+| [ ] | updateAccountShare | `src/features/accounts/api/accountSharesApi.ts` | PATCH | `/accounts/{account_id}/shares/{tenant_id}` | `AccountShareUpdate` | `AccountShareRead` | operationId: `update_account_share_accounts__account_id__shares__tenant_id__patch` |
+| [ ] | deleteAccountShare | `src/features/accounts/api/accountSharesApi.ts` | DELETE | `/accounts/{account_id}/shares/{tenant_id}` | - | `204 No Content` | operationId: `delete_account_share_accounts__account_id__shares__tenant_id__delete` |
 
 **Type Reference (from OpenAPI):**
 ```typescript
+interface AccountShareWith {
+  tenant_id: string; // uuid - the tenant/family to share with
+  visibility?: Visibility; // "full" | "masked" | "hidden" - default: "full"
+}
+
 interface AccountCreate {
   name: string;
   type: AccountType; // "cash" | "debit" | "credit"
   currency?: Currency; // Default: BRL
   balance?: number | string; // Decimal, default: 0
+  share_with?: AccountShareWith; // Optional: if provided, atomically creates AccountShare
 }
 
-//IMPORTANT NOTE: The step 0 will add AccountCreateWithShare to the schema. The AccountCreateWithShare should be used when creating the accounts from within a family scope
+// NOTE: When share_with is provided in AccountCreate, the POST /accounts endpoint
+// atomically creates both the Account and AccountShare in a single transaction.
+// If share_with.tenant_id validation fails or AccountShare creation fails, the entire
+// operation is rolled back
 
 interface AccountRead {
   id: string;           // uuid
@@ -72,6 +92,30 @@ enum AccountType {
     DEBIT = "debit"
     CREDIT = "credit"
 }
+
+// Account Sharing Types
+enum ShareVisibility {
+    HIDDEN = "hidden"
+    VISIBLE = "visible"
+}
+
+interface AccountShareCreate {
+  tenant_id: string;           // uuid - family to share with
+  visibility?: ShareVisibility; // default: "hidden"
+}
+
+interface AccountShareRead {
+  id: string;                  // uuid
+  account_id: string;          // uuid
+  tenant_id: string;           // uuid - family the account is shared with
+  visibility: ShareVisibility;
+  granted_by: string;          // uuid - user who granted the share
+  granted_at: string;          // datetime
+}
+
+interface AccountShareUpdate {
+  visibility?: ShareVisibility | null;
+}
 ```
 
 ### Domain Components (AG Grid)
@@ -86,6 +130,9 @@ enum AccountType {
 |------|-----------|-----------|-------|---------|-------|
 | [ ] | AccountForm | `src/features/accounts/components/AccountForm.tsx` | `mode: 'create'\|'edit', initialData?, onSubmit, onCancel` | Add/Edit modal | • Fields: name, type, currency, initial_balance<br>• Validation |
 | [ ] | AccountSummary | `src/features/accounts/components/AccountSummary.tsx` | `account` | Account detail page | • Show account info<br>• Balance, type, currency<br>• Edit button |
+| [ ] | AccountShareList | `src/features/accounts/components/AccountShareList.tsx` | `accountId, isOwner` | Account detail page | • List families account is shared with<br>• Show visibility status (hidden/visible)<br>• Delete share button (owner only)<br>• Edit visibility button (owner only) |
+| [ ] | ShareAccountDialog | `src/features/accounts/components/ShareAccountDialog.tsx` | `accountId, open, onClose` | Account detail page | • Modal to share account with a family<br>• Family dropdown (user's other families)<br>• Visibility select (hidden/visible)<br>• Uses `useCreateAccountShare` |
+| [ ] | EditShareDialog | `src/features/accounts/components/EditShareDialog.tsx` | `accountId, share, open, onClose` | AccountShareList | • Modal to edit share visibility<br>• Uses `useUpdateAccountShare` |
 
 ### Pages
 
@@ -93,9 +140,10 @@ enum AccountType {
 |------|------|-----------|-------|-----------|--------------|-------|
 | [ ] | AccountsPage | `src/features/accounts/pages/AccountsPage.tsx` | `/app/:familyId/accounts` | Yes | AgAccountsGrid, AccountCard | Main accounts list |
 | [ ] | AllAccountsPage | `src/features/accounts/pages/AllAccountsPage.tsx` | `/app/accounts` | Yes | AgAccountsGrid | Shows all user's accounts across families (global view) |
-| [ ] | FamilyAccountDetailPage | `src/features/accounts/pages/FamilyAccountDetailPage.tsx` | `/app/:familyId/accounts/:accountId` | Yes | AccountSummary, AgTransactionsGrid | Account detail + filtered transactions. Transactions are filtered for both the family and account when inside the family. |
-| [ ] | GlobalAccountDetailPage | `src/features/accounts/pages/GlobalAccountDetailPage.tsx` | `/app/accounts/:accountId` | Yes | AccountSummary, AgTransactionsGrid | Account detail + filtered transactions. Transactions are filtered for account only. Accessible only from the global accounts page. Same page as the Family scoped poage, only filter is different|
-| [ ] | AddAccountPage | `src/features/accounts/pages/AddAccountPage.tsx` | `/app/:familyId/accounts/new` | Yes | AccountForm | Modal/page for adding account |
+| [ ] | FamilyAccountDetailPage | `src/features/accounts/pages/FamilyAccountDetailPage.tsx` | `/app/:familyId/accounts/:accountId` | Yes | AccountSummary, AgTransactionsGrid, AccountShareList, ShareAccountDialog | Account detail + filtered transactions + sharing management. Transactions are filtered for both the family and account when inside the family. Sharing UI only visible to account owner. |
+| [ ] | GlobalAccountDetailPage | `src/features/accounts/pages/GlobalAccountDetailPage.tsx` | `/app/accounts/:accountId` | Yes | AccountSummary, AgTransactionsGrid, AccountShareList, ShareAccountDialog | Account detail + filtered transactions + sharing management. Transactions are filtered for account only. Accessible only from the global accounts page. Sharing UI only visible to account owner. |
+| [ ] | AddAccountPage | `src/features/accounts/pages/AddAccountPage.tsx` | `/app/:familyId/accounts/new` | Yes | AccountForm | Modal/page for adding account within the family |
+| [ ] | GlobalAddAccountPage | `src/features/accounts/pages/AddAccountPage.tsx` | `/app/accounts/new` | Yes | AccountForm | Same modal page for adding accountbut without the family context passed. Add the component to a new route only |
 
 ### Testing
 
@@ -104,6 +152,9 @@ enum AccountType {
 | [ ] | useAccounts tests | `src/features/accounts/__tests__/useAccounts.test.ts` | Test hook logic | Mock API |
 | [ ] | AccountForm tests | `src/features/accounts/__tests__/AccountForm.test.tsx` | Test form validation | Required fields |
 | [ ] | AgAccountsGrid tests | `src/components/domain/ag/__tests__/AgAccountsGrid.test.tsx` | Test grid rendering | Mock data |
+| [ ] | useAccountShares tests | `src/features/accounts/__tests__/useAccountShares.test.ts` | Test share hooks | Mock API responses |
+| [ ] | AccountShareList tests | `src/features/accounts/__tests__/AccountShareList.test.tsx` | Test share list rendering | Owner vs non-owner views |
+| [ ] | ShareAccountDialog tests | `src/features/accounts/__tests__/ShareAccountDialog.test.tsx` | Test share creation flow | Form validation |
 
 ---
 
@@ -113,18 +164,22 @@ enum AccountType {
 - [ ] Add `tenant_id: Optional[UUID]` query parameter to `GET /accounts` endpoint
   - When provided: validate user membership, return only accounts shared with that tenant
   - When omitted: keep current behavior (all user's accounts + all shared)
-- [ ] Create `AccountCreateWithShare` schema in `schemas.py`
-  - Fields: name, type, currency, balance, tenant_id, visibility
-- [ ] Create `POST /accounts/with-share` endpoint in `accounts.py`
-  - Atomically creates Account + AccountShare in single transaction
-  - Rollback if either operation fails
-  - Validates user is active member of specified tenant
+- [ ] Add `AccountShareWith` schema in `schemas.py`
+  - Fields: tenant_id (required), visibility (optional, default: "full")
+- [ ] Update `AccountCreate` schema in `schemas.py`
+  - Add optional `share_with: Optional[AccountShareWith]` field
+- [ ] Enhance existing `POST /accounts` endpoint in `accounts.py`
+  - If `share_with` is provided:
+    - Validate user is active member of specified tenant
+    - Atomically create Account + AccountShare in single transaction
+    - Rollback if either operation fails
+  - If `share_with` is omitted: keep current behavior (create account only)
 - [ ] Expand `create_transaction` in `routers/transactions.py` to update account balance
   - After creating transaction: adjust `account.balance` based on transaction_type
   - Income: `account.balance += amount`
   - Expense: `account.balance -= amount`
   - Consider adding balance updates for update/delete operations as well
-- [ ] Add backend tests for new endpoint and parameter behavior
+- [ ] Add backend tests for enhanced endpoint behavior (with and without share_with)
 
 ### Step 1: Accounts API & Hooks
 - [ ] Implement `accountsApi.ts` (CRUD functions)
@@ -178,6 +233,34 @@ enum AccountType {
   - **Route ordering:** `/app/accounts` (exact) must be defined BEFORE `/app/accounts/:accountId` (parameterized) to avoid conflicts
 - [ ] Implement `useAllAccounts` hook (calls `GET /accounts` without `tenant_id` param)
 
+### Step 10: Account Sharing Feature
+- [ ] Implement `accountSharesApi.ts` (CRUD functions for shares)
+- [ ] Create React Query hooks: `useAccountShares`, `useCreateAccountShare`, `useUpdateAccountShare`, `useDeleteAccountShare`
+- [ ] Create `AccountShareList` component
+  - Display list of families the account is shared with
+  - Show visibility status chip (hidden/visible)
+  - Edit visibility button (opens EditShareDialog)
+  - Delete share button with confirmation
+  - Only render if user is account owner
+- [ ] Create `ShareAccountDialog` component
+  - Family dropdown (fetch user's families via `useFamilies` hook, exclude current family if any, exclude families already shared with)
+  - Visibility select (hidden/visible)
+  - Submit calls `useCreateAccountShare`
+- [ ] Create `EditShareDialog` component
+  - Visibility select only
+  - Submit calls `useUpdateAccountShare`
+- [ ] Integrate into Account Detail Pages
+  - Add "Share Account" button (owner only)
+  - Add `AccountShareList` below AccountSummary (owner only)
+  - Determine ownership by comparing `account.user_id` with current user id from auth context
+
+### Step 11: Account Sharing Testing
+- [ ] Test `useAccountShares` hook (mock API responses)
+- [ ] Test `AccountShareList` component (owner vs non-owner views)
+- [ ] Test `ShareAccountDialog` component (form validation, family filtering)
+- [ ] Test `EditShareDialog` component (visibility update)
+- [ ] Test full sharing flow (share → view → edit visibility → remove)
+
 ---
 
 ## API Endpoints Reference (Sprint 3)
@@ -186,10 +269,13 @@ enum AccountType {
 |----------|--------|-------------|---------|----------|-------|
 | `/accounts` | GET | `list_accounts_accounts_get` | - | `AccountRead[]` | List accounts for family |
 | `/accounts/{account_id}` | GET | `get_account_accounts__account_id__get` | - | `AccountRead` | Get single account |
-| `/accounts` | POST | `create_account_accounts_post` | `AccountCreate` | `AccountRead` | Create new account |
+| `/accounts` | POST | `create_account_accounts_post` | `AccountCreate` | `AccountRead` | Create account (optionally with share_with for atomic sharing) |
 | `/accounts/{account_id}` | PATCH | `update_account_accounts__account_id__patch` | `AccountUpdate` | `AccountRead` | Update account |
 | `/accounts/{account_id}` | DELETE | `delete_account_accounts__account_id__delete` | - | `204 No Content` | Delete account |
-| `/accounts/with-share` | POST | `create_account_with_share_accounts_with_share_post` | `AccountCreateWithShare` | `AccountRead` | Atomic create + share (Step 0) |
+| `/accounts/{account_id}/shares` | GET | `get_account_shares_accounts__account_id__shares_get` | - | `AccountShareRead[]` | List shares (owner only) |
+| `/accounts/{account_id}/shares` | POST | `create_account_share_accounts__account_id__shares_post` | `AccountShareCreate` | `AccountShareRead` | Share account with family |
+| `/accounts/{account_id}/shares/{tenant_id}` | PATCH | `update_account_share_accounts__account_id__shares__tenant_id__patch` | `AccountShareUpdate` | `AccountShareRead` | Update share visibility |
+| `/accounts/{account_id}/shares/{tenant_id}` | DELETE | `delete_account_share_accounts__account_id__shares__tenant_id__delete` | - | `204 No Content` | Remove share |
 
 ---
 
@@ -201,4 +287,6 @@ enum AccountType {
 - **Account select:** Now available for transaction form from Sprint 2
 - **Family-scoped accounts:** AccountsPage at `/app/:familyId/accounts` ONLY shows accounts shared with that family (passes `tenant_id` query param to `GET /accounts`)
 - **Global accounts view:** "See All Accounts" from user menu shows all user's accounts (no `tenant_id` filter)
-- **Create from family:** When creating account from within a family context, use `POST /accounts/with-share` to atomically create account + share with rollback on error
+- **Create from family:** When creating account from within a family context, use `POST /accounts` with `share_with: { tenant_id, visibility }` to atomically create account + share with rollback on error
+- **Account sharing:** Only account owner can view/manage shares. Visibility options: "hidden" (balance not visible to family members) or "visible" (balance visible). Shares link an account to a tenant/family.
+- **Share management UI:** Account detail pages show sharing section only to account owner (compare `account.user_id` with authenticated user's id)
