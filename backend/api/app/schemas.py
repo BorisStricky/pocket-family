@@ -178,11 +178,13 @@ class AccountCreate(SQLModel):
         type: Account type.
         currency: Optional currency (defaults to BRL).
         balance: Optional starting balance.
+        share_with: Optional tenant to share account with atomically during creation.
     """
     name: str
     type: AccountType
     currency: Optional[Currency] = Currency.BRL
     balance: Optional[Decimal] = Decimal("0.00")
+    share_with: Optional[AccountShareWith] = None
 
 
 class AccountRead(SQLModel):
@@ -363,6 +365,20 @@ class TransactionUpdate(SQLModel):
 # -------------------------
 # AccountShare
 # -------------------------
+class AccountShareWith(SQLModel):
+    """Input schema for sharing an account with a tenant during account creation.
+
+    Used in AccountCreate.share_with to atomically create an account and share
+    it with another tenant in a single operation.
+
+    Args:
+        tenant_id: Tenant to share the account with.
+        visibility: Visibility setting for the shared balance.
+    """
+    tenant_id: UUID
+    visibility: Optional[ShareVisibility] = ShareVisibility.HIDDEN
+
+
 class AccountShareCreate(SQLModel):
     """Input schema to create an account share granting access to a tenant.
 

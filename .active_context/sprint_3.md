@@ -163,25 +163,25 @@ IMPORTANT ORCHESTRATION NOTE: Ask for user to verify and confirm after each mile
 
 ### Milestone 0 - Backend
 #### Step 0: Backend Enhancements
-- [ ] Add `tenant_id: Optional[UUID]` query parameter to `GET /accounts` endpoint
+- [x] Add `tenant_id: Optional[UUID]` query parameter to `GET /accounts` endpoint
   - When provided: validate user membership, return only accounts shared with that tenant
   - When omitted: keep current behavior (all user's accounts + all shared)
-- [ ] Add `AccountShareWith` schema in `schemas.py`
+- [x] Add `AccountShareWith` schema in `schemas.py`
   - Fields: tenant_id (required), visibility (optional, default: "full")
-- [ ] Update `AccountCreate` schema in `schemas.py`
+- [x] Update `AccountCreate` schema in `schemas.py`
   - Add optional `share_with: Optional[AccountShareWith]` field
-- [ ] Enhance existing `POST /accounts` endpoint in `accounts.py`
+- [x] Enhance existing `POST /accounts` endpoint in `accounts.py`
   - If `share_with` is provided:
     - Validate user is active member of specified tenant
     - Atomically create Account + AccountShare in single transaction
     - Rollback if either operation fails
   - If `share_with` is omitted: keep current behavior (create account only)
-- [ ] Expand `create_transaction` in `routers/transactions.py` to update account balance
+- [x] Expand `create_transaction` in `routers/transactions.py` to update account balance
   - After creating transaction: adjust `account.balance` based on transaction_type
   - Income: `account.balance += amount`
   - Expense: `account.balance -= amount`
   - Consider adding balance updates for update/delete operations as well
-- [ ] Add backend tests for enhanced endpoint behavior (with and without share_with)
+- [x] Add backend tests for enhanced endpoint behavior (with and without share_with)
 
 ### Milestone 1 - Accounts Page
 #### Step 1: Accounts API & Hooks
