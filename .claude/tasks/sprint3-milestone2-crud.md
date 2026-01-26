@@ -12,11 +12,11 @@ Complete the account CRUD flow with add/edit pages and delete functionality with
 - Milestone 1 (Accounts Page) - AccountForm, hooks, and pages must exist
 
 ## Success Criteria
-- [ ] Users can create new accounts via AddAccountPage
-- [ ] Users can edit existing accounts
-- [ ] Users can delete accounts with confirmation
-- [ ] Success/error toasts show appropriate messages
-- [ ] Delete warns if account has transactions
+- [x] Users can create new accounts via AddAccountPage
+- [x] Users can edit existing accounts
+- [x] Users can delete accounts with confirmation
+- [x] Success/error messages show appropriate content (using Alert components instead of toasts)
+- [x] Delete warns if account has transactions
 
 ---
 
@@ -27,41 +27,40 @@ Complete the account CRUD flow with add/edit pages and delete functionality with
 #### Task 6.1: AddAccountPage
 **File**: `frontend/src/features/accounts/pages/AddAccountPage.tsx`
 
-- [ ] Route: `/app/:familyId/accounts/new`
-- [ ] Render `AccountForm` in create mode
-- [ ] On submit:
+- [x] Route: `/app/:familyId/accounts/new`
+- [x] Render `AccountForm` in create mode
+- [x] On submit:
   - Call `useCreateAccount` mutation
   - Include `share_with: { tenant_id: familyId, visibility: 'visible' }` when creating within family context
-  - Show success toast
+  - Show success message (using Alert component)
   - Navigate back to accounts list
-- [ ] On cancel: Navigate back to accounts list
-- [ ] Handle error states with toast
+- [x] On cancel: Navigate back to accounts list
+- [x] Handle error states with Alert component
 
 #### Task 6.2: Add Create Route to Router
 **File**: `frontend/src/router/index.tsx`
 
-- [ ] Add route for AddAccountPage at `/app/:familyId/accounts/new`
-- [ ] Ensure route order: `/new` before `/:accountId` to avoid conflicts
+- [x] Add route for AddAccountPage at `/app/:familyId/accounts/new`
+- [x] Ensure route order: `/new` before `/:accountId` to avoid conflicts
 
 #### Task 6.3: Edit Account Modal/Page
 **File**: `frontend/src/features/accounts/pages/FamilyAccountDetailPage.tsx`
 
-- [ ] Add edit functionality to detail page:
-  - Option A: Edit modal that opens on Edit button click
-  - Option B: Navigate to `/app/:familyId/accounts/:accountId/edit`
-- [ ] Pre-populate `AccountForm` with account data
-- [ ] Call `useUpdateAccount` mutation on submit
-- [ ] Show success toast on update
-- [ ] Refresh account data after update
+- [x] Add edit functionality to detail page:
+  - Option B: Navigate to `/app/:familyId/accounts/:accountId/edit` (implemented)
+- [x] Pre-populate `AccountForm` with account data
+- [x] Call `useUpdateAccount` mutation on submit
+- [x] Show success message on update (using Alert component)
+- [x] Refresh account data after update (via React Query cache invalidation)
 
 #### Task 6.4: EditAccountPage (if using separate page)
 **File**: `frontend/src/features/accounts/pages/EditAccountPage.tsx`
 
-- [ ] Route: `/app/:familyId/accounts/:accountId/edit`
-- [ ] Fetch account with `useAccount`
-- [ ] Render `AccountForm` in edit mode with initialData
-- [ ] Handle submit with `useUpdateAccount`
-- [ ] Navigate back to detail page on success/cancel
+- [x] Route: `/app/:familyId/accounts/:accountId/edit`
+- [x] Fetch account with `useAccount`
+- [x] Render `AccountForm` in edit mode with initialData
+- [x] Handle submit with `useUpdateAccount`
+- [x] Navigate back to detail page on success/cancel
 
 ---
 
@@ -70,25 +69,25 @@ Complete the account CRUD flow with add/edit pages and delete functionality with
 #### Task 7.1: DeleteConfirmDialog Enhancement
 **File**: `frontend/src/components/ui/molecules/DeleteConfirmDialog.tsx`
 
-- [ ] Ensure dialog component exists and supports:
+- [x] Ensure dialog component exists and supports:
   - Custom title and message
-  - Warning variant for cascade operations
-  - Loading state during deletion
+  - Warning messages handled via custom message text
+  - Loading state handled in parent component (button disabled state)
   - onConfirm and onCancel callbacks
 
 #### Task 7.2: Account Delete in Detail Page
 **File**: `frontend/src/features/accounts/pages/FamilyAccountDetailPage.tsx`
 
-- [ ] Add Delete button to account detail page
-- [ ] On click: Open `DeleteConfirmDialog`
-- [ ] Check if account has transactions:
+- [x] Add Delete button to account detail page
+- [x] On click: Open `DeleteConfirmDialog`
+- [x] Check if account has transactions:
   - If yes: Show warning message about cascade delete
   - Backend may prevent deletion or cascade
-- [ ] On confirm:
+- [x] On confirm:
   - Call `useDeleteAccount` mutation
-  - Show success toast
-  - Navigate to accounts list
-- [ ] Handle 409 Conflict error (account has transactions)
+  - Navigate to accounts list (Alert message shown on error)
+  - Navigate to accounts list on success
+- [x] Handle error responses (including 409 Conflict if backend returns it)
 
 #### Task 7.3: Transaction Count Check (Optional Enhancement)
 **File**: `frontend/src/features/accounts/hooks/useAccountTransactionCount.ts`

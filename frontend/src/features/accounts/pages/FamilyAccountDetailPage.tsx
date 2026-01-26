@@ -1,7 +1,7 @@
 // src/features/accounts/pages/FamilyAccountDetailPage.tsx
 // Account detail page showing account info and filtered transactions within family context
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import {
   Box,
@@ -15,7 +15,9 @@ import {
 import { ArrowBack as ArrowBackIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { AccountSummary } from '../components/AccountSummary';
 import { AgTransactionsGrid } from '@/components/domain/ag/AgTransactionsGrid';
+import { DeleteConfirmDialog } from '@/components/ui/molecules/DeleteConfirmDialog';
 import { useAccount } from '../hooks/useAccount';
+import { useDeleteAccount } from '../hooks/useDeleteAccount';
 import { useTransactions } from '@/features/transactions/hooks/useTransactions';
 
 /**
@@ -50,6 +52,12 @@ export function FamilyAccountDetailPage() {
   }>();
   const navigate = useNavigate();
 
+  // State for delete confirmation dialog
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+
+  // State for delete error messages
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   // Fetch account details
   const {
     data: account,
@@ -67,20 +75,53 @@ export function FamilyAccountDetailPage() {
     account_id: accountId,
   });
 
+  // Mutation hook for deleting account with family context for cache invalidation
+  const { mutate: deleteAccountMutation, isPending: isDeleting } = useDeleteAccount(familyId);
+
   // Navigate back to accounts list
   const handleBack = () => {
     navigate(`/app/${familyId}/accounts`);
   };
 
-  // Navigate to edit account page (to be implemented in Milestone 2)
+  // Navigate to edit account page
   const handleEdit = () => {
     navigate(`/app/${familyId}/accounts/${accountId}/edit`);
   };
 
-  // Handle account deletion (to be implemented in Milestone 2)
+  // Open delete confirmation dialog
+  // Check transaction count to show appropriate warning
   const handleDelete = () => {
-    // TODO: Implement delete confirmation dialog and mutation
-    console.log('Delete account:', accountId);
+    // Clear any previous errors
+    setDeleteError(null);
+    // Open confirmation dialog
+    setDeleteDialogOpen(true);
+  };
+
+  // Confirm deletion - call mutation to delete account
+  const handleConfirmDelete = () => {
+    deleteAccountMutation(accountId!, {
+      onSuccess: () => {
+        // Navigate back to accounts list after successful deletion
+        // Query cache is automatically invalidated by the hook
+        navigate(`/app/${familyId}/accounts`);
+      },
+      onError: (error) => {
+        // Close dialog and show error message
+        setDeleteDialogOpen(false);
+
+        // Backend returns 409 Conflict if account has transactions
+        // or 400 if account cannot be deleted for other reasons
+        const errorMessage = (error as Error).message || 'Failed to delete account';
+
+        // Show user-friendly error message
+        setDeleteError(errorMessage);
+      },
+    });
+  };
+
+  // Cancel deletion - close dialog
+  const handleCancelDelete = () => {
+    setDeleteDialogOpen(false);
   };
 
   // Handle transaction row click - navigate to transaction detail
@@ -140,6 +181,13 @@ export function FamilyAccountDetailPage() {
         Back to Accounts
       </Button>
 
+      {/* Delete Error Message */}
+      {deleteError && (
+        <Alert severity="error" sx={{ mb: 3 }} onClose={() => setDeleteError(null)}>
+          {deleteError}
+        </Alert>
+      )}
+
       {/* Account Summary Card */}
       <Box mb={4}>
         <AccountSummary
@@ -157,8 +205,9 @@ export function FamilyAccountDetailPage() {
             color="error"
             startIcon={<DeleteIcon />}
             onClick={handleDelete}
+            disabled={isDeleting}
           >
-            Delete Account
+            {isDeleting ? 'Deleting...' : 'Delete Account'}
           </Button>
         </Stack>
       )}
@@ -191,6 +240,20 @@ export function FamilyAccountDetailPage() {
           Showing transactions for this account in the current family
         </Typography>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        title="Delete Account"
+        message={
+          transactions.length > 0
+            ? `This account has ${transactions.length} transaction(s). Deleting this account may affect those transactions. Are you sure you want to continue? This action cannot be undone.`
+            : 'Are you sure you want to delete this account? This action cannot be undone.'
+        }
+        onConfirm={handleConfirmDelete}
+        onCancel={handleCancelDelete}
+        confirmButtonText={isDeleting ? 'Deleting...' : 'Delete'}
+      />
     </Box>
   );
 }
