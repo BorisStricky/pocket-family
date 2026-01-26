@@ -20,13 +20,11 @@ import {
   AddTransactionPage,
   TransactionDetailPage,
 } from '@/features/transactions/pages';
+import { AccountsPage, FamilyAccountDetailPage } from '@/features/accounts/pages';
 
 // Simple nested page placeholders (will be replaced with family-scoped versions)
 function Dashboard() {
   return <div className="text-slate-700">Dashboard</div>;
-}
-function Accounts() {
-  return <div className="text-slate-700">Accounts</div>;
 }
 function Budgets() {
   return <div className="text-slate-700">Budgets</div>;
@@ -94,7 +92,11 @@ export default function AppRouter() {
             <Route path=":transactionId" element={<TransactionDetailPage />} />
           </Route>
 
-          <Route path="accounts" element={<Accounts />} />
+          {/* Accounts routes */}
+          <Route path="accounts">
+            <Route index element={<AccountsPage />} />
+            <Route path=":accountId" element={<FamilyAccountDetailPage />} />
+          </Route>
           <Route path="budgets" element={<Budgets />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />
