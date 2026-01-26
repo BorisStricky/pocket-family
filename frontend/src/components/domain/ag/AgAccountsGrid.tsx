@@ -4,7 +4,7 @@
 
 import React, { useMemo } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef } from 'ag-grid-community';
+import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Box, Chip, Typography } from '@mui/material';
 import type { AccountRead, AccountType } from '@/types/account';
 
@@ -60,6 +60,26 @@ export function AgAccountsGrid({
     }
   };
 
+  // React component for rendering account type as a MUI Chip
+  // This properly integrates with AG Grid's React rendering system
+  const AccountTypeRenderer = (params: ICellRendererParams<AccountRead>) => {
+    if (!params.value) return <span>—</span>;
+
+    const type = params.value as AccountType;
+    const color = getAccountTypeColor(type);
+    // Capitalize first letter for display (cash -> Cash)
+    const label = type.charAt(0).toUpperCase() + type.slice(1);
+
+    return (
+      <Chip
+        label={label}
+        color={color}
+        size="small"
+        sx={{ fontWeight: 500 }}
+      />
+    );
+  };
+
   // Define column configurations with formatters and custom renderers
   // These columns match the AccountRead interface and provide proper display
   const columnDefinitions: ColDef<AccountRead>[] = useMemo(() => [
@@ -77,24 +97,8 @@ export function AgAccountsGrid({
       sortable: true,
       width: 120,
       // Render account type as a colored chip for better visual recognition
-      cellRenderer: (params: any) => {
-        if (!params.value) return '—';
-        const type = params.value as AccountType;
-        const color = getAccountTypeColor(type);
-        // Capitalize first letter for display (cash -> Cash)
-        const label = type.charAt(0).toUpperCase() + type.slice(1);
-
-        // Create chip element as HTML string (AG Grid doesn't support React components directly in cellRenderer)
-        return `<span style="
-          display: inline-block;
-          padding: 4px 12px;
-          border-radius: 16px;
-          font-size: 0.8125rem;
-          font-weight: 500;
-          background-color: ${color === 'success' ? '#4caf50' : color === 'primary' ? '#1976d2' : '#9c27b0'};
-          color: white;
-        ">${label}</span>`;
-      },
+      // Uses React component renderer for proper MUI Chip integration
+      cellRenderer: AccountTypeRenderer,
     },
     {
       field: 'user_name',
