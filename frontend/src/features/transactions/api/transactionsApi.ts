@@ -11,24 +11,34 @@ import type {
 
 /**
  * Fetch list of transactions with optional filters
- * GET /transactions?tenant_id={familyId}&...filters
+ * GET /transactions?scope={scope}&...filters
  *
- * Retrieves all transactions for the specified family/tenant
- * While the backend uses the JWT token's tenant_id claim from the Authorization header
- * for validation, we also send tenant_id as a query parameter for explicit filtering
+ * Retrieves transactions based on context:
+ * - With familyId: returns only transactions for that family/tenant (scope=tenant)
+ * - Without familyId: returns all user's transactions across all families (scope=global)
  *
- * @param familyId UUID of the family/tenant to fetch transactions for
+ * The backend uses the scope parameter to determine whether to filter by a single tenant
+ * or query across all tenants where the user has active membership
+ *
+ * @param familyId Optional UUID of the family/tenant to fetch transactions for
  * @param filters Optional filters to narrow down results (date range, account, category, etc.)
  * @returns Array of TransactionRead objects with joined account and category names
  */
 export async function fetchTransactions(
-  familyId: string,
+  familyId?: string,
   filters?: TransactionFilters
 ): Promise<TransactionRead[]> {
-  // Build query parameters starting with tenant_id
-  const queryParameters = new URLSearchParams({
-    tenant_id: familyId,
-  });
+  // Build query parameters with scope based on whether familyId is provided
+  const queryParameters = new URLSearchParams();
+
+  // Set scope parameter: "tenant" for family-scoped, "global" for all user's transactions
+  // The backend will filter accordingly using the user's active memberships
+  if (familyId) {
+    queryParameters.append('scope', 'tenant');
+    queryParameters.append('tenant_id', familyId);
+  } else {
+    queryParameters.append('scope', 'global');
+  }
 
   if (filters?.account_id) {
     queryParameters.append('account_id', filters.account_id);

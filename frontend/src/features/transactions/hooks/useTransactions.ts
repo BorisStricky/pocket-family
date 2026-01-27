@@ -8,11 +8,14 @@ import type { TransactionFilters } from '../types';
 /**
  * React Query hook for fetching list of transactions
  *
- * Query key structure: ['transactions', familyId, filters?]
+ * Query key structure: ['transactions', familyId, filters?] or ['transactions', 'all', filters?]
  * This structure ensures proper cache isolation per family and filter combination
  * Different filter combinations create separate cache entries for optimal UX
  *
- * @param familyId UUID of the family/tenant to fetch transactions for
+ * When familyId is provided: returns only transactions for that family
+ * When familyId is undefined: returns all user's transactions (global view)
+ *
+ * @param familyId Optional UUID of the family/tenant to fetch transactions for
  * @param filters Optional filters to narrow results (date range, account, category, etc.)
  * @returns TanStack Query result with transactions data, loading, and error states
  *
@@ -27,17 +30,21 @@ import type { TransactionFilters } from '../types';
  *   start_date: '2026-01-01',
  *   end_date: '2026-01-31'
  * });
+ *
+ * @example
+ * // Fetch all user's transactions (global view)
+ * const { data: allTransactions } = useTransactions(undefined, {
+ *   account_id: 'account-123'
+ * });
  */
-export function useTransactions(familyId: string, filters?: TransactionFilters) {
+export function useTransactions(familyId?: string, filters?: TransactionFilters) {
   return useQuery({
-    // Query key includes familyId and filters to ensure proper cache segregation
+    // Query key includes familyId (or 'all') and filters to ensure proper cache segregation
     // Each unique filter combination gets its own cache entry
-    queryKey: ['transactions', familyId, filters],
+    // Use 'all' for global view to differentiate from family-specific queries
+    queryKey: familyId ? ['transactions', familyId, filters] : ['transactions', 'all', filters],
 
-    // Query function calls API with familyId and optional filters
+    // Query function calls API with optional familyId and filters
     queryFn: () => fetchTransactions(familyId, filters),
-
-    // Only run query if familyId is provided (prevents unnecessary API calls)
-    enabled: !!familyId,
   });
 }

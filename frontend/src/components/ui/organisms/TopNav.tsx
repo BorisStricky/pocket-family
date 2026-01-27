@@ -1,7 +1,7 @@
 // src/components/ui/organisms/TopNav.tsx
 // Top navigation bar with app branding, family switcher, and user menu
 
-import React, { useState } from 'react';
+import React, { useState, useContext } from 'react';
 import {
   AppBar,
   Toolbar,
@@ -11,16 +11,22 @@ import {
   Menu,
   MenuItem,
   Avatar,
+  Chip,
 } from '@mui/material';
-import { AccountCircle } from '@mui/icons-material';
+import { AccountCircle, ArrowBack } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useLogout } from '@/features/auth/hooks/useLogout';
-import { useFamily } from '@/features/family/hooks/useFamily';
+import { FamilyContext } from '@/features/family/context/FamilyContext';
 import FamilySwitcherMini from '@/components/ui/molecules/FamilySwitcherMini';
 import type { User } from '@/types';
 
 interface TopNavProps {
   user?: User;
+  /**
+   * If true, shows "Global" badge and back button instead of family switcher
+   * Used for global account views at /app/accounts/*
+   */
+  globalMode?: boolean;
 }
 
 /**
@@ -29,17 +35,25 @@ interface TopNavProps {
  * Displays at the top of the AppShell
  * Contains:
  * - App logo/name
- * - Family switcher dropdown (placeholder for now, will be FamilySwitcherMini in Step 5)
+ * - Family switcher dropdown (family mode) OR "Global" badge + back button (global mode)
  * - User menu with avatar and logout option
  *
  * Props:
  * - user: Current authenticated user
+ * - globalMode: If true, shows global badge instead of family switcher
  */
-export default function TopNav({ user }: TopNavProps) {
+export default function TopNav({ user, globalMode = false }: TopNavProps) {
   const navigate = useNavigate();
   const logoutMutation = useLogout();
-  const { currentFamily, families, switchFamily, isLoading } = useFamily();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+
+  // Safely access family context - will be undefined in global mode
+  // Use optional context access to avoid errors when FamilyProvider is not available
+  const familyContext = useContext(FamilyContext);
+  const currentFamily = familyContext?.currentFamily;
+  const families = familyContext?.families;
+  const switchFamily = familyContext?.switchFamily;
+  const isLoading = familyContext?.isLoading ?? false;
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
@@ -70,6 +84,19 @@ export default function TopNav({ user }: TopNavProps) {
       role="banner"
     >
       <Toolbar>
+        {/* Back button (global mode only) */}
+        {globalMode && (
+          <IconButton
+            edge="start"
+            color="inherit"
+            aria-label="back to family picker"
+            onClick={() => navigate('/app/families')}
+            sx={{ mr: 2 }}
+          >
+            <ArrowBack />
+          </IconButton>
+        )}
+
         {/* App Logo/Name */}
         <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
           Personal Finance
@@ -78,14 +105,23 @@ export default function TopNav({ user }: TopNavProps) {
         {/* Spacer */}
         <Box sx={{ flexGrow: 1 }} />
 
-        {/* Family Switcher Dropdown */}
+        {/* Family Switcher (family mode) OR Global badge (global mode) */}
         <Box sx={{ mr: 2 }}>
-          <FamilySwitcherMini
-            currentFamily={currentFamily}
-            families={families}
-            onSwitch={switchFamily}
-            isLoading={isLoading}
-          />
+          {globalMode ? (
+            <Chip
+              label="Global"
+              color="primary"
+              variant="outlined"
+              sx={{ fontWeight: 'medium' }}
+            />
+          ) : (
+            <FamilySwitcherMini
+              currentFamily={currentFamily}
+              families={families}
+              onSwitch={switchFamily}
+              isLoading={isLoading}
+            />
+          )}
         </Box>
 
         {/* User Menu */}
@@ -118,6 +154,14 @@ export default function TopNav({ user }: TopNavProps) {
             <Typography variant="body2" color="text.secondary">
               {user?.email || 'User'}
             </Typography>
+          </MenuItem>
+          <MenuItem
+            onClick={() => {
+              handleMenuClose();
+              navigate('/app/accounts');
+            }}
+          >
+            See All Accounts
           </MenuItem>
           <MenuItem onClick={handleLogout} disabled={logoutMutation.isPending}>
             {logoutMutation.isPending ? 'Logging out...' : 'Logout'}

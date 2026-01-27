@@ -231,13 +231,20 @@ IMPORTANT ORCHESTRATION NOTE: Ask for user to verify and confirm after each mile
 - [ ] Update transaction form to use account select
   - **Note**: Replace placeholder comment in `src/features/transactions/components/TransactionForm.tsx` (lines 142-144) with dynamic account loading from `useAccounts` hook
 
-### Milestone 4 - Global
+### Milestone 4 - Global ✅ COMPLETE
 #### Step 9: User Menu Enhancement
-- [ ] Add "See All Accounts" menu item to TopNav user menu (after email, before Logout)
-- [ ] Create `AllAccountsPage` component at `src/features/accounts/pages/AllAccountsPage.tsx`
-- [ ] Add Global accounts view route `/app/accounts` in router (outside family context, protected)
-  - **Route ordering:** `/app/accounts` (exact) must be defined BEFORE `/app/accounts/:accountId` (parameterized) to avoid conflicts
-- [ ] Implement `useAllAccounts` hook (calls `GET /accounts` without `tenant_id` param)
+- [X] Add "See All Accounts" menu item to TopNav user menu (after email, before Logout)
+- [X] Create `AllAccountsPage` component at `src/features/accounts/pages/AllAccountsPage.tsx`
+- [X] Create `GlobalAccountDetailPage` component at `src/features/accounts/pages/GlobalAccountDetailPage.tsx`
+- [X] Create `GlobalAddAccountPage` component at `src/features/accounts/pages/GlobalAddAccountPage.tsx`
+- [X] Add Global accounts view routes in router (outside family context, protected)
+  - `/app/accounts` (exact) → AllAccountsPage
+  - `/app/accounts/new` → GlobalAddAccountPage
+  - `/app/accounts/:accountId` → GlobalAccountDetailPage
+  - **Route ordering:** All global routes defined BEFORE `/app/:familyId/*` to avoid conflicts
+- [X] Update `useAccounts` hook to support optional familyId (already implemented - uses `['accounts', 'all']` query key when no familyId)
+- [X] Update `useTransactions` hook to support optional familyId for global transaction views
+- [X] TypeScript build validated - no errors
 
 ### Milestone 5 - Sharing
 #### Step 10: Account Sharing Feature

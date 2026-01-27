@@ -20,7 +20,15 @@ import {
   AddTransactionPage,
   TransactionDetailPage,
 } from '@/features/transactions/pages';
-import { AccountsPage, AddAccountPage, EditAccountPage, FamilyAccountDetailPage } from '@/features/accounts/pages';
+import {
+  AccountsPage,
+  AddAccountPage,
+  EditAccountPage,
+  FamilyAccountDetailPage,
+  AllAccountsPage,
+  GlobalAccountDetailPage,
+  GlobalAddAccountPage,
+} from '@/features/accounts/pages';
 
 // Simple nested page placeholders (will be replaced with family-scoped versions)
 function Dashboard() {
@@ -67,6 +75,21 @@ export default function AppRouter() {
             </ProtectedRoute>
           }
         />
+
+        {/* Global accounts routes (MUST be before /app/:familyId/* to avoid conflicts) */}
+        <Route
+          path="/app/accounts/*"
+          element={
+            <ProtectedRoute>
+              <AppShell globalMode />
+            </ProtectedRoute>
+          }
+        >
+          {/* Global account nested routes */}
+          <Route index element={<AllAccountsPage />} />
+          <Route path="new" element={<GlobalAddAccountPage />} />
+          <Route path=":accountId" element={<GlobalAccountDetailPage />} />
+        </Route>
 
         {/* /app/:familyId/* - family-scoped routes with guard */}
         <Route
