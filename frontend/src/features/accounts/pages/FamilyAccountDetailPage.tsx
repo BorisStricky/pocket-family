@@ -105,16 +105,26 @@ export function FamilyAccountDetailPage() {
         // Query cache is automatically invalidated by the hook
         navigate(`/app/${familyId}/accounts`);
       },
-      onError: (error) => {
+      onError: (error: any) => {
         // Close dialog and show error message
         setDeleteDialogOpen(false);
 
-        // Backend returns 409 Conflict if account has transactions
-        // or 400 if account cannot be deleted for other reasons
-        const errorMessage = (error as Error).message || 'Failed to delete account';
-
-        // Show user-friendly error message
-        setDeleteError(errorMessage);
+        // Check for 409 Conflict error indicating account is shared with multiple families
+        if (error.status === 409) {
+          // Show specific message for multi-shared account conflict
+          // Guide user to delete from main accounts page instead
+          setDeleteError(
+            'This account is shared with multiple families. ' +
+            'Please delete it from the main Accounts page.'
+          );
+        } else {
+          // Backend may return other errors:
+          // - 404 if account not found
+          // - 403 if user doesn't have permission to delete
+          // - 400 for other validation errors
+          const errorMessage = error.message || 'Failed to delete account';
+          setDeleteError(errorMessage);
+        }
       },
     });
   };

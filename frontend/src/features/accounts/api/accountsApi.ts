@@ -108,22 +108,37 @@ export async function updateAccount(
 
 /**
  * Delete account
- * DELETE /accounts/{accountId}
+ * DELETE /accounts/{accountId}?from_family_context={true|false}
  *
  * Permanently deletes an account from the database
  * The backend validates that the user owns the account before allowing deletion
- * May fail if account has dependent transactions (backend enforces referential integrity)
+ *
+ * When fromFamilyContext is true and the account is shared with multiple families:
+ * - Backend returns 409 Conflict error
+ * - User must delete from main accounts page instead
+ *
+ * When fromFamilyContext is false or account has only one share:
+ * - Deletion proceeds normally
+ * - All AccountShare records cascade deleted
+ * - Linked Transaction records have account_id set to NULL (preserving history)
  *
  * @param accountId UUID of the account to delete
+ * @param fromFamilyContext Whether deletion is from family context (default: false)
  * @returns void (204 No Content on success)
  * @throws ApiError 404 if account not found or user doesn't own it
- * @throws ApiError 400 if account has transactions (cascade constraint)
+ * @throws ApiError 409 if account is shared with multiple families and fromFamilyContext is true
  * @throws ApiError 403 if user doesn't have permission to delete the account
  */
 export async function deleteAccount(
-  accountId: string
+  accountId: string,
+  fromFamilyContext = false
 ): Promise<void> {
-  return apiFetch(`/accounts/${accountId}`, {
+  // Build URL with optional from_family_context query parameter
+  const url = fromFamilyContext
+    ? `/accounts/${accountId}?from_family_context=true`
+    : `/accounts/${accountId}`;
+
+  return apiFetch(url, {
     method: 'DELETE',
   });
 }
