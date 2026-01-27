@@ -3,7 +3,7 @@
 
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Box, Button, Typography, Stack, Alert } from '@mui/material';
+import { Box, Button, Typography, Stack, Alert, Paper } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { AgAccountsGrid } from '@/components/domain/ag/AgAccountsGrid';
 import { useAccounts } from '../hooks/useAccounts';
@@ -80,19 +80,41 @@ export function AccountsPage() {
         </Button>
       </Stack>
 
-      {/* Accounts Grid */}
-      <AgAccountsGrid
-        accounts={accounts}
-        isLoading={isLoading}
-        onRowClick={handleAccountClick}
-        height={600}
-      />
-
-      {/* Helpful hint below grid when accounts exist */}
+      {/* Accounts Grid - only show when accounts exist */}
       {!isLoading && accounts.length > 0 && (
-        <Typography variant="body2" color="text.secondary" mt={2}>
-          Click on an account to view details and transactions
-        </Typography>
+        <>
+          <AgAccountsGrid
+            accounts={accounts}
+            isLoading={isLoading}
+            onRowClick={handleAccountClick}
+            height={600}
+          />
+
+          {/* Helpful hint below grid when accounts exist */}
+          <Typography variant="body2" color="text.secondary" mt={2}>
+            Click on an account to view details and transactions
+          </Typography>
+        </>
+      )}
+
+      {/* Empty State - show when no accounts exist and not loading */}
+      {!isLoading && accounts.length === 0 && (
+        <Paper sx={{ p: 4, textAlign: 'center' }}>
+          <Typography variant="h6" color="text.secondary" gutterBottom>
+            No accounts yet
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Add your first account to start tracking your finances.
+          </Typography>
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleAddAccount}
+          >
+            Add your first account
+          </Button>
+        </Paper>
       )}
     </Box>
   );

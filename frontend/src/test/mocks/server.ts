@@ -15,3 +15,4 @@ export const server = setupServer(...handlers);
 
 // Re-export utility functions for test store management
 export { resetTransactionStore } from './handlers/transactions';
+export { resetAccountStore } from './handlers/accounts';

@@ -92,6 +92,10 @@ export function AgTransactionsGrid({
       sortable: true,
       filter: true, // Enable AG Grid text filter - icon appears next to header
       width: 150,
+      valueFormatter: (params) => {
+        // Show friendly message when account has been deleted
+        return params.value || '[Deleted Account]';
+      },
     },
     {
       field: 'category_name',

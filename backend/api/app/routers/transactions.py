@@ -25,7 +25,7 @@ async def _fetch_transaction_with_names(db: AsyncSession, tenant_id: UUID, trans
             Account.name.label("account_name"),
             Category.name.label("category_name"),
         )
-        .join(Account, Account.id == Transaction.account_id)
+        .outerjoin(Account, Account.id == Transaction.account_id)
         .outerjoin(Category, Category.id == Transaction.category_id)
         .where(Transaction.tenant_id == tenant_id, Transaction.id == transaction_id)
     )
