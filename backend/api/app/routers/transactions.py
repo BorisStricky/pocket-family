@@ -25,7 +25,7 @@ async def _fetch_transaction_with_names(db: AsyncSession, tenant_id: UUID, trans
             Account.name.label("account_name"),
             Category.name.label("category_name"),
         )
-        .join(Account, Account.id == Transaction.account_id)
+        .outerjoin(Account, Account.id == Transaction.account_id)
         .outerjoin(Category, Category.id == Transaction.category_id)
         .where(Transaction.tenant_id == tenant_id, Transaction.id == transaction_id)
     )
@@ -159,10 +159,11 @@ async def list_transactions(
     category_id: Optional[UUID] = Query(None),
     account_id: Optional[UUID] = Query(None),
     search: Optional[str] = Query(None),
+    scope: str = Query("tenant", regex="^(tenant|global)$"),
     db: AsyncSession = Depends(get_db),
     active_context: ActiveContext = Depends(get_active_context)
 ):
-    """List transactions for a tenant with optional filtering.
+    """List transactions for a tenant or globally across all user's tenants with optional filtering.
 
     Args:
         start: Optional start date to filter transactions (inclusive).
@@ -170,11 +171,12 @@ async def list_transactions(
         category_id: Optional category id to filter by.
         account_id: Optional account id to filter by.
         search: Optional search term for case-insensitive full-text search across description field.
+        scope: "tenant" (default) to filter by active tenant, "global" to query all user's tenants.
         db: Async DB session.
-        user: Current authenticated user.
+        active_context: Current authenticated user and tenant context.
 
     Returns:
-        List of Transaction records matching the filters and tenant context.
+        List of Transaction records matching the filters and scope.
 
     Raises:
         HTTPException 403 when the user is not a member of the requested tenant.
@@ -191,8 +193,30 @@ async def list_transactions(
         )
         .outerjoin(Account, Account.id == Transaction.account_id)
         .outerjoin(Category, Category.id == Transaction.category_id)
-        .where(Transaction.tenant_id == tenant.id)
     )
+
+    # Apply tenant filtering based on scope
+    if scope == "global":
+        # Query transactions across all tenants where user is an active member
+        # First get all tenant_ids for this user
+        memberships_query = select(Membership.tenant_id).where(
+            Membership.user_id == user.id,
+            Membership.status == MembershipStatus.ACTIVE
+        )
+        memberships_result = await db.execute(memberships_query)
+        user_tenant_ids = [row[0] for row in memberships_result.all()]
+
+        # Filter transactions by user's tenant IDs
+        if user_tenant_ids:
+            query = query.where(Transaction.tenant_id.in_(user_tenant_ids))
+        else:
+            # User has no active memberships, return empty list
+            return []
+    else:
+        # Default: filter by active tenant only
+        query = query.where(Transaction.tenant_id == tenant.id)
+
+    # Apply optional filters
     if start:
         query = query.where(Transaction.transaction_date >= start)
     if end:

@@ -325,8 +325,8 @@ class TransactionRead(SQLModel):
     """
     id: UUID
     tenant_id: UUID
-    account_id: UUID
-    account_name: str
+    account_id: Optional[UUID]
+    account_name: Optional[str]
     category_id: Optional[UUID]
     category_name: Optional[str]
     amount: Decimal

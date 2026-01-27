@@ -8,7 +8,8 @@ from decimal import Decimal
 from enum import Enum
 
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, Enum as SAEnum, Numeric, UniqueConstraint
+from sqlalchemy import Column, Enum as SAEnum, Numeric, UniqueConstraint, ForeignKey
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
 # --------------------
 # Python enums
@@ -203,7 +204,10 @@ class Transaction(SQLModel, table=True):
     """
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     tenant_id: UUID = Field(foreign_key="tenant.id", nullable=False, index=True)
-    account_id: UUID = Field(foreign_key="account.id", nullable=False, index=True)
+    account_id: Optional[UUID] = Field(
+        default=None,
+        sa_column=Column(PGUUID(as_uuid=True), ForeignKey("account.id", ondelete="SET NULL"), nullable=True, index=True)
+    )
     category_id: Optional[UUID] = Field(default=None, foreign_key="category.id", index=True)
 
     transaction_date: date = Field(nullable=False)
@@ -238,7 +242,9 @@ class AccountShare(SQLModel, table=True):
     )
 
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    account_id: UUID = Field(foreign_key="account.id", nullable=False, index=True)
+    account_id: UUID = Field(
+        sa_column=Column(PGUUID(as_uuid=True), ForeignKey("account.id", ondelete="CASCADE"), nullable=False, index=True)
+    )
     tenant_id: UUID = Field(foreign_key="tenant.id", nullable=False, index=True)
     visibility: ShareVisibility = Field(
         sa_column=Column(SAEnum(ShareVisibility, name="share_visibility"), nullable=False),

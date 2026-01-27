@@ -12,12 +12,12 @@ Write tests for accounts feature, add polish like empty states, and integrate ac
 - Milestone 2 (CRUD Operations) - Full CRUD functionality must be complete
 
 ## Success Criteria
-- [ ] All account hooks have test coverage
-- [ ] AccountForm has validation tests
-- [ ] AgAccountsGrid has rendering tests
-- [ ] Empty state displays when no accounts
-- [ ] Transaction form uses dynamic account dropdown
-- [ ] All tests pass
+- [x] All account hooks have test coverage
+- [x] AccountForm has validation tests
+- [x] AgAccountsGrid has rendering tests
+- [x] Empty state displays when no accounts
+- [x] Transaction form uses dynamic account dropdown
+- [x] All tests pass
 
 ---
 
@@ -28,75 +28,75 @@ Write tests for accounts feature, add polish like empty states, and integrate ac
 #### Task 8.1: useAccounts Tests
 **File**: `frontend/src/features/accounts/__tests__/useAccounts.test.ts`
 
-- [ ] Test successful fetch returns accounts array
-- [ ] Test loading state during fetch
-- [ ] Test error handling for API failures
-- [ ] Test query key includes familyId
-- [ ] Test refetch on familyId change
-- [ ] Mock API responses with MSW
+- [x] Test successful fetch returns accounts array
+- [x] Test loading state during fetch
+- [x] Test error handling for API failures
+- [x] Test query key includes familyId
+- [x] Test refetch on familyId change
+- [x] Mock API responses with MSW
 
 #### Task 8.2: useCreateAccount Tests
 **File**: `frontend/src/features/accounts/__tests__/useCreateAccount.test.ts`
 
-- [ ] Test successful mutation calls API with correct data
-- [ ] Test cache invalidation after success
-- [ ] Test error handling for validation errors
-- [ ] Test share_with field is included when provided
+- [x] Test successful mutation calls API with correct data
+- [x] Test cache invalidation after success
+- [x] Test error handling for validation errors
+- [x] Test share_with field is included when provided
 
 #### Task 8.3: useUpdateAccount Tests
 **File**: `frontend/src/features/accounts/__tests__/useUpdateAccount.test.ts`
 
-- [ ] Test successful update calls PATCH endpoint
-- [ ] Test cache invalidation for both list and detail queries
-- [ ] Test error handling (404, 403)
+- [x] Test successful update calls PATCH endpoint
+- [x] Test cache invalidation for both list and detail queries
+- [x] Test error handling (404, 403)
 
 #### Task 8.4: useDeleteAccount Tests
 **File**: `frontend/src/features/accounts/__tests__/useDeleteAccount.test.ts`
 
-- [ ] Test successful deletion
-- [ ] Test cache invalidation after delete
-- [ ] Test error handling for 409 Conflict (has transactions)
+- [x] Test successful deletion
+- [x] Test cache invalidation after delete
+- [x] Test error handling for 409 Conflict (has transactions)
 
 #### Task 8.5: AccountForm Tests
 **File**: `frontend/src/features/accounts/__tests__/AccountForm.test.tsx`
 
-- [ ] Test form renders all fields
-- [ ] Test name field is required (show error when empty)
-- [ ] Test type field is required
-- [ ] Test balance validation (>= 0)
-- [ ] Test submit button disabled during loading
-- [ ] Test cancel button calls onCancel
-- [ ] Test edit mode pre-populates fields
-- [ ] Test submit calls onSubmit with correct data
+- [x] Test form renders all fields
+- [x] Test name field is required (show error when empty)
+- [x] Test type field is required
+- [x] Test balance validation (>= 0)
+- [x] Test submit button disabled during loading
+- [x] Test cancel button calls onCancel
+- [x] Test edit mode pre-populates fields
+- [x] Test submit calls onSubmit with correct data
 
 #### Task 8.6: AgAccountsGrid Tests
 **File**: `frontend/src/components/domain/ag/__tests__/AgAccountsGrid.test.tsx`
 
-- [ ] Test grid renders with mock data
-- [ ] Test all columns display correctly
-- [ ] Test currency formatting
-- [ ] Test account type badge rendering
-- [ ] Test row click calls onRowClick
-- [ ] Test loading overlay during fetch
-- [ ] Test empty state when no accounts
+- [x] Test grid renders with mock data
+- [x] Test all columns display correctly
+- [x] Test currency formatting
+- [x] Test account type badge rendering
+- [x] Test row click calls onRowClick
+- [x] Test loading overlay during fetch
+- [x] Test empty state when no accounts
 
 #### Task 8.7: Empty State for AccountsPage
 **File**: `frontend/src/features/accounts/pages/AccountsPage.tsx`
 
-- [ ] Add empty state component when accounts array is empty
-- [ ] Display friendly message: "No accounts yet"
-- [ ] Include "Add your first account" button
-- [ ] Use consistent empty state styling
+- [x] Add empty state component when accounts array is empty
+- [x] Display friendly message: "No accounts yet"
+- [x] Include "Add your first account" button
+- [x] Use consistent empty state styling
 
 #### Task 8.8: Transaction Form Account Select
 **File**: `frontend/src/features/transactions/components/TransactionForm.tsx`
 
-- [ ] Replace placeholder account select (lines ~142-144) with dynamic dropdown
-- [ ] Import and use `useAccounts` hook
-- [ ] Populate select with account options from hook
-- [ ] Format options: `{account.name} ({account.type})`
-- [ ] Handle loading state for account options
-- [ ] Validate account_id is required
+- [x] Replace placeholder account select (lines ~142-144) with dynamic dropdown
+- [x] Import and use `useAccounts` hook
+- [x] Populate select with account options from hook
+- [x] Format options: `{account.name} ({account.type})`
+- [x] Handle loading state for account options
+- [x] Validate account_id is required
 
 ---
 

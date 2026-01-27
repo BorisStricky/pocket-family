@@ -20,13 +20,19 @@ import {
   AddTransactionPage,
   TransactionDetailPage,
 } from '@/features/transactions/pages';
+import {
+  AccountsPage,
+  AddAccountPage,
+  EditAccountPage,
+  FamilyAccountDetailPage,
+  AllAccountsPage,
+  GlobalAccountDetailPage,
+  GlobalAddAccountPage,
+} from '@/features/accounts/pages';
 
 // Simple nested page placeholders (will be replaced with family-scoped versions)
 function Dashboard() {
   return <div className="text-slate-700">Dashboard</div>;
-}
-function Accounts() {
-  return <div className="text-slate-700">Accounts</div>;
 }
 function Budgets() {
   return <div className="text-slate-700">Budgets</div>;
@@ -70,6 +76,21 @@ export default function AppRouter() {
           }
         />
 
+        {/* Global accounts routes (MUST be before /app/:familyId/* to avoid conflicts) */}
+        <Route
+          path="/app/accounts/*"
+          element={
+            <ProtectedRoute>
+              <AppShell globalMode />
+            </ProtectedRoute>
+          }
+        >
+          {/* Global account nested routes */}
+          <Route index element={<AllAccountsPage />} />
+          <Route path="new" element={<GlobalAddAccountPage />} />
+          <Route path=":accountId" element={<GlobalAccountDetailPage />} />
+        </Route>
+
         {/* /app/:familyId/* - family-scoped routes with guard */}
         <Route
           path="/app/:familyId/*"
@@ -94,7 +115,13 @@ export default function AppRouter() {
             <Route path=":transactionId" element={<TransactionDetailPage />} />
           </Route>
 
-          <Route path="accounts" element={<Accounts />} />
+          {/* Accounts routes */}
+          <Route path="accounts">
+            <Route index element={<AccountsPage />} />
+            <Route path="new" element={<AddAccountPage />} />
+            <Route path=":accountId" element={<FamilyAccountDetailPage />} />
+            <Route path=":accountId/edit" element={<EditAccountPage />} />
+          </Route>
           <Route path="budgets" element={<Budgets />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<Settings />} />

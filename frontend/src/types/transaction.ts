@@ -5,8 +5,8 @@ export type TransactionSource = 'manual' | 'recurring';
 export interface Transaction {
   id: string;
   tenant_id: string;
-  account_id: string;
-  account_name: string;
+  account_id: string | null;
+  account_name: string | null;
   category_id: string | null;
   category_name: string | null;
   amount: string; // backend returns string for precision

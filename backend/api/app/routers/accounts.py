@@ -1,6 +1,7 @@
 # backend/api/app/routers/accounts.py
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import select
+from sqlalchemy import func
 from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -380,23 +381,52 @@ async def update_account(account_id: UUID, payload: AccountUpdate, db: AsyncSess
 
 
 @router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_account(account_id: UUID, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+async def delete_account(
+    account_id: UUID,
+    from_family_context: bool = False,
+    db: AsyncSession = Depends(get_db),
+    user=Depends(get_current_user)
+):
     """Delete an account. Only the account owner may delete their account.
+
+    When deleting from a family context (family detail page), the account can only
+    be deleted if it is shared with exactly one family. If shared with multiple
+    families, the user must delete from the main accounts page instead.
 
     Args:
         account_id: UUID of the account to delete.
+        from_family_context: Whether deletion is initiated from family page context.
         db: Async DB session.
         user: Current authenticated user.
 
     Raises:
         HTTPException 404 when account does not exist.
         HTTPException 403 when requester is not the owner.
+        HTTPException 409 when account is shared with multiple families and
+                        deletion is attempted from family context.
     """
+    # Verify account exists and user is owner
     account_record = await db.get(Account, account_id)
     if not account_record:
         raise HTTPException(status_code=404)
     if account_record.user_id != user.id:
         raise HTTPException(status_code=403, detail="only owner can delete account")
+
+    # Check share count if deleting from family context
+    if from_family_context:
+        share_count_query = select(func.count(AccountShare.id)).where(
+            AccountShare.account_id == account_id
+        )
+        result = await db.execute(share_count_query)
+        share_count = result.scalar_one()
+
+        if share_count > 1:
+            raise HTTPException(
+                status_code=409,
+                detail="This account is shared with multiple families and can only be deleted from the main accounts page"
+            )
+
+    # Proceed with deletion (CASCADE and SET NULL will handle related records)
     await db.delete(account_record)
     await db.commit()
     return

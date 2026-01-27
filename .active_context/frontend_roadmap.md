@@ -224,11 +224,13 @@ Users can manage financial accounts (bank, credit card, cash). Reuses AG Grid pa
 
 #### Success Criteria
 
-- [ ] Users can view list of accounts with balances
-- [ ] Users can create new account
-- [ ] Users can edit account details
-- [ ] Users can view account detail page with filtered transactions
-- [ ] Account select dropdowns work in transaction forms
+- [X] Users can view list of accounts with balances
+- [X] Users can create new account
+- [X] Users can edit account details
+- [X] Users can view account detail page with filtered transactions
+- [X] Account select dropdowns work in transaction forms
+- [X] Global accounts view accessible from user menu
+- [X] Users can see all accounts across all families
 
 Read the details in .active_context/sprint_3.md for detailed info
 

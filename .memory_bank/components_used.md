@@ -1,6 +1,6 @@
 # Frontend Components Inventory - Implementation Status
 
-**Last Updated**: Sprint 0 Complete (2025-12-09)
+**Last Updated**: Sprint 3 Milestone 4 Complete (2026-01-27)
 
 This document tracks which components have been implemented in the Personal Finance application, organized by Sprint and feature area.
 
@@ -90,6 +90,18 @@ Sprint 0 established the core authentication system and foundation components. F
 | **LoginPage** | `src/pages/login_page.tsx` | ✅ Sprint 0 | Login with useLogin hook |
 | **SignupPage** | `src/pages/signup_page.tsx` | ✅ Sprint 0 | Signup with useSignup hook |
 | **AppShell** | `src/pages/app_shell.tsx` | ✅ Sprint 0 | Authenticated app layout with header, logout |
+
+### Account Pages (Sprint 3)
+
+| Page | File Path | Status | Purpose |
+|------|-----------|--------|---------|
+| **AccountsPage** | `src/features/accounts/pages/AccountsPage.tsx` | ✅ Sprint 3 | Family-scoped accounts list |
+| **AddAccountPage** | `src/features/accounts/pages/AddAccountPage.tsx` | ✅ Sprint 3 | Create account with family sharing |
+| **EditAccountPage** | `src/features/accounts/pages/EditAccountPage.tsx` | ✅ Sprint 3 | Edit existing account |
+| **FamilyAccountDetailPage** | `src/features/accounts/pages/FamilyAccountDetailPage.tsx` | ✅ Sprint 3 | Account detail within family context |
+| **AllAccountsPage** | `src/features/accounts/pages/AllAccountsPage.tsx` | ✅ Sprint 3 M4 | Global view of all user accounts |
+| **GlobalAccountDetailPage** | `src/features/accounts/pages/GlobalAccountDetailPage.tsx` | ✅ Sprint 3 M4 | Account detail in global context |
+| **GlobalAddAccountPage** | `src/features/accounts/pages/GlobalAddAccountPage.tsx` | ✅ Sprint 3 M4 | Create account without family sharing |
 
 ### Forms (Pre-built for Future)
 
