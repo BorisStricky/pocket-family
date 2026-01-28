@@ -57,6 +57,34 @@ async def _serialize_account(session: AsyncSession, account: Account, requestor)
     }
 
 
+async def _serialize_account_share(session: AsyncSession, share: AccountShare) -> dict:
+    """Serialize an AccountShare for API responses, including tenant name.
+
+    Fetches the tenant (family) name to provide a human-readable display name
+    instead of just the tenant UUID, improving the frontend user experience.
+
+    Args:
+        session: Database session for fetching related tenant data.
+        share: AccountShare record to serialize.
+
+    Returns:
+        Dictionary with all share fields plus tenant_name for display.
+    """
+    # Fetch the tenant to get its name
+    tenant = await session.get(Tenant, share.tenant_id)
+    tenant_name = tenant.name if tenant and tenant.name else ""
+
+    return {
+        "id": share.id,
+        "account_id": share.account_id,
+        "tenant_id": share.tenant_id,
+        "tenant_name": tenant_name,
+        "visibility": share.visibility,
+        "granted_by": share.granted_by,
+        "granted_at": share.granted_at,
+    }
+
+
 @router.post("", response_model=AccountRead)
 async def create_account(payload: AccountCreate, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
     """Create a new account owned by the authenticated user.
@@ -268,7 +296,14 @@ async def get_account_shares(account_id: UUID, db: AsyncSession = Depends(get_db
         raise HTTPException(status_code=403, detail="only owner can list shares")
     shares_query_result = await db.execute(select(AccountShare).where(AccountShare.account_id == account_id))
     account_share_records = shares_query_result.scalars().all()
-    return account_share_records
+
+    # Serialize each share to include tenant_name
+    serialized_shares = []
+    for share in account_share_records:
+        serialized_share = await _serialize_account_share(db, share)
+        serialized_shares.append(serialized_share)
+
+    return serialized_shares
 
 
 @router.post("/{account_id}/shares", response_model=AccountShareRead)
@@ -301,7 +336,9 @@ async def create_account_share(account_id: UUID, payload: AccountShareCreate, db
     db.add(account_share_record)
     await db.commit()
     await db.refresh(account_share_record)
-    return account_share_record
+
+    # Serialize to include tenant_name
+    return await _serialize_account_share(db, account_share_record)
 
 
 @router.patch("/{account_id}/shares/{tenant_id}", response_model=AccountShareRead)
@@ -323,7 +360,9 @@ async def update_account_share(account_id: UUID, tenant_id: UUID, payload: Accou
     db.add(account_share_record)
     await db.commit()
     await db.refresh(account_share_record)
-    return account_share_record
+
+    # Serialize to include tenant_name
+    return await _serialize_account_share(db, account_share_record)
 
 
 @router.delete("/{account_id}/shares/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)

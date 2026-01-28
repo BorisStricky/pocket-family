@@ -14,11 +14,16 @@ import {
 } from '@mui/material';
 import { ArrowBack as ArrowBackIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import { AccountSummary } from '../components/AccountSummary';
+import { AccountShareList } from '../components/AccountShareList';
+import { ShareAccountDialog } from '../components/ShareAccountDialog';
+import { EditShareDialog } from '../components/EditShareDialog';
 import { AgTransactionsGrid } from '@/components/domain/ag/AgTransactionsGrid';
 import { DeleteConfirmDialog } from '@/components/ui/molecules/DeleteConfirmDialog';
 import { useAccount } from '../hooks/useAccount';
 import { useDeleteAccount } from '../hooks/useDeleteAccount';
 import { useTransactions } from '@/features/transactions/hooks/useTransactions';
+import { useAuth } from '@/features/auth/hooks/useAuth';
+import type { AccountShareRead } from '@/types/account';
 
 /**
  * GlobalAccountDetailPage - Account detail view in global context (no family scope)
@@ -46,11 +51,19 @@ export function GlobalAccountDetailPage() {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
 
+  // Get current authenticated user to determine ownership
+  const { user } = useAuth();
+
   // State for delete confirmation dialog
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   // State for delete error messages
   const [deleteError, setDeleteError] = useState<string | null>(null);
+
+  // State for share dialogs
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [editShareDialogOpen, setEditShareDialogOpen] = useState(false);
+  const [selectedShare, setSelectedShare] = useState<AccountShareRead | null>(null);
 
   // Fetch account details
   const {
@@ -128,6 +141,28 @@ export function GlobalAccountDetailPage() {
     }
   };
 
+  // Handle opening share account dialog
+  const handleShareClick = () => {
+    setShareDialogOpen(true);
+  };
+
+  // Handle opening edit share dialog
+  const handleEditShare = (share: AccountShareRead) => {
+    setSelectedShare(share);
+    setEditShareDialogOpen(true);
+  };
+
+  // Handle closing share dialog
+  const handleShareDialogClose = () => {
+    setShareDialogOpen(false);
+  };
+
+  // Handle closing edit share dialog
+  const handleEditShareDialogClose = () => {
+    setEditShareDialogOpen(false);
+    setSelectedShare(null);
+  };
+
   // Show loading state while fetching account
   if (isLoadingAccount) {
     return (
@@ -163,10 +198,9 @@ export function GlobalAccountDetailPage() {
     );
   }
 
-  // Determine if current user is account owner (for showing edit/delete buttons)
-  // TODO: Get current user ID from auth context to compare with account.user_id
-  // For now, we'll show buttons to all users (will be restricted in future)
-  const isOwner = true; // Placeholder - will be replaced with actual auth check
+  // Determine if current user is account owner (for showing edit/delete/share buttons)
+  // Compare current user ID with account owner ID
+  const isOwner = user?.id === account.user_id;
 
   return (
     <Box p={3}>
@@ -211,6 +245,18 @@ export function GlobalAccountDetailPage() {
         </Stack>
       )}
 
+      {/* Account Sharing Section (Owner Only) */}
+      {isOwner && (
+        <Box mb={4}>
+          <AccountShareList
+            accountId={accountId!}
+            isOwner={isOwner}
+            onShareClick={handleShareClick}
+            onEditShare={handleEditShare}
+          />
+        </Box>
+      )}
+
       <Divider sx={{ my: 3 }} />
 
       {/* Transactions Section */}
@@ -252,6 +298,22 @@ export function GlobalAccountDetailPage() {
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
         confirmButtonText={isDeleting ? 'Deleting...' : 'Delete'}
+      />
+
+      {/* Share Account Dialog */}
+      <ShareAccountDialog
+        accountId={accountId!}
+        open={shareDialogOpen}
+        onClose={handleShareDialogClose}
+        currentFamilyId={undefined}
+      />
+
+      {/* Edit Share Dialog */}
+      <EditShareDialog
+        accountId={accountId!}
+        share={selectedShare}
+        open={editShareDialogOpen}
+        onClose={handleEditShareDialogClose}
       />
     </Box>
   );
