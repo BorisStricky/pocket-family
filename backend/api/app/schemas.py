@@ -403,6 +403,7 @@ class AccountShareRead(SQLModel):
         id: Share id.
         account_id: Shared account id.
         tenant_id: Tenant receiving the share.
+        tenant_name: Name of the tenant (family) receiving the share.
         visibility: Visibility setting for the share.
         granted_by: User that granted the share.
         granted_at: Timestamp when the share was granted.
@@ -410,6 +411,7 @@ class AccountShareRead(SQLModel):
     id: UUID
     account_id: UUID
     tenant_id: UUID
+    tenant_name: str
     visibility: ShareVisibility
     granted_by: UUID
     granted_at: datetime

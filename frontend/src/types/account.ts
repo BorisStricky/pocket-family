@@ -70,6 +70,7 @@ export interface AccountShareRead {
   id: string; // UUID of the share record
   account_id: string; // UUID of the shared account
   tenant_id: string; // UUID of the family the account is shared with
+  tenant_name: string; // Name of the family the account is shared with
   visibility: ShareVisibility; // Visibility level: hidden (balance masked) or visible (balance shown)
   granted_by: string; // UUID of user who created the share
   granted_at: string; // ISO datetime when share was created
