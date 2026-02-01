@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **IMPORTANT**: When starting work in this repository, ALWAYS read:
 1. [.claude/instructions.md](.claude/instructions.md) - Detailed workflow and coding standards
-2. [.active_context/frontend_roadmap.md](.active_context/frontend_roadmap.md) - Current sprint overview
+2. [docs/active_context/frontend_roadmap.md](docs/active_context/frontend_roadmap.md) - Current sprint overview
 3. Files in `.active_context/sprint_N.md` - Active sprint checklist (where N is the current sprint)
 
 These files contain critical context about the current work state, code quality standards, and task checklists.
