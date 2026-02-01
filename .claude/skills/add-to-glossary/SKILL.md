@@ -1,7 +1,7 @@
 # Add to Glossary Skill
 
 ## Purpose
-Intelligently add or update technical concepts in the project glossary based on conversation topics, using Haiku subagents for efficient analysis and documentation.
+Intelligently add or update technical concepts in the project glossary based on conversation topics. Uses Haiku subagents for efficient read-only analysis (finding files, extracting data), while the main session or documentation-writer agents handle all writing to ensure quality.
 
 ## Usage
 
@@ -28,8 +28,8 @@ Intelligently add or update technical concepts in the project glossary based on 
 This skill helps maintain the project's technical glossary (`/docs/knowledge/glossary`) by:
 
 1. **Analyzing Conversations**: Reviews current conversation or specified topics to identify technical concepts worth documenting
-2. **Finding Related Content**: Searches existing glossary files to avoid duplication and find appropriate placement
-3. **Making Smart Updates**: Decides whether to update existing entries or create new ones
+2. **Finding Related Content** (via Haiku): Uses fast Haiku agents to search existing glossary files, extract frontmatter, and identify related content to avoid duplication
+3. **Making Smart Updates** (via main session): Main session or documentation-writer agents decide whether to update existing entries or create new ones
 4. **Following Standards**: Ensures all glossary entries have proper frontmatter and Obsidian-compatible formatting
 
 ## Glossary Structure
@@ -229,30 +229,32 @@ Conversation covers Celery, Redis, background jobs:
 
 Conversation about JWT refresh token security:
 
-1. Haiku agent identifies `authentication-security.md` needs update
-2. Also identifies `api-communication.md` needs cookie handling info
-3. Delegates two Haiku agents in parallel:
+1. Haiku agent analyzes (read-only) and identifies `authentication-security.md` needs update
+2. Haiku agent also identifies `api-communication.md` needs cookie handling info
+3. Main session delegates two documentation-writer agents (or writes directly) in parallel:
    - Agent 1: Updates JWT/refresh token entries in `authentication-security.md`
    - Agent 2: Adds cookie credentials info to `api-communication.md`
-4. Both update their file's frontmatter to `documentation_status: Updated`
+4. Both agents update their file's frontmatter to `documentation_status: Updated`
 
 ## Best Practices
 
-1. **Use Haiku for Efficiency**: Glossary updates are straightforward documentation tasks perfect for Haiku's speed and cost-effectiveness
+1. **Use Haiku for Reading Only**: Haiku is perfect for quick, cost-effective analysis and data gathering (finding files, reading frontmatter, extracting tags). NEVER use Haiku for writing glossary entries.
 
-2. **Analyze Before Writing**: Always delegate the analysis step first to avoid duplicate work or poor categorization
+2. **Use Inherited Model for Writing**: All glossary writing should be done by the main session or subagents with the inherited model (documentation-writer, general-purpose) to ensure quality and consistency.
 
-3. **Maintain Consistency**: Follow existing entry formats and naming conventions in each file
+3. **Analyze Before Writing**: Always delegate the analysis step to Haiku first to gather existing data, then use that information to inform your writing.
 
-4. **Link Generously**: Connect glossary entries to implementation files and other relevant documentation
+4. **Maintain Consistency**: Follow existing entry formats and naming conventions in each file.
 
-5. **Keep It Current**: Update `documentation_status` to `Updated` whenever modifying existing files
+5. **Link Generously**: Connect glossary entries to implementation files and other relevant documentation.
 
-6. **Tag Appropriately**: Use consistent tags that match existing patterns. Check other files for tag examples.
+6. **Keep It Current**: Update `documentation_status` to `Updated` whenever modifying existing files.
 
-7. **Update Index**: Never forget to update the main `glossary.md` index when adding new files
+7. **Tag Appropriately**: Reuse existing tags from Haiku's analysis. Only create new tags when absolutely necessary.
 
-8. **Obsidian Features**: Leverage Obsidian's features like wikilinks, callouts, and tag search to make glossary more powerful
+8. **Update Index**: Never forget to update the main `glossary.md` index when adding new files.
+
+9. **Obsidian Features**: Leverage Obsidian's features like wikilinks, callouts, and tag search to make glossary more powerful.
 
 ## Integration with Obsidian
 
