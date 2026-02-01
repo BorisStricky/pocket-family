@@ -39,19 +39,19 @@ Users can create family groups, track spending, set budgets, manage recurring ex
 
 ## 3. Functional Requirements (FRD)
 
-| ID | Feature | Description | Priority | Acceptance Criteria |
-|----|----------|--------------|-----------|----------------------|
-| **FR-001** | Expense Recording | Users can record day-to-day expenses with amount, category, date, description, and account source. | **Must** | User can create, edit, and delete expenses. Each expense is associated with a user and their family account. |
-| **FR-002** | Expense Analysis | Users can analyze expenses by time period, category, and user. | **Must** | System provides filtered and aggregated views (e.g., total per category per month). |
-| **FR-003** | Family Creation | Users can create a family account and invite others. | **Must** | Owner can invite users by email; invitees accept and join. |
-| **FR-004** | Family Memberships | Users can belong to multiple families and switch between them. | **Could** | Auth token stores active family context; users can switch via UI. |
-| **FR-005** | Recurring Expenses | Users can define recurring expenses such as rent or utilities. | **Should** | Recurring entries auto-generate at configured intervals. |
-| **FR-006** | Budget Planning | Users can create budgets per category. | **Should** | When spending exceeds the limit, a warning or alert appears. |
-| **FR-007** | Savings Tracking | Users can set savings goals and track monthly progress. | **Could** | Dashboard displays progress vs. target. |
-| **FR-008** | Multi-Account Support | Users can register multiple accounts (bank, cash, card) and tag expenses. | **Could** | Reports can be filtered by account. |
-| **FR-009** | Bulk Import | Users can upload a CSV to bulk import expenses. | **Should** | Upload triggers background import; valid rows become expenses; errors are logged. |
-| **FR-010** | Authentication | Secure user login with email and password. | **Must** | Valid credentials return JWT; invalid ones return 401. |
-| **FR-011** | Authorization | Enforce per-family data isolation and access control. | **Must** | Any cross-family access attempt is rejected (403). |
+| ID         | Feature               | Description                                                                                        | Priority   | Acceptance Criteria                                                                                          |
+| ---------- | --------------------- | -------------------------------------------------------------------------------------------------- | ---------- | ------------------------------------------------------------------------------------------------------------ |
+| **FR-001** | Expense Recording     | Users can record day-to-day expenses with amount, category, date, description, and account source. | **Must**   | User can create, edit, and delete expenses. Each expense is associated with a user and their family account. |
+| **FR-002** | Expense Analysis      | Users can analyze expenses by time period, category, and user.                                     | **Must**   | System provides filtered and aggregated views (e.g., total per category per month).                          |
+| **FR-003** | Family Creation       | Users can create a family account and invite others.                                               | **Must**   | Owner can invite users by email; invitees accept and join.                                                   |
+| **FR-004** | Family Memberships    | Users can belong to multiple families and switch between them.                                     | **Could**  | Auth token stores active family context; users can switch via UI.                                            |
+| **FR-005** | Recurring Expenses    | Users can define recurring expenses such as rent or utilities.                                     | **Should** | Recurring entries auto-generate at configured intervals.                                                     |
+| **FR-006** | Budget Planning       | Users can create budgets per category.                                                             | **Should** | When spending exceeds the limit, a warning or alert appears.                                                 |
+| **FR-007** | Savings Tracking      | Users can set savings goals and track monthly progress.                                            | **Could**  | Dashboard displays progress vs. target.                                                                      |
+| **FR-008** | Multi-Account Support | Users can register multiple accounts (bank, cash, card) and tag expenses.                          | **Could**  | Reports can be filtered by account.                                                                          |
+| **FR-009** | Bulk Import           | Users can upload a CSV to bulk import expenses.                                                    | **Should** | Upload triggers background import; valid rows become expenses; errors are logged.                            |
+| **FR-010** | Authentication        | Secure user login with email and password.                                                         | **Must**   | Valid credentials return JWT; invalid ones return 401.                                                       |
+| **FR-011** | Authorization         | Enforce per-family data isolation and access control.                                              | **Must**   | Any cross-family access attempt is rejected (403).                                                           |
 
 ---
 
