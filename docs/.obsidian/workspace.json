@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "knowledge/glossary/state-management.md",
+                "file": "Pull Requests/Documentation_Infrastructure_Enhancement.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "state-management"
+              "title": "Documentation_Infrastructure_Enhancement"
             }
           },
           {
@@ -199,21 +199,21 @@
   },
   "active": "e214c9dabab3e768",
   "lastOpenFiles": [
-    "Pull Requests/Documentation_Infrastructure_Enhancement.md.tmp.64972.1769986369559",
-    "Pull Requests/Documentation_Infrastructure_Enhancement.md",
-    "Pull Requests/Documentation_Infrastructure_Enhancement.md.tmp.64972.1769986175356",
     "Pull Requests/Sprint_3_Release.md",
+    "knowledge/glossary/development-workflow.md",
+    "Pull Requests/Documentation_Infrastructure_Enhancement.md",
+    "knowledge/glossary/state-management.md",
+    "Pull Requests/Documentation_Infrastructure_Enhancement.md.tmp.64972.1769986369559",
+    "Pull Requests/Documentation_Infrastructure_Enhancement.md.tmp.64972.1769986175356",
     "knowledge/glossary/ui-components-design.md",
     "knowledge/glossary/testing.md",
     "knowledge/glossary/typescript.md",
-    "knowledge/glossary/state-management.md",
     "knowledge/glossary/routing-navigation.md",
     "knowledge/glossary/resources.md",
     "knowledge/glossary/react-patterns-hooks.md",
     "knowledge/glossary/project-structure-concepts.md",
     "knowledge/glossary/glossary.md",
     "knowledge/glossary/frontend-build-configuration.md",
-    "knowledge/glossary/development-workflow.md",
     "knowledge/glossary/concepts-to-learn-more.md",
     "knowledge/glossary/authentication-security.md",
     "knowledge/glossary/api-communication.md",
@@ -233,7 +233,6 @@
     "Pull Requests/Sprint_3_Release.md.tmp.11012.1769984173021",
     "gloassary/react-patterns-hooks.md.tmp.98712.1769984168913",
     "Pull Requests/Sprint_3_Release.md.tmp.11012.1769984164283",
-    "Pull Requests/Sprint_3_Release.md.tmp.11012.1769984159619",
-    "Pull Requests/Sprint_3_Release.md.tmp.11012.1769984154027"
+    "Pull Requests/Sprint_3_Release.md.tmp.11012.1769984159619"
   ]
 }

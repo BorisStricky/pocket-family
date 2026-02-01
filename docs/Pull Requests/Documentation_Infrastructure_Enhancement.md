@@ -1,7 +1,7 @@
 ---
 overview: Documentation infrastructure enhancement adding Obsidian vault support, restructuring the glossary into a modular knowledge base, and introducing intelligent documentation workflows with glossary linking and Claude skills.
 date: 2026-02-01
-branch: obsidian_startup
+branch: obsidian_startup -> development
 code_changed: 5 files changed, +206 insertions, -286 deletions
 commits: Uncommitted changes (staging documentation infrastructure)
 impact: Developer experience, documentation accessibility, learning resources
