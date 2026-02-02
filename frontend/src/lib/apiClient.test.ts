@@ -36,10 +36,11 @@ describe('apiClient', () => {
       const result = await apiFetch('/test');
 
       // Assert - Verify fetch was called correctly
+      // Non-auth endpoints use credentials: 'omit' to reduce attack surface
       expect(global.fetch).toHaveBeenCalledWith(
         'http://localhost:8000/test',
         expect.objectContaining({
-          credentials: 'include',
+          credentials: 'omit',
           headers: expect.any(Headers),
         })
       );
@@ -103,7 +104,7 @@ describe('apiClient', () => {
       expect(headers.get('Authorization')).toBeNull();
     });
 
-    it('should always set credentials: include for cookies', async () => {
+    it('should set credentials: include only for auth endpoints', async () => {
       // Arrange - Mock response
       (global.fetch as any).mockResolvedValue({
         ok: true,
@@ -111,13 +112,31 @@ describe('apiClient', () => {
         json: async () => ({}),
       });
 
-      // Act - Call apiFetch
-      await apiFetch('/test');
+      // Act - Call auth endpoint (login)
+      await apiFetch(API_ENDPOINTS.LOGIN, { method: 'POST' });
 
-      // Assert - Verify credentials: include
+      // Assert - Verify credentials: include for auth endpoint
+      expect(global.fetch).toHaveBeenCalledWith(
+        expect.stringContaining(API_ENDPOINTS.LOGIN),
+        expect.objectContaining({ credentials: 'include' })
+      );
+    });
+
+    it('should set credentials: omit for non-auth endpoints', async () => {
+      // Arrange - Mock response
+      (global.fetch as any).mockResolvedValue({
+        ok: true,
+        headers: new Headers({ 'content-type': 'application/json' }),
+        json: async () => ({}),
+      });
+
+      // Act - Call non-auth endpoint
+      await apiFetch('/api/accounts');
+
+      // Assert - Verify credentials: omit for non-auth endpoint to reduce attack surface
       expect(global.fetch).toHaveBeenCalledWith(
         expect.any(String),
-        expect.objectContaining({ credentials: 'include' })
+        expect.objectContaining({ credentials: 'omit' })
       );
     });
 
