@@ -135,11 +135,20 @@ export async function apiFetch(path: string, init: ApiFetchInit = {}) {
     }
   }
 
-  // Include credentials (cookies) with requests for HttpOnly refresh_token
+  // Only include credentials (cookies) for auth endpoints that need the HttpOnly refresh_token
+  // This reduces attack surface by not sending refresh token cookie with every request
+  const authEndpoints = [
+    API_ENDPOINTS.LOGIN,    // Sets initial HttpOnly cookie
+    API_ENDPOINTS.SIGNUP,   // Sets initial HttpOnly cookie
+    API_ENDPOINTS.LOGOUT,   // Clears HttpOnly cookie
+    API_ENDPOINTS.REFRESH,  // Uses HttpOnly cookie to refresh access token
+  ];
+  const shouldIncludeCredentials = authEndpoints.some(endpoint => path.includes(endpoint));
+
   const res = await fetch(url, {
     ...init,
     headers,
-    credentials: 'include'  // Send cookies with cross-origin requests
+    credentials: shouldIncludeCredentials ? 'include' : 'omit'
   });
 
   // Handle 204 No Content - no body to parse
