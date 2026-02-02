@@ -178,11 +178,13 @@ class AccountCreate(SQLModel):
         type: Account type.
         currency: Optional currency (defaults to BRL).
         balance: Optional starting balance.
+        share_with: Optional tenant to share account with atomically during creation.
     """
     name: str
     type: AccountType
     currency: Optional[Currency] = Currency.BRL
     balance: Optional[Decimal] = Decimal("0.00")
+    share_with: Optional[AccountShareWith] = None
 
 
 class AccountRead(SQLModel):
@@ -323,8 +325,8 @@ class TransactionRead(SQLModel):
     """
     id: UUID
     tenant_id: UUID
-    account_id: UUID
-    account_name: str
+    account_id: Optional[UUID]
+    account_name: Optional[str]
     category_id: Optional[UUID]
     category_name: Optional[str]
     amount: Decimal
@@ -363,6 +365,20 @@ class TransactionUpdate(SQLModel):
 # -------------------------
 # AccountShare
 # -------------------------
+class AccountShareWith(SQLModel):
+    """Input schema for sharing an account with a tenant during account creation.
+
+    Used in AccountCreate.share_with to atomically create an account and share
+    it with another tenant in a single operation.
+
+    Args:
+        tenant_id: Tenant to share the account with.
+        visibility: Visibility setting for the shared balance.
+    """
+    tenant_id: UUID
+    visibility: Optional[ShareVisibility] = ShareVisibility.HIDDEN
+
+
 class AccountShareCreate(SQLModel):
     """Input schema to create an account share granting access to a tenant.
 
@@ -387,6 +403,7 @@ class AccountShareRead(SQLModel):
         id: Share id.
         account_id: Shared account id.
         tenant_id: Tenant receiving the share.
+        tenant_name: Name of the tenant (family) receiving the share.
         visibility: Visibility setting for the share.
         granted_by: User that granted the share.
         granted_at: Timestamp when the share was granted.
@@ -394,6 +411,7 @@ class AccountShareRead(SQLModel):
     id: UUID
     account_id: UUID
     tenant_id: UUID
+    tenant_name: str
     visibility: ShareVisibility
     granted_by: UUID
     granted_at: datetime

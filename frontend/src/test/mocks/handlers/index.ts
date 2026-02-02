@@ -4,6 +4,7 @@
 import { authHandlers } from './auth';
 import { familyHandlers } from './family';
 import { transactionHandlers } from './transactions';
+import { accountHandlers } from './accounts';
 
 // Combined handlers array for MSW server setup
 // All handlers are exported together for convenience
@@ -11,9 +12,11 @@ export const handlers = [
   ...authHandlers,
   ...familyHandlers,
   ...transactionHandlers,
+  ...accountHandlers,
 ];
 
 // Also export individual handler groups for selective use
 export { authHandlers } from './auth';
 export { familyHandlers } from './family';
 export { transactionHandlers, resetTransactionStore } from './transactions';
+export { accountHandlers, resetAccountStore } from './accounts';

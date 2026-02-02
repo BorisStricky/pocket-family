@@ -7,7 +7,7 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_
 
-from ..models import Transaction, Account, Category, Membership, MembershipStatus, TransactionSource
+from ..models import Transaction, Account, Category, Membership, MembershipStatus, TransactionSource, CategoryKind
 from ..schemas import TransactionCreate, TransactionRead, TransactionUpdate, ActiveContext
 from ..deps import get_db, get_current_user, get_active_context
 
@@ -25,7 +25,7 @@ async def _fetch_transaction_with_names(db: AsyncSession, tenant_id: UUID, trans
             Account.name.label("account_name"),
             Category.name.label("category_name"),
         )
-        .join(Account, Account.id == Transaction.account_id)
+        .outerjoin(Account, Account.id == Transaction.account_id)
         .outerjoin(Category, Category.id == Transaction.category_id)
         .where(Transaction.tenant_id == tenant_id, Transaction.id == transaction_id)
     )
@@ -82,7 +82,11 @@ async def _rows_to_transaction_reads(rows: List[Any]) -> List[dict]:
 
 @router.post("", response_model=TransactionRead)
 async def create_transaction(payload: TransactionCreate, db: AsyncSession = Depends(get_db), active_context: ActiveContext = Depends(get_active_context)):
-    """Create a transaction within a tenant.
+    """Create a transaction within a tenant and update the associated account balance.
+
+    The account balance is updated based on the transaction_type:
+    - INCOME: increases the account balance
+    - EXPENSE: decreases the account balance
 
     Args:
         payload: TransactionCreate schema containing tenant and account context and amounts.
@@ -98,26 +102,50 @@ async def create_transaction(payload: TransactionCreate, db: AsyncSession = Depe
     """
     user = active_context.active_user
     tenant = active_context.active_tenant
-    # validate account exists
+
+    # Validate account exists
     account = await db.get(Account, payload.account_id)
     if not account:
         raise HTTPException(status_code=404, detail="account not found")
 
-    transaction_record = Transaction(
-        tenant_id=tenant.id,
-        account_id=payload.account_id,
-        category_id=payload.category_id,
-        amount=payload.amount,
-        currency=payload.currency,
-        transaction_date=payload.transaction_date,
-        transaction_type=payload.transaction_type,
-        description=payload.description,
-        created_by=user.id,
-        source=payload.source or TransactionSource.MANUAL,
-    )
-    db.add(transaction_record)
-    await db.commit()
-    await db.refresh(transaction_record)
+    try:
+        # Create transaction record
+        transaction_record = Transaction(
+            tenant_id=tenant.id,
+            account_id=payload.account_id,
+            category_id=payload.category_id,
+            amount=payload.amount,
+            currency=payload.currency,
+            transaction_date=payload.transaction_date,
+            transaction_type=payload.transaction_type,
+            description=payload.description,
+            created_by=user.id,
+            source=payload.source or TransactionSource.MANUAL,
+        )
+        db.add(transaction_record)
+
+        # Update account balance based on transaction type
+        # INCOME increases balance, EXPENSE decreases balance
+        if payload.transaction_type == CategoryKind.INCOME:
+            account.balance += payload.amount
+        elif payload.transaction_type == CategoryKind.EXPENSE:
+            account.balance -= payload.amount
+
+        db.add(account)
+
+        # Commit both transaction and account balance update atomically
+        await db.commit()
+        await db.refresh(transaction_record)
+        await db.refresh(account)
+
+    except Exception as error:
+        # Rollback on any error to maintain consistency
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail=f"Failed to create transaction: {str(error)}"
+        )
+
     # Return with names using a joined query
     transaction_read = await _fetch_transaction_with_names(db, tenant.id, transaction_record.id)
     return transaction_read
@@ -131,10 +159,11 @@ async def list_transactions(
     category_id: Optional[UUID] = Query(None),
     account_id: Optional[UUID] = Query(None),
     search: Optional[str] = Query(None),
+    scope: str = Query("tenant", regex="^(tenant|global)$"),
     db: AsyncSession = Depends(get_db),
     active_context: ActiveContext = Depends(get_active_context)
 ):
-    """List transactions for a tenant with optional filtering.
+    """List transactions for a tenant or globally across all user's tenants with optional filtering.
 
     Args:
         start: Optional start date to filter transactions (inclusive).
@@ -142,11 +171,12 @@ async def list_transactions(
         category_id: Optional category id to filter by.
         account_id: Optional account id to filter by.
         search: Optional search term for case-insensitive full-text search across description field.
+        scope: "tenant" (default) to filter by active tenant, "global" to query all user's tenants.
         db: Async DB session.
-        user: Current authenticated user.
+        active_context: Current authenticated user and tenant context.
 
     Returns:
-        List of Transaction records matching the filters and tenant context.
+        List of Transaction records matching the filters and scope.
 
     Raises:
         HTTPException 403 when the user is not a member of the requested tenant.
@@ -163,8 +193,30 @@ async def list_transactions(
         )
         .outerjoin(Account, Account.id == Transaction.account_id)
         .outerjoin(Category, Category.id == Transaction.category_id)
-        .where(Transaction.tenant_id == tenant.id)
     )
+
+    # Apply tenant filtering based on scope
+    if scope == "global":
+        # Query transactions across all tenants where user is an active member
+        # First get all tenant_ids for this user
+        memberships_query = select(Membership.tenant_id).where(
+            Membership.user_id == user.id,
+            Membership.status == MembershipStatus.ACTIVE
+        )
+        memberships_result = await db.execute(memberships_query)
+        user_tenant_ids = [row[0] for row in memberships_result.all()]
+
+        # Filter transactions by user's tenant IDs
+        if user_tenant_ids:
+            query = query.where(Transaction.tenant_id.in_(user_tenant_ids))
+        else:
+            # User has no active memberships, return empty list
+            return []
+    else:
+        # Default: filter by active tenant only
+        query = query.where(Transaction.tenant_id == tenant.id)
+
+    # Apply optional filters
     if start:
         query = query.where(Transaction.transaction_date >= start)
     if end:

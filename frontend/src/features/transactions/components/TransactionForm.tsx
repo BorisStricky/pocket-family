@@ -15,7 +15,9 @@ import {
   Typography,
   InputLabel,
   Stack,
+  CircularProgress,
 } from "@mui/material";
+import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import type { TransactionRead, TransactionCreate } from "../types";
 
 /**
@@ -74,6 +76,14 @@ export function TransactionForm({
   // Determine if this is create or edit mode based on initialData presence
   const isEditMode = !!initialData;
 
+  // Fetch accounts for the current family to populate account dropdown
+  // Uses React Query for caching and automatic refetching
+  const {
+    data: accounts = [],
+    isLoading: isLoadingAccounts,
+    isError: isAccountsError,
+  } = useAccounts(familyId);
+
   // Set up form with React Hook Form and default values
   // In edit mode, pre-populate fields from initialData
   // In create mode, use sensible defaults (today's date, expense type)
@@ -126,6 +136,9 @@ export function TransactionForm({
 
       <Stack spacing={3} sx={{ mt: 2 }}>
         {/* Account Selection - Required Field */}
+        {/* Dynamically loads accounts from API using React Query hook */}
+        {/* Shows loading state while fetching, error message if fetch fails */}
+        {/* Formats account options as: "Account Name (Account Type)" */}
         <FormControl fullWidth error={!!errors.account_id} required>
           <InputLabel id="account-select-label">Account</InputLabel>
           <Controller
@@ -137,16 +150,27 @@ export function TransactionForm({
                 {...field}
                 labelId="account-select-label"
                 label="Account"
-                disabled={isLoading}
+                disabled={isLoading || isLoadingAccounts}
+                startAdornment={
+                  isLoadingAccounts ? (
+                    <CircularProgress size={20} sx={{ mr: 1 }} />
+                  ) : null
+                }
               >
-                {/* Temporary placeholder - replaced with real account from development database
-                    TODO: Replace with dynamic account loading from /accounts API in future sprint */}
                 <MenuItem value="">
-                  <em>Select an account</em>
+                  <em>
+                    {isLoadingAccounts
+                      ? "Loading accounts..."
+                      : isAccountsError
+                      ? "Error loading accounts"
+                      : "Select an account"}
+                  </em>
                 </MenuItem>
-                <MenuItem value="20c3fafc-b75f-4197-bfa9-b5dac43c6000">
-                  Cash (BRL)
-                </MenuItem>
+                {accounts.map((account) => (
+                  <MenuItem key={account.id} value={account.id}>
+                    {account.name} ({account.type})
+                  </MenuItem>
+                ))}
               </Select>
             )}
           />

@@ -1,12 +1,10 @@
-# Frontend Test Agent
-
 ---
-
-name: fronend-test-agent
+name: frontend-test
 description: Write comprehensive frontend tests using Vitest, React Testing Library, and MSW (Mock Service Worker) following project testing patterns and conventions.
 model: inherit
-
 ---
+
+# Frontend Test Agent
 
 ## Purpose
 

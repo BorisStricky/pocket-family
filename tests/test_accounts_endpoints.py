@@ -1,0 +1,400 @@
+"""
+Tests for account-related API endpoints.
+
+This module tests:
+- GET /accounts with optional tenant_id parameter
+- POST /accounts with optional share_with field
+- Account sharing functionality
+- Multi-tenant isolation
+"""
+import pytest
+from decimal import Decimal
+from uuid import uuid4
+
+from backend.api.app.models import Account, AccountShare, Membership, MembershipStatus, ShareVisibility
+from backend.api.app.schemas import AccountShareWith
+
+
+class TestListAccountsWithTenantId:
+    """Test GET /accounts endpoint with optional tenant_id query parameter."""
+
+    async def test_list_accounts_without_tenant_id_returns_all_user_accounts(
+        self, async_client, test_session, test_user, test_tenant, test_membership, auth_headers, test_account
+    ):
+        """Test that GET /accounts without tenant_id returns user's own accounts and shared accounts."""
+        response = await async_client.get("/accounts", headers=auth_headers)
+
+        assert response.status_code == 200
+        accounts = response.json()
+        assert len(accounts) >= 1
+        assert any(account["id"] == str(test_account.id) for account in accounts)
+
+    async def test_list_accounts_with_valid_tenant_id_returns_shared_accounts(
+        self, async_client, test_session, test_user, test_user2, test_tenant, test_tenant2,
+        test_membership, test_membership2, auth_headers, test_account2
+    ):
+        """Test that GET /accounts?tenant_id=X returns only accounts shared with that tenant."""
+        # Create a share from test_account2 (owned by test_user2) to test_tenant2
+        account_share = AccountShare(
+            id=uuid4(),
+            account_id=test_account2.id,
+            tenant_id=test_tenant2.id,
+            visibility=ShareVisibility.VISIBLE,
+            granted_by=test_user2.id
+        )
+        test_session.add(account_share)
+        await test_session.commit()
+
+        # Query accounts shared with test_tenant2
+        response = await async_client.get(
+            f"/accounts?tenant_id={test_tenant2.id}",
+            headers=auth_headers
+        )
+
+        assert response.status_code == 200
+        accounts = response.json()
+        # Should only return accounts shared with test_tenant2
+        assert len(accounts) == 1
+        assert accounts[0]["id"] == str(test_account2.id)
+
+    async def test_list_accounts_with_tenant_id_user_not_member_returns_403(
+        self, async_client, test_session, test_user, test_tenant, test_membership, auth_headers
+    ):
+        """Test that GET /accounts?tenant_id=X returns 403 when user is not a member of that tenant."""
+        # Create a tenant that test_user is not a member of
+        other_tenant_id = uuid4()
+
+        response = await async_client.get(
+            f"/accounts?tenant_id={other_tenant_id}",
+            headers=auth_headers
+        )
+
+        assert response.status_code == 403
+        assert "not an active member" in response.json()["detail"].lower()
+
+    async def test_list_accounts_with_tenant_id_empty_when_no_shares(
+        self, async_client, test_session, test_user, test_tenant2, test_membership2, auth_headers_tenant2
+    ):
+        """Test that GET /accounts?tenant_id=X returns empty list when no accounts are shared."""
+        response = await async_client.get(
+            f"/accounts?tenant_id={test_tenant2.id}",
+            headers=auth_headers_tenant2
+        )
+
+        assert response.status_code == 200
+        accounts = response.json()
+        assert len(accounts) == 0
+
+
+class TestCreateAccountWithShareWith:
+    """Test POST /accounts endpoint with optional share_with field."""
+
+    async def test_create_account_without_share_with_succeeds(
+        self, async_client, test_session, test_user, test_tenant, test_membership, auth_headers
+    ):
+        """Test that POST /accounts without share_with creates account normally."""
+        account_data = {
+            "name": "New Savings Account",
+            "type": "debit",
+            "currency": "BRL",
+            "balance": "2000.00"
+        }
+
+        response = await async_client.post("/accounts", json=account_data, headers=auth_headers)
+
+        assert response.status_code == 200
+        account = response.json()
+        assert account["name"] == "New Savings Account"
+        assert account["user_id"] == str(test_user.id)
+        assert account["balance"] == "2000.00"
+
+    async def test_create_account_with_share_with_creates_account_and_share_atomically(
+        self, async_client, test_session, test_user, test_tenant, test_tenant2,
+        test_membership, test_membership2, auth_headers
+    ):
+        """Test that POST /accounts with share_with creates both account and share atomically."""
+        account_data = {
+            "name": "Shared Account",
+            "type": "cash",
+            "currency": "BRL",
+            "balance": "500.00",
+            "share_with": {
+                "tenant_id": str(test_tenant2.id),
+                "visibility": "visible"
+            }
+        }
+
+        response = await async_client.post("/accounts", json=account_data, headers=auth_headers)
+
+        assert response.status_code == 200
+        account = response.json()
+        assert account["name"] == "Shared Account"
+        assert account["user_id"] == str(test_user.id)
+
+        # Verify account was created in database
+        from sqlmodel import select
+        from uuid import UUID
+        account_id = UUID(account["id"])
+        account_query = select(Account).where(Account.id == account_id)
+        account_result = await test_session.execute(account_query)
+        created_account = account_result.scalars().first()
+        assert created_account is not None
+
+        # Verify AccountShare was created
+        share_query = select(AccountShare).where(
+            AccountShare.account_id == account_id,
+            AccountShare.tenant_id == test_tenant2.id
+        )
+        share_result = await test_session.execute(share_query)
+        account_share = share_result.scalars().first()
+        assert account_share is not None
+        assert account_share.visibility == ShareVisibility.VISIBLE
+        assert account_share.granted_by == test_user.id
+
+    async def test_create_account_with_share_with_invalid_tenant_returns_404(
+        self, async_client, test_session, test_user, test_tenant, test_membership, auth_headers
+    ):
+        """Test that POST /accounts with non-existent tenant_id in share_with returns 404."""
+        non_existent_tenant_id = uuid4()
+        account_data = {
+            "name": "Shared Account",
+            "type": "cash",
+            "currency": "BRL",
+            "balance": "500.00",
+            "share_with": {
+                "tenant_id": str(non_existent_tenant_id),
+                "visibility": "visible"
+            }
+        }
+
+        response = await async_client.post("/accounts", json=account_data, headers=auth_headers)
+
+        assert response.status_code == 404
+        assert "tenant not found" in response.json()["detail"].lower()
+
+    async def test_create_account_with_share_with_user_not_member_returns_403(
+        self, async_client, test_session, test_user, test_tenant, test_membership, test_tenant2, auth_headers
+    ):
+        """Test that POST /accounts with tenant user is not a member of returns 403."""
+        # test_user is not a member of test_tenant2 (no test_membership2 fixture used)
+        account_data = {
+            "name": "Shared Account",
+            "type": "cash",
+            "currency": "BRL",
+            "balance": "500.00",
+            "share_with": {
+                "tenant_id": str(test_tenant2.id),
+                "visibility": "visible"
+            }
+        }
+
+        response = await async_client.post("/accounts", json=account_data, headers=auth_headers)
+
+        assert response.status_code == 403
+        assert "not an active member" in response.json()["detail"].lower()
+
+    async def test_create_account_with_share_with_default_visibility_hidden(
+        self, async_client, test_session, test_user, test_tenant, test_tenant2,
+        test_membership, test_membership2, auth_headers
+    ):
+        """Test that share_with without visibility defaults to HIDDEN."""
+        account_data = {
+            "name": "Shared Account Hidden",
+            "type": "debit",
+            "currency": "BRL",
+            "balance": "1000.00",
+            "share_with": {
+                "tenant_id": str(test_tenant2.id)
+                # No visibility specified - should default to HIDDEN
+            }
+        }
+
+        response = await async_client.post("/accounts", json=account_data, headers=auth_headers)
+
+        assert response.status_code == 200
+        account = response.json()
+
+        # Verify share was created with HIDDEN visibility
+        from sqlmodel import select
+        from uuid import UUID
+        account_id = UUID(account["id"])
+        share_query = select(AccountShare).where(
+            AccountShare.account_id == account_id,
+            AccountShare.tenant_id == test_tenant2.id
+        )
+        share_result = await test_session.execute(share_query)
+        account_share = share_result.scalars().first()
+        assert account_share is not None
+        assert account_share.visibility == ShareVisibility.HIDDEN
+
+
+class TestTransactionBalanceUpdates:
+    """Test that creating transactions updates account balances correctly."""
+
+    async def test_create_income_transaction_increases_balance(
+        self, async_client, test_session, test_user, test_tenant, test_membership,
+        auth_headers, test_account, test_category
+    ):
+        """Test that creating an INCOME transaction increases account balance."""
+        from datetime import date
+
+        initial_balance = test_account.balance
+
+        transaction_data = {
+            "account_id": str(test_account.id),
+            "category_id": str(test_category.id),
+            "amount": "200.50",
+            "currency": "BRL",
+            "transaction_date": str(date.today()),
+            "transaction_type": "income",
+            "description": "Salary payment"
+        }
+
+        response = await async_client.post("/transactions", json=transaction_data, headers=auth_headers)
+
+        assert response.status_code == 200
+        transaction = response.json()
+        assert transaction["amount"] == "200.50"
+        assert transaction["transaction_type"] == "income"
+
+        # Refresh account and verify balance increased
+        await test_session.refresh(test_account)
+        expected_balance = initial_balance + Decimal("200.50")
+        assert test_account.balance == expected_balance
+
+    async def test_create_expense_transaction_decreases_balance(
+        self, async_client, test_session, test_user, test_tenant, test_membership,
+        auth_headers, test_account, test_category
+    ):
+        """Test that creating an EXPENSE transaction decreases account balance."""
+        from datetime import date
+
+        initial_balance = test_account.balance
+
+        transaction_data = {
+            "account_id": str(test_account.id),
+            "category_id": str(test_category.id),
+            "amount": "75.25",
+            "currency": "BRL",
+            "transaction_date": str(date.today()),
+            "transaction_type": "expense",
+            "description": "Grocery shopping"
+        }
+
+        response = await async_client.post("/transactions", json=transaction_data, headers=auth_headers)
+
+        assert response.status_code == 200
+        transaction = response.json()
+        assert transaction["amount"] == "75.25"
+        assert transaction["transaction_type"] == "expense"
+
+        # Refresh account and verify balance decreased
+        await test_session.refresh(test_account)
+        expected_balance = initial_balance - Decimal("75.25")
+        assert test_account.balance == expected_balance
+
+    async def test_multiple_transactions_update_balance_correctly(
+        self, async_client, test_session, test_user, test_tenant, test_membership,
+        auth_headers, test_account, test_category
+    ):
+        """Test that multiple transactions update balance correctly in sequence."""
+        from datetime import date
+
+        initial_balance = test_account.balance
+
+        # Create income transaction
+        income_data = {
+            "account_id": str(test_account.id),
+            "category_id": str(test_category.id),
+            "amount": "500.00",
+            "currency": "BRL",
+            "transaction_date": str(date.today()),
+            "transaction_type": "income",
+            "description": "Income 1"
+        }
+        response1 = await async_client.post("/transactions", json=income_data, headers=auth_headers)
+        assert response1.status_code == 200
+
+        # Create expense transaction
+        expense_data = {
+            "account_id": str(test_account.id),
+            "category_id": str(test_category.id),
+            "amount": "150.00",
+            "currency": "BRL",
+            "transaction_date": str(date.today()),
+            "transaction_type": "expense",
+            "description": "Expense 1"
+        }
+        response2 = await async_client.post("/transactions", json=expense_data, headers=auth_headers)
+        assert response2.status_code == 200
+
+        # Create another income transaction
+        income_data2 = {
+            "account_id": str(test_account.id),
+            "category_id": str(test_category.id),
+            "amount": "100.00",
+            "currency": "BRL",
+            "transaction_date": str(date.today()),
+            "transaction_type": "income",
+            "description": "Income 2"
+        }
+        response3 = await async_client.post("/transactions", json=income_data2, headers=auth_headers)
+        assert response3.status_code == 200
+
+        # Verify final balance: initial + 500 - 150 + 100
+        await test_session.refresh(test_account)
+        expected_balance = initial_balance + Decimal("500.00") - Decimal("150.00") + Decimal("100.00")
+        assert test_account.balance == expected_balance
+
+    async def test_transaction_allows_negative_balance_for_credit_accounts(
+        self, async_client, test_session, test_user, test_tenant, test_membership, auth_headers
+    ):
+        """Test that transactions can result in negative balance for credit accounts (debt)."""
+        from datetime import date, datetime
+        from backend.api.app.models import AccountType
+
+        # Create a credit account with zero balance
+        credit_account = Account(
+            id=uuid4(),
+            user_id=test_user.id,
+            name="Credit Card",
+            type=AccountType.CREDIT,
+            currency="BRL",
+            balance=Decimal("0.00"),
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        test_session.add(credit_account)
+        await test_session.commit()
+        await test_session.refresh(credit_account)
+
+        # Create expense transaction that makes balance negative
+        from backend.api.app.models import Category, CategoryKind
+        expense_category = Category(
+            id=uuid4(),
+            tenant_id=test_tenant.id,
+            name="Shopping",
+            kind=CategoryKind.EXPENSE,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
+        )
+        test_session.add(expense_category)
+        await test_session.commit()
+
+        transaction_data = {
+            "account_id": str(credit_account.id),
+            "category_id": str(expense_category.id),
+            "amount": "300.00",
+            "currency": "BRL",
+            "transaction_date": str(date.today()),
+            "transaction_type": "expense",
+            "description": "Credit card purchase"
+        }
+
+        response = await async_client.post("/transactions", json=transaction_data, headers=auth_headers)
+
+        assert response.status_code == 200
+
+        # Verify balance is negative (representing debt)
+        await test_session.refresh(credit_account)
+        assert credit_account.balance == Decimal("-300.00")

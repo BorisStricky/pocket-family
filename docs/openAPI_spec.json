@@ -30,7 +30,7 @@
           "auth"
         ],
         "summary": "Signup",
-        "description": "Register a new user, create a default tenant and return auth tokens.\n\nArgs:\n    payload: SignupIn input schema with email, password and optional name.\n    db: Async DB session.\n\nReturns:\n    TokenOut containing an access token and (in test mode) a refresh token.\n\nRaises:\n    HTTPException 400 when email already exists.",
+        "description": "Register a new user, create a default tenant and return auth tokens.\n\nArgs:\n    payload: SignupIn input schema with email, password and optional name.\n    response: FastAPI Response object for setting cookies.\n    db: Async DB session.\n\nReturns:\n    TokenOut containing an access token and (in test mode) a refresh token.\n    Also sets refresh_token as HttpOnly cookie.\n\nRaises:\n    HTTPException 400 when email already exists.",
         "operationId": "signup_auth_signup_post",
         "requestBody": {
           "content": {
@@ -72,7 +72,7 @@
           "auth"
         ],
         "summary": "Login",
-        "description": "Authenticate a user and issue access/refresh tokens.\n\nArgs:\n    payload: LoginIn schema with email and password.\n    db: Async DB session.\n\nReturns:\n    TokenOut containing access token and optional refresh token (in test mode).\n\nRaises:\n    HTTPException 401 when credentials are invalid.",
+        "description": "Authenticate a user and issue access/refresh tokens.\n\nArgs:\n    payload: LoginIn schema with email and password.\n    response: FastAPI Response object for setting cookies.\n    db: Async DB session.\n\nReturns:\n    TokenOut containing access token and optional refresh token (in test mode).\n    Also sets refresh_token as HttpOnly cookie.\n\nRaises:\n    HTTPException 401 when credentials are invalid.",
         "operationId": "login_auth_login_post",
         "requestBody": {
           "content": {
@@ -114,19 +114,8 @@
           "auth"
         ],
         "summary": "Refresh",
-        "description": "Rotate a refresh token and issue a new access token.\n\nArgs:\n    refresh_token: Opaque refresh token string presented by the client.\n    db: Async DB session.\n\nReturns:\n    TokenOut containing new access token and (in test mode) the new refresh token.\n\nRaises:\n    HTTPException 401 when the refresh token is invalid or expired.",
+        "description": "Rotate a refresh token and issue a new access token.\n\nArgs:\n    request: FastAPI Request object for reading cookies.\n    response: FastAPI Response object for setting cookies.\n    db: Async DB session.\n\nReturns:\n    TokenOut containing new access token and (in test mode) the new refresh token.\n    Also sets new refresh_token as HttpOnly cookie.\n\nRaises:\n    HTTPException 401 when the refresh token is invalid or expired.",
         "operationId": "refresh_auth_refresh_post",
-        "parameters": [
-          {
-            "name": "refresh_token",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Refresh Token"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -134,16 +123,6 @@
               "application/json": {
                 "schema": {
                   "$ref": "#/components/schemas/TokenOut"
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -157,19 +136,8 @@
           "auth"
         ],
         "summary": "Logout",
-        "description": "Revoke a refresh token to log a user out.\n\nArgs:\n    refresh_token: Opaque refresh token to revoke.\n    db: Async DB session.\n\nReturns:\n    Dict indicating operation success.",
+        "description": "Revoke a refresh token to log a user out.\n\nArgs:\n    request: FastAPI Request object for reading cookies.\n    response: FastAPI Response object for deleting cookies.\n    db: Async DB session.\n\nReturns:\n    Dict indicating operation success. Also clears refresh_token cookie.",
         "operationId": "logout_auth_logout_post",
-        "parameters": [
-          {
-            "name": "refresh_token",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Refresh Token"
-            }
-          }
-        ],
         "responses": {
           "200": {
             "description": "Successful Response",
@@ -177,16 +145,6 @@
               "application/json": {
                 "schema": {
 
-                }
-              }
-            }
-          },
-          "422": {
-            "description": "Validation Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
                 }
               }
             }
@@ -200,7 +158,7 @@
           "auth"
         ],
         "summary": "Create Invite",
-        "description": "Create an invite record for a tenant (placeholder implementation).\n\nNotes:\n    This is a simplified flow that does not enforce membership/role checks.\n    In production use, wire get_current_user and require_membership to verify permissions.\n\nArgs:\n    tenant_id: Tenant identifier to invite into.\n    payload: InviteCreate schema with invitee email and role.\n    db: Async DB session.\n\nReturns:\n    A small hint of the invite token that was generated.",
+        "description": "Create an invite record for a tenant.\n\nSecurity:\n    Requires authentication via JWT token.\n    Only tenant owners can create invites (enforced below).\n\nArgs:\n    tenant_id: Tenant identifier to invite into.\n    payload: InviteCreate schema with invitee email and role.\n    db: Async DB session.\n    context: Active user context with authentication and membership info.\n\nReturns:\n    A small hint of the invite token that was generated.\n\nRaises:\n    HTTPException 403: If user is not an owner of the tenant.\n    HTTPException 401: If authentication fails.",
         "operationId": "create_invite_auth_tenants__tenant_id__invite_post",
         "parameters": [
           {
@@ -213,19 +171,19 @@
             }
           },
           {
-            "name": "args",
-            "in": "query",
-            "required": true,
+            "name": "authorization",
+            "in": "header",
+            "required": false,
             "schema": {
-              "title": "Args"
-            }
-          },
-          {
-            "name": "kwargs",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "title": "Kwargs"
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
             }
           }
         ],
@@ -894,7 +852,7 @@
           "accounts"
         ],
         "summary": "Create Account",
-        "description": "Create a new account owned by the authenticated user.\n\nArgs:\n    payload: AccountCreate schema with account properties.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    The created Account instance.",
+        "description": "Create a new account owned by the authenticated user.\n\nOptionally shares the account with another tenant atomically in a single transaction.\nIf share_with is provided, validates that the user is an active member of that tenant\nbefore creating both the account and the share.\n\nArgs:\n    payload: AccountCreate schema with account properties and optional share_with.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    The created Account instance.\n\nRaises:\n    HTTPException 403 when share_with tenant provided but user is not an active member.\n    HTTPException 404 when share_with tenant does not exist.",
         "operationId": "create_account_accounts_post",
         "parameters": [
           {
@@ -952,9 +910,26 @@
           "accounts"
         ],
         "summary": "List Accounts",
-        "description": "List accounts belonging to the user and accounts shared with their families (tenants).\n\nArgs:\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    List of serialized account dicts (balance masked according to visibility rules).",
+        "description": "List accounts belonging to the user and accounts shared with their families (tenants).\n\nWhen tenant_id is provided, only returns accounts shared with that specific tenant.\nUser must be an active member of the specified tenant.\n\nArgs:\n    tenant_id: Optional tenant ID to filter accounts shared with that tenant.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    List of serialized account dicts (balance masked according to visibility rules).\n\nRaises:\n    HTTPException 403 when user is not an active member of the specified tenant.",
         "operationId": "list_accounts_accounts_get",
         "parameters": [
+          {
+            "name": "tenant_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "format": "uuid"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Tenant Id"
+            }
+          },
           {
             "name": "authorization",
             "in": "header",
@@ -1749,7 +1724,7 @@
           "transactions"
         ],
         "summary": "Create Transaction",
-        "description": "Create a transaction within a tenant.\n\nArgs:\n    payload: TransactionCreate schema containing tenant and account context and amounts.\n    db: Async DB session.\n    user: Current authenticated user creating the transaction.\n\nReturns:\n    The created Transaction record.\n\nRaises:\n    HTTPException 404 when the account does not exist.\n    HTTPException 403 when the user is not an active member of the tenant.",
+        "description": "Create a transaction within a tenant and update the associated account balance.\n\nThe account balance is updated based on the transaction_type:\n- INCOME: increases the account balance\n- EXPENSE: decreases the account balance\n\nArgs:\n    payload: TransactionCreate schema containing tenant and account context and amounts.\n    db: Async DB session.\n    user: Current authenticated user creating the transaction.\n\nReturns:\n    The created Transaction record.\n\nRaises:\n    HTTPException 404 when the account does not exist.\n    HTTPException 403 when the user is not an active member of the tenant.",
         "operationId": "create_transaction_transactions_post",
         "parameters": [
           {
@@ -1807,7 +1782,7 @@
           "transactions"
         ],
         "summary": "List Transactions",
-        "description": "List transactions for a tenant with optional filtering.\n\nArgs:\n    start: Optional start date to filter transactions (inclusive).\n    end: Optional end date to filter transactions (inclusive).\n    category_id: Optional category id to filter by.\n    account_id: Optional account id to filter by.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    List of Transaction records matching the filters and tenant context.\n\nRaises:\n    HTTPException 403 when the user is not a member of the requested tenant.",
+        "description": "List transactions for a tenant with optional filtering.\n\nArgs:\n    start: Optional start date to filter transactions (inclusive).\n    end: Optional end date to filter transactions (inclusive).\n    category_id: Optional category id to filter by.\n    account_id: Optional account id to filter by.\n    search: Optional search term for case-insensitive full-text search across description field.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    List of Transaction records matching the filters and tenant context.\n\nRaises:\n    HTTPException 403 when the user is not a member of the requested tenant.",
         "operationId": "list_transactions_transactions_get",
         "parameters": [
           {
@@ -1893,6 +1868,22 @@
                 }
               ],
               "title": "Account Id"
+            }
+          },
+          {
+            "name": "search",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Search"
             }
           },
           {
@@ -2157,6 +2148,16 @@
             ],
             "title": "Balance",
             "default": "0.00"
+          },
+          "share_with": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/AccountShareWith"
+              },
+              {
+                "type": "null"
+              }
+            ]
           }
         },
         "type": "object",
@@ -2165,7 +2166,7 @@
           "type"
         ],
         "title": "AccountCreate",
-        "description": "Input schema to create an account.\n\nArgs:\n    name: Account name.\n    type: Account type.\n    currency: Optional currency (defaults to BRL).\n    balance: Optional starting balance."
+        "description": "Input schema to create an account.\n\nArgs:\n    name: Account name.\n    type: Account type.\n    currency: Optional currency (defaults to BRL).\n    balance: Optional starting balance.\n    share_with: Optional tenant to share account with atomically during creation."
       },
       "AccountRead": {
         "properties": {
@@ -2316,6 +2317,32 @@
         "type": "object",
         "title": "AccountShareUpdate",
         "description": "Input schema for updating an account share.\n\nArgs:\n    visibility: New visibility setting (optional)."
+      },
+      "AccountShareWith": {
+        "properties": {
+          "tenant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tenant Id"
+          },
+          "visibility": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/ShareVisibility"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": "hidden"
+          }
+        },
+        "type": "object",
+        "required": [
+          "tenant_id"
+        ],
+        "title": "AccountShareWith",
+        "description": "Input schema for sharing an account with a tenant during account creation.\n\nUsed in AccountCreate.share_with to atomically create an account and share\nit with another tenant in a single operation.\n\nArgs:\n    tenant_id: Tenant to share the account with.\n    visibility: Visibility setting for the shared balance."
       },
       "AccountType": {
         "type": "string",
