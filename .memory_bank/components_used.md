@@ -189,6 +189,36 @@ Based on typical feature development needs:
 
 ---
 
+## Sprint 4: Categories Management (Phase 1 - Milestone 1 Complete)
+
+### Category Types (`/workspace/frontend/src/types/category.ts`)
+- **CategoryRead**: Full category data from API with id, tenant_id, name, kind (expense/income), parent_id for hierarchy, and timestamps
+- **CategoryCreate**: Data for creating new categories with name, kind, and optional parent_id for nesting
+- **CategoryUpdate**: Partial update data with optional name, kind, and parent_id
+- **CategoryKind**: Type alias for 'expense' | 'income' to classify categories
+
+### Category API Functions (`/workspace/frontend/src/features/family/api/categoriesApi.ts`)
+- **getCategories(familyId)**: Fetch list of all categories for a family using GET /categories with tenant context
+- **getCategory(categoryId)**: Fetch single category by ID using GET /categories/{category_id}
+- **createCategory(data)**: Create new category using POST /categories with CategoryCreate payload
+- **updateCategory(categoryId, data)**: Update existing category using PATCH /categories/{category_id} with partial data
+- **deleteCategory(categoryId)**: Delete category using DELETE /categories/{category_id} (future: support reassign_to parameter)
+
+### Category React Query Hooks (`/workspace/frontend/src/features/family/hooks/`)
+- **useCategories(familyId)**: Query hook for fetching category list with query key ['categories', familyId]. Returns data, isLoading, error states. 18 tests passing.
+- **useCategory(categoryId)**: Query hook for fetching single category with query key ['category', categoryId]. Includes error handling for 404/403. 18 tests passing.
+- **useCreateCategory(familyId)**: Mutation hook for creating categories. Invalidates ['categories', familyId] on success. Returns mutate function and status flags. 19 tests passing.
+- **useUpdateCategory(familyId)**: Mutation hook for updating categories. Invalidates both category list and single category queries on success. Includes optimistic updates support.
+- **useDeleteCategory(familyId)**: Mutation hook for deleting categories. Invalidates category list on success. Future: support category reassignment for categories with transactions.
+
+### Category Test Utilities (`/workspace/frontend/src/test/mocks/`)
+- **category.ts (factories)**: Mock data generators using faker - createMockCategory(), createMockCategoryList(), createMockCategoryTree() for hierarchical testing
+- **categories.ts (handlers)**: MSW HTTP handlers for all category endpoints - list, get, create, update, delete with multi-tenant validation
+
+**Milestone 1 Achievement**: All 55 tests passing, zero TypeScript errors, code review approved, full JSDoc documentation, strict no-abbreviation compliance.
+
+---
+
 ## 📝 IMPLEMENTATION NOTES
 
 ### Deviations from Spec:

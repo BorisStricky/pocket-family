@@ -35,3 +35,14 @@ export {
   createMockCashAccount,
   createMockAccountList,
 } from './account';
+
+export {
+  createMockCategory,
+  createMockExpenseCategory,
+  createMockIncomeCategory,
+  createMockChildCategory,
+  createMockCategoryList,
+  createMockCategoryTree,
+} from './category';
+
+export type { CategoryRead, CategoryCreate, CategoryUpdate, CategoryKind } from './category';

@@ -29,11 +29,11 @@
 
 | Done | Hook              | File Path                                        | Purpose                  | Implementation Notes                                                                                                                          |
 | ---- | ----------------- | ------------------------------------------------ | ------------------------ | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| [ ]  | useCategories     | `src/features/family/hooks/useCategories.ts`     | Fetch categories list    | • Query key: `['categories', familyId]`<br>• Call `GET /categories`<br>• Tenant context from auth token                                       |
-| [ ]  | useCategory       | `src/features/family/hooks/useCategory.ts`       | Fetch single category    | • Query key: `['category', familyId, categoryId]`<br>• Call `GET /categories/{categoryId}`                                                    |
-| [ ]  | useCreateCategory | `src/features/family/hooks/useCreateCategory.ts` | Create category mutation | • Call `POST /categories`<br>• Invalidate categories list                                                                                     |
-| [ ]  | useUpdateCategory | `src/features/family/hooks/useUpdateCategory.ts` | Update category mutation | • Call `PATCH /categories/{categoryId}`<br>• Invalidate categories                                                                            |
-| [ ]  | useDeleteCategory | `src/features/family/hooks/useDeleteCategory.ts` | Delete category mutation | • Call `DELETE /categories/{categoryId}`<br>• Handle reassignment if has transactions. Select one category to inherit all linked transactions |
+| [x]  | useCategories     | `src/features/family/hooks/useCategories.ts`     | Fetch categories list    | • Query key: `['categories', familyId]`<br>• Call `GET /categories`<br>• Tenant context from auth token                                       |
+| [x]  | useCategory       | `src/features/family/hooks/useCategory.ts`       | Fetch single category    | • Query key: `['category', familyId, categoryId]`<br>• Call `GET /categories/{categoryId}`                                                    |
+| [x]  | useCreateCategory | `src/features/family/hooks/useCreateCategory.ts` | Create category mutation | • Call `POST /categories`<br>• Invalidate categories list                                                                                     |
+| [x]  | useUpdateCategory | `src/features/family/hooks/useUpdateCategory.ts` | Update category mutation | • Call `PATCH /categories/{categoryId}`<br>• Invalidate categories                                                                            |
+| [x]  | useDeleteCategory | `src/features/family/hooks/useDeleteCategory.ts` | Delete category mutation | • Call `DELETE /categories/{categoryId}`<br>• Handle reassignment if has transactions. Select one category to inherit all linked transactions |
 
 ### Phase 2: Family Management Hooks
 
@@ -52,11 +52,11 @@
 
 | Done | Function | File Path | Method | Endpoint | Request | Response | Notes |
 |------|----------|-----------|--------|----------|---------|----------|-------|
-| [ ] | getCategories | `src/features/family/api/familyApi.ts` | GET | `/categories` | - | `CategoryRead[]` | operationId: `list_categories_categories_get` |
-| [ ] | getCategory | `src/features/family/api/familyApi.ts` | GET | `/categories/{category_id}` | - | `CategoryRead` | operationId: `get_category_categories__category_id__get` |
-| [ ] | createCategory | `src/features/family/api/familyApi.ts` | POST | `/categories` | `CategoryCreate` | `CategoryRead` | operationId: `create_category_categories_post` |
-| [ ] | updateCategory | `src/features/family/api/familyApi.ts` | PATCH | `/categories/{category_id}` | `CategoryUpdate` | `CategoryRead` | operationId: `update_category_categories__category_id__patch` |
-| [ ] | deleteCategory | `src/features/family/api/familyApi.ts` | DELETE | `/categories/{category_id}` | - | `{ok: true}` | operationId: `delete_category_categories__category_id__delete` |
+| [x] | getCategories | `src/features/family/api/categoriesApi.ts` | GET | `/categories` | - | `CategoryRead[]` | operationId: `list_categories_categories_get` |
+| [x] | getCategory | `src/features/family/api/categoriesApi.ts` | GET | `/categories/{category_id}` | - | `CategoryRead` | operationId: `get_category_categories__category_id__get` |
+| [x] | createCategory | `src/features/family/api/categoriesApi.ts` | POST | `/categories` | `CategoryCreate` | `CategoryRead` | operationId: `create_category_categories_post` |
+| [x] | updateCategory | `src/features/family/api/categoriesApi.ts` | PATCH | `/categories/{category_id}` | `CategoryUpdate` | `CategoryRead` | operationId: `update_category_categories__category_id__patch` |
+| [x] | deleteCategory | `src/features/family/api/categoriesApi.ts` | DELETE | `/categories/{category_id}` | - | `{ok: true}` | operationId: `delete_category_categories__category_id__delete` |
 
 **Phase 2: Family Management API Functions**
 
@@ -212,15 +212,15 @@ enum MembershipStatus {
 ### Phase 1: Categories (Week 1)
 
 #### Step 1.0: Category Types and Constants
-- [ ] Create `src/types/category.ts` with TypeScript interfaces:
+.......- [x] Create `src/types/category.ts` with TypeScript interfaces:
   - `CategoryCreate { name: string, kind: CategoryKind, parent_id?: string | null }`
   - `CategoryRead { id, tenant_id, name, kind, parent_id, created_at, updated_at, path? }`
   - `CategoryUpdate { name?: string | null, kind?: CategoryKind | null, parent_id?: string | null }`
   - `CategoryKind` enum: expense, income
-- [ ] Update `src/lib/constants.ts` with category endpoint constants
+- [x] Update `src/lib/constants.ts` with category endpoint constants
 
-#### Step 1.1: Categories API & Hooks
-- [ ] Implement category API functions in `familyApi.ts`:
+#### Step 1.1: Categories API & Hooks (✅ MILESTONE 1 COMPLETE)
+- [x] Implement category API functions in `categoriesApi.ts`:
   - `getCategories()` - GET `/categories`
   - `getCategory(categoryId)` - GET `/categories/{category_id}`
   - `createCategory(data)` - POST `/categories`
@@ -229,10 +229,10 @@ enum MembershipStatus {
     - **Backend Update Required**: Expand DELETE endpoint to accept optional `reassign_to` query parameter
     - When category has transactions, they must be reassigned to the specified category before deletion
     - Backend should validate that `reassign_to` category exists and belongs to same tenant
-- [ ] Create React Query hooks:
-  - `useCategories` - fetch categories list
-  - `useCategory` - fetch single category
-  - `useCreateCategory` - create mutation
+- [x] Create React Query hooks:
+  - `useCategories` - fetch categories list (18 tests passing)
+  - `useCategory` - fetch single category (18 tests passing)
+  - `useCreateCategory` - create mutation (19 tests passing)
   - `useUpdateCategory` - update mutation
   - `useDeleteCategory` - delete mutation
 

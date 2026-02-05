@@ -18,7 +18,10 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
+import { useCategories } from "@/features/family/hooks/useCategories";
+import { CategorySelect } from "@/components/domain/CategorySelect";
 import type { TransactionRead, TransactionCreate } from "../types";
+import type { CategoryRead } from "@/types/category";
 
 /**
  * Props for TransactionForm component
@@ -84,6 +87,13 @@ export function TransactionForm({
     isError: isAccountsError,
   } = useAccounts(familyId);
 
+  // Fetch categories for the current family to populate category selector
+  // Categories are filtered by transaction type (expense/income) in CategorySelect component
+  const {
+    data: categories = [],
+    isLoading: isLoadingCategories,
+  } = useCategories(familyId);
+
   // Set up form with React Hook Form and default values
   // In edit mode, pre-populate fields from initialData
   // In create mode, use sensible defaults (today's date, expense type)
@@ -91,6 +101,8 @@ export function TransactionForm({
     control,
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<TransactionCreate>({
     defaultValues: initialData
@@ -115,6 +127,19 @@ export function TransactionForm({
           description: "",
         },
   });
+
+  // Watch transaction_type to dynamically filter categories in CategorySelect
+  // When user switches between expense/income, CategorySelect will only show relevant categories
+  const watchedTransactionType = watch("transaction_type");
+
+  // Watch category_id to track selected category for CategorySelect component
+  const selectedCategoryId = watch("category_id");
+
+  // Find selected category object from categories list
+  // CategorySelect expects the full category object, not just the ID
+  const selectedCategory = categories.find(
+    (category: CategoryRead) => category.id === selectedCategoryId
+  );
 
   // Handle form submission by passing data to parent component
   // The parent component will handle the API call and state updates
@@ -180,33 +205,32 @@ export function TransactionForm({
         </FormControl>
 
         {/* Category Selection - Optional Field */}
-        <FormControl fullWidth error={!!errors.category_id}>
-          <InputLabel id="category-select-label">Category</InputLabel>
-          <Controller
-            name="category_id"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                labelId="category-select-label"
-                label="Category"
-                disabled={isLoading}
-              >
-                {/* Temporary placeholder - replaced with real category from development database
-                    TODO: Replace with dynamic category loading from /categories API in future sprint */}
-                <MenuItem value="">
-                  <em>Uncategorized</em>
-                </MenuItem>
-                <MenuItem value="638d246d-ed81-4831-a511-8e76faa25e4a">
-                  Test (Expense)
-                </MenuItem>
-              </Select>
-            )}
+        {/* CategorySelect filters by transaction type to show only relevant categories */}
+        {/* Supports hierarchical display (parent > child) and search functionality */}
+        {isLoadingCategories ? (
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+            <CircularProgress size={20} />
+            <Typography variant="body2" color="text.secondary">
+              Loading categories...
+            </Typography>
+          </Box>
+        ) : (
+          <CategorySelect
+            label="Category"
+            value={selectedCategoryId || null}
+            onChange={(category: CategoryRead | null) => {
+              // Update form value when category selection changes
+              // If category is null (cleared), set category_id to empty string
+              setValue('category_id', category?.id || '');
+            }}
+            categories={categories}
+            kind={watchedTransactionType}
+            required={false}
+            disabled={isLoading}
+            error={!!errors.category_id}
+            helperText={errors.category_id?.message || 'Optional - categorize this transaction'}
           />
-          {errors.category_id && (
-            <FormHelperText>{errors.category_id.message}</FormHelperText>
-          )}
-        </FormControl>
+        )}
 
         {/* Amount Input - Required Field with Validation */}
         <TextField
