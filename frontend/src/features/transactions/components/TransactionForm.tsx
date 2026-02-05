@@ -218,10 +218,10 @@ export function TransactionForm({
           <CategorySelect
             label="Category"
             value={selectedCategoryId || null}
-            onChange={(category: CategoryRead | null) => {
+            onChange={(categoryId: string | null) => {
               // Update form value when category selection changes
-              // If category is null (cleared), set category_id to empty string
-              setValue('category_id', category?.id || '');
+              // CategorySelect passes the category ID directly (not the full object)
+              setValue('category_id', categoryId || '');
             }}
             categories={categories}
             kind={watchedTransactionType}

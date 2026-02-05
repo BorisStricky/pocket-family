@@ -126,18 +126,21 @@ export async function updateCategory(
 
 /**
  * Delete category
- * DELETE /categories/{categoryId}
+ * DELETE /categories/{categoryId}?reassign_to={reassignToCategoryId}
  *
  * Permanently deletes a category from the database.
  * The backend validates that the user has permission to delete this category.
  *
+ * If the category has transactions, you can optionally reassign those transactions
+ * to another category by providing the reassignTo parameter.
+ *
  * Important constraints:
  * - Cannot delete a category that has child categories (must delete children first)
  * - Backend returns 409 Conflict if category has children
- * - Transactions linked to this category may have category_id set to NULL or deletion blocked
- *   (depends on backend implementation - check backend constraints)
+ * - If category has transactions and reassignTo is not provided, deletion may fail
  *
  * @param categoryId UUID of the category to delete
+ * @param reassignTo Optional UUID of category to reassign transactions to
  * @returns void (204 No Content on success)
  * @throws ApiError 404 if category not found or user doesn't have access
  * @throws ApiError 401 if user is not authenticated
@@ -145,9 +148,38 @@ export async function updateCategory(
  * @throws ApiError 409 if category has child categories (cannot delete parent with children)
  */
 export async function deleteCategory(
-  categoryId: string
+  categoryId: string,
+  reassignTo?: string | null
 ): Promise<void> {
-  return apiFetch(`/categories/${categoryId}`, {
+  // Build URL with optional reassign_to query parameter
+  let url = `/categories/${categoryId}`;
+  if (reassignTo) {
+    url += `?reassign_to=${reassignTo}`;
+  }
+
+  return apiFetch(url, {
     method: 'DELETE',
+  });
+}
+
+/**
+ * Get transaction count for a category
+ * GET /categories/{categoryId}/transaction-count
+ *
+ * Returns the number of transactions that reference this category.
+ * Used to determine if a category can be safely deleted or if
+ * transaction reassignment is required.
+ *
+ * @param categoryId UUID of the category to check
+ * @returns Number of transactions using this category
+ * @throws ApiError 404 if category not found or user doesn't have access
+ * @throws ApiError 401 if user is not authenticated
+ * @throws ApiError 403 if user is not authorized to access this category
+ */
+export async function getCategoryTransactionCount(
+  categoryId: string
+): Promise<number> {
+  return apiFetch(`/categories/${categoryId}/transaction-count`, {
+    method: 'GET',
   });
 }

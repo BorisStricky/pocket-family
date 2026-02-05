@@ -194,8 +194,16 @@ export async function apiFetch(path: string, init: ApiFetchInit = {}) {
 
   // Throw ApiError if not successful (for non-401 errors or retry failures)
   if (!res.ok) {
+    // Extract detailed error message from backend response if available
+    // Backend returns error details in the "detail" field of the response
+    // Falls back to generic "API error {status}" if no detail is provided
+    const errorMessage =
+      (typeof payload === 'object' && payload?.detail)
+        ? payload.detail
+        : `API error ${res.status}`;
+
     throw new ApiError(
-      `API error ${res.status}`,
+      errorMessage,
       res.status,
       payload
     );

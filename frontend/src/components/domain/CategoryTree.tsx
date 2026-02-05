@@ -306,11 +306,11 @@ export function CategoryTree({
             alignItems: 'center',
             paddingBottom: 1,
             borderBottom: '2px solid',
-            borderColor: 'error.main',
+            borderColor: 'text.primary',
             marginBottom: 1,
           }}
         >
-          <Typography variant="h6" color="error">
+          <Typography variant="h6">
             Expenses
           </Typography>
           {onAddRoot && (
@@ -319,7 +319,6 @@ export function CategoryTree({
                 size="small"
                 onClick={() => onAddRoot('expense')}
                 aria-label="Add expense category"
-                color="error"
               >
                 <Plus size={18} />
               </IconButton>
@@ -353,11 +352,11 @@ export function CategoryTree({
             alignItems: 'center',
             paddingBottom: 1,
             borderBottom: '2px solid',
-            borderColor: 'success.main',
+            borderColor: 'text.primary',
             marginBottom: 1,
           }}
         >
-          <Typography variant="h6" color="success.main">
+          <Typography variant="h6">
             Income
           </Typography>
           {onAddRoot && (
@@ -366,7 +365,6 @@ export function CategoryTree({
                 size="small"
                 onClick={() => onAddRoot('income')}
                 aria-label="Add income category"
-                color="success"
               >
                 <Plus size={18} />
               </IconButton>

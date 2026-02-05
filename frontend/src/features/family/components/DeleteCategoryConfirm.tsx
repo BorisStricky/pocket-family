@@ -105,6 +105,12 @@ export function DeleteCategoryConfirm({
   // Determine if deletion is safe (no transactions linked)
   const isSafeDelete = transactionCount === 0;
 
+  // Check if category has child categories
+  // Backend prevents deletion of categories with children
+  const hasChildren = categories.some(
+    (potentialChild) => potentialChild.parent_id === category.id
+  );
+
   return (
     <Dialog
       open={open}
@@ -178,11 +184,11 @@ export function DeleteCategoryConfirm({
           )}
 
           {/* Warning about child categories */}
-          {category.parent_id === null && (
-            <Alert severity="info">
+          {hasChildren && (
+            <Alert severity="warning">
               <Typography variant="body2">
-                Note: If this category has subcategories, they will become top-level
-                categories after deletion.
+                <strong>Note:</strong> This category has subcategories. You must delete all
+                child categories first before deleting this parent category.
               </Typography>
             </Alert>
           )}

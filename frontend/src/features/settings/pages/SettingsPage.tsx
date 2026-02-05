@@ -26,6 +26,7 @@ import { useCategories } from '@/features/family/hooks/useCategories';
 import { useCreateCategory } from '@/features/family/hooks/useCreateCategory';
 import { useUpdateCategory } from '@/features/family/hooks/useUpdateCategory';
 import { useDeleteCategory } from '@/features/family/hooks/useDeleteCategory';
+import { useCategoryTransactionCount } from '@/features/family/hooks/useCategoryTransactionCount';
 import type { CategoryRead, CategoryCreate, CategoryUpdate, CategoryKind } from '@/types/category';
 
 /**
@@ -43,8 +44,8 @@ import type { CategoryRead, CategoryCreate, CategoryUpdate, CategoryKind } from 
 export function SettingsPage() {
   const { familyId } = useParams<{ familyId: string }>();
 
-  // Tab state management - start with family tab
-  const [activeTab, setActiveTab] = useState<string>('family');
+  // Tab state management - start with categories tab
+  const [activeTab, setActiveTab] = useState<string>('categories');
 
   // Fetch categories for this family
   const { data: categories = [], isLoading, error: fetchError } = useCategories(familyId!);
@@ -61,6 +62,12 @@ export function SettingsPage() {
 
   // Selected category for edit/delete operations
   const [selectedCategory, setSelectedCategory] = useState<CategoryRead | null>(null);
+
+  // Fetch transaction count for selected category (when delete modal is open)
+  // Only fetches when a category is selected for deletion
+  const { data: transactionCount = 0, isLoading: isLoadingTransactionCount } = useCategoryTransactionCount(
+    selectedCategory?.id || null
+  );
 
   // Parent category for adding child (when clicking "Add child" button)
   const [parentCategoryForAdd, setParentCategoryForAdd] = useState<CategoryRead | null>(null);
@@ -149,13 +156,11 @@ export function SettingsPage() {
 
   /**
    * Calculate transaction count for a category
-   * TODO: Implement when transaction API supports filtering by category
-   * For now, return 0 (safe delete scenario)
+   * Uses the useCategoryTransactionCount hook which fetches real-time data from backend
+   * The count is fetched when a category is selected for deletion
    */
-  const getTransactionCount = (_category: CategoryRead): number => {
-    // Placeholder - will be implemented when transaction endpoints support category filtering
-    return 0;
-  };
+  // Transaction count is now fetched via useCategoryTransactionCount hook above
+  // and stored in the 'transactionCount' variable
 
   // Loading state
   if (isLoading) {
@@ -176,8 +181,8 @@ export function SettingsPage() {
           <Typography variant="h4" component="h1">
             Settings
           </Typography>
-          {/* Show Add Category button only when on Family tab */}
-          {activeTab === 'family' && (
+          {/* Show Add Category button only when on Categories tab */}
+          {activeTab === 'categories' && (
             <Button
               variant="contained"
               startIcon={<Plus size={20} />}
@@ -198,16 +203,17 @@ export function SettingsPage() {
         {/* Tabs Navigation */}
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={activeTab} onChange={handleTabChange} aria-label="settings tabs">
-            <Tab label="Family" value="family" />
+            <Tab label="Categories" value="categories" />
             {/* Future tabs will be added here */}
+            {/* <Tab label="Family" value="family" /> */}
             {/* <Tab label="Profile" value="profile" /> */}
             {/* <Tab label="Notifications" value="notifications" /> */}
             {/* <Tab label="Preferences" value="preferences" /> */}
           </Tabs>
         </Box>
 
-        {/* Family Tab Panel */}
-        {activeTab === 'family' && (
+        {/* Categories Tab Panel */}
+        {activeTab === 'categories' && (
           <Paper sx={{ padding: 3 }}>
             <Typography variant="h6" gutterBottom>
               Categories
@@ -273,9 +279,9 @@ export function SettingsPage() {
           }}
           onConfirm={handleDeleteCategory}
           category={selectedCategory}
-          transactionCount={getTransactionCount(selectedCategory)}
+          transactionCount={transactionCount}
           categories={categories}
-          isLoading={isDeleting}
+          isLoading={isDeleting || isLoadingTransactionCount}
           error={deleteError?.message}
         />
       )}

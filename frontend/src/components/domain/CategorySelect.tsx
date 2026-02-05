@@ -114,20 +114,30 @@ export function CategorySelect({
     return filteredCategories.find((cat) => cat.id === value) || null;
   }, [value, filteredCategories]);
 
-  // Sort categories to show parent categories before children
-  // Within each level, sort alphabetically
+  // Sort categories hierarchically: each parent followed immediately by its children
+  // Parents sorted alphabetically, children sorted alphabetically within each parent
   const sortedCategories = useMemo(() => {
-    return [...filteredCategories].sort((categoryA, categoryB) => {
-      // Parents come before children
-      if (categoryA.parent_id === null && categoryB.parent_id !== null) {
-        return -1;
-      }
-      if (categoryA.parent_id !== null && categoryB.parent_id === null) {
-        return 1;
-      }
-      // Same level - sort alphabetically
-      return categoryA.name.localeCompare(categoryB.name);
-    });
+    // Separate parents and children
+    const parents = filteredCategories.filter(cat => cat.parent_id === null);
+    const children = filteredCategories.filter(cat => cat.parent_id !== null);
+
+    // Sort parents alphabetically
+    parents.sort((a, b) => a.name.localeCompare(b.name));
+
+    // Build final list: each parent followed by its children
+    const result: CategoryRead[] = [];
+    for (const parent of parents) {
+      result.push(parent);
+
+      // Find and sort this parent's children alphabetically
+      const parentChildren = children
+        .filter(child => child.parent_id === parent.id)
+        .sort((a, b) => a.name.localeCompare(b.name));
+
+      result.push(...parentChildren);
+    }
+
+    return result;
   }, [filteredCategories]);
 
   return (

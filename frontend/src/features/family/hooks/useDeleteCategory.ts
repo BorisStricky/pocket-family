@@ -5,6 +5,16 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { deleteCategory } from '../api/categoriesApi';
 
 /**
+ * Parameters for deleting a category
+ */
+export interface DeleteCategoryParams {
+  /** UUID of the category to delete */
+  categoryId: string;
+  /** Optional UUID of category to reassign transactions to */
+  reassignTo?: string | null;
+}
+
+/**
  * React Query hook for deleting a category
  *
  * Returns mutation function, loading state, and error state.
@@ -15,6 +25,9 @@ import { deleteCategory } from '../api/categoriesApi';
  * - Backend returns 409 Conflict if category has children
  * - Must delete all children first before deleting parent
  *
+ * If the category has transactions, you can optionally reassign those transactions
+ * to another category by providing the reassignTo parameter.
+ *
  * The hook accepts a familyId parameter for cache invalidation, ensuring the
  * correct family's category list is refreshed after deletion.
  *
@@ -24,8 +37,8 @@ import { deleteCategory } from '../api/categoriesApi';
  * @example
  * const { mutate: deleteExistingCategory, isPending } = useDeleteCategory(familyId);
  *
- * const handleDelete = (categoryId: string) => {
- *   deleteExistingCategory(categoryId, {
+ * const handleDelete = (categoryId: string, reassignTo?: string) => {
+ *   deleteExistingCategory({ categoryId, reassignTo }, {
  *     onSuccess: () => {
  *       toast.success('Category deleted');
  *       navigate(`/app/${familyId}/categories`);
@@ -42,20 +55,20 @@ import { deleteCategory } from '../api/categoriesApi';
  * };
  *
  * @example
- * // Delete a category
- * deleteExistingCategory('category-uuid');
+ * // Delete a category and reassign its transactions
+ * deleteExistingCategory({ categoryId: 'category-uuid', reassignTo: 'other-category-uuid' });
  */
 export function useDeleteCategory(familyId: string) {
   const queryClient = useQueryClient();
 
   return useMutation({
-    // Mutation function calls API to delete category
-    mutationFn: (categoryId: string): Promise<void> => {
-      return deleteCategory(categoryId);
+    // Mutation function calls API to delete category with optional reassignment
+    mutationFn: (params: DeleteCategoryParams): Promise<void> => {
+      return deleteCategory(params.categoryId, params.reassignTo);
     },
 
     // On success, invalidate categories queries to remove deleted category from UI
-    onSuccess: (_, categoryId) => {
+    onSuccess: (_, params) => {
       // Invalidate family-specific categories query
       // This refreshes the category list for the current family
       queryClient.invalidateQueries({
@@ -64,7 +77,7 @@ export function useDeleteCategory(familyId: string) {
 
       // Also invalidate the specific category query (in case detail view is still mounted)
       queryClient.invalidateQueries({
-        queryKey: ['categories', categoryId],
+        queryKey: ['categories', params.categoryId],
       });
 
       // Invalidate transactions queries as they may reference the deleted category
