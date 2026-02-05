@@ -2,7 +2,7 @@
 // Tests for CategorySelect component - searchable category dropdown
 
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { render, screen, within, fireEvent, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { CategorySelect } from '../CategorySelect';
 import type { CategoryRead } from '@/types/category';
@@ -206,7 +206,7 @@ describe('CategorySelect', () => {
         name: 'Transport',
       });
 
-      render(
+      const { container } = render(
         <CategorySelect
           value={null}
           onChange={vi.fn()}
@@ -215,11 +215,20 @@ describe('CategorySelect', () => {
       );
 
       const input = screen.getByRole('combobox');
-      await user.type(input, 'Food');
+      // Click to open dropdown first
+      await user.click(input);
 
-      // Only matching category should appear
-      expect(screen.getByText('Food')).toBeInTheDocument();
-      expect(screen.queryByText('Transport')).not.toBeInTheDocument();
+      // Clear any existing value and type new search term
+      await user.clear(input);
+      await user.type(input, 'food');
+
+      // Wait for autocomplete to filter and update the listbox
+      // Only matching category should appear (search is case-insensitive)
+      const listbox = await screen.findByRole('listbox');
+      await waitFor(() => {
+        expect(within(listbox).getByText('Food')).toBeInTheDocument();
+        expect(within(listbox).queryByText('Transport')).not.toBeInTheDocument();
+      });
     });
 
     it('should search across parent category names', async () => {
@@ -248,17 +257,25 @@ describe('CategorySelect', () => {
       );
 
       const input = screen.getByRole('combobox');
-      await user.type(input, 'Food');
+      // Click to open dropdown first
+      await user.click(input);
 
-      // Both parent and child with "Food" in path should appear
-      expect(screen.getByText('Food')).toBeInTheDocument();
-      expect(screen.getByText('Groceries')).toBeInTheDocument();
-      // Unrelated category should not appear
-      expect(screen.queryByText('Transport')).not.toBeInTheDocument();
+      // Clear and type search term
+      await user.clear(input);
+      await user.type(input, 'food');
+
+      // Wait for autocomplete to filter and update the listbox
+      // Both parent and child with "Food" in path should appear (case-insensitive search)
+      const listbox = await screen.findByRole('listbox');
+      await waitFor(() => {
+        expect(within(listbox).getByText('Food')).toBeInTheDocument();
+        expect(within(listbox).getByText('Groceries')).toBeInTheDocument();
+        // Unrelated category should not appear
+        expect(within(listbox).queryByText('Transport')).not.toBeInTheDocument();
+      });
     });
 
     it('should show no options message when search has no results', async () => {
-      const user = userEvent.setup();
       const category = createMockCategory({ name: 'Food' });
 
       render(
@@ -270,13 +287,17 @@ describe('CategorySelect', () => {
       );
 
       const input = screen.getByRole('combobox');
-      await user.type(input, 'NonexistentCategory');
 
-      expect(screen.getByText('No categories found')).toBeInTheDocument();
+      // Open autocomplete and trigger search
+      fireEvent.focus(input);
+      fireEvent.change(input, { target: { value: 'NonexistentCategory' } });
+
+      // Wait for no options message to appear
+      const noOptionsMessage = await screen.findByText('No categories found', {}, { timeout: 5000 });
+      expect(noOptionsMessage).toBeInTheDocument();
     });
 
     it('should show kind-specific no options message when kind filtered', async () => {
-      const user = userEvent.setup();
       const category = createMockCategory({ name: 'Food', kind: 'expense' });
 
       render(
@@ -289,15 +310,24 @@ describe('CategorySelect', () => {
       );
 
       const input = screen.getByRole('combobox');
-      await user.type(input, 'NonexistentCategory');
 
-      expect(screen.getByText('No expense categories found')).toBeInTheDocument();
+      // Open autocomplete and trigger search
+      fireEvent.focus(input);
+      fireEvent.change(input, { target: { value: 'NonexistentCategory' } });
+
+      // Wait for kind-specific no options message
+      const noOptionsMessage = await screen.findByText('No expense categories found', {}, { timeout: 5000 });
+      expect(noOptionsMessage).toBeInTheDocument();
     });
   });
 
   describe('Hierarchical Display', () => {
     it('should display child category with parent name context', async () => {
       const user = userEvent.setup();
+      const parentCategory = createMockCategory({
+        id: 'parent-1',
+        name: 'Food',
+      });
       const childCategory = createMockCategory({
         id: 'child-1',
         name: 'Groceries',
@@ -309,17 +339,23 @@ describe('CategorySelect', () => {
         <CategorySelect
           value={null}
           onChange={vi.fn()}
-          categories={[childCategory]}
+          categories={[parentCategory, childCategory]}
         />
       );
 
       const input = screen.getByRole('combobox');
       await user.click(input);
 
-      // Child name should be displayed
-      expect(screen.getByText('Groceries')).toBeInTheDocument();
-      // Parent context should be shown
-      expect(screen.getByText(/in Food/)).toBeInTheDocument();
+      // Wait for listbox to open and options to render
+      const listbox = await screen.findByRole('listbox', {}, { timeout: 3000 });
+
+      // Child name should be displayed in the listbox
+      await waitFor(() => {
+        expect(within(listbox).getByText('Groceries')).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      // Parent context should be shown in the listbox
+      expect(within(listbox).getByText(/in Food/)).toBeInTheDocument();
     });
 
     it('should show selected child category with full path in input', () => {
@@ -361,8 +397,17 @@ describe('CategorySelect', () => {
       const input = screen.getByRole('combobox');
       await user.click(input);
 
-      const option = screen.getByText('Food');
-      await user.click(option);
+      // Wait for listbox to open
+      const listbox = await screen.findByRole('listbox', {}, { timeout: 3000 });
+
+      // Wait for option to appear in listbox
+      let option: HTMLElement;
+      await waitFor(() => {
+        option = within(listbox).getByText('Food');
+        expect(option).toBeInTheDocument();
+      }, { timeout: 3000 });
+
+      await user.click(option!);
 
       expect(handleChange).toHaveBeenCalledWith('category-1');
     });
@@ -433,9 +478,11 @@ describe('CategorySelect', () => {
       const input = screen.getByRole('combobox');
       await user.click(input);
 
-      // Expense badge should be present
-      const badges = screen.getAllByText('expense');
-      expect(badges.length).toBeGreaterThan(0);
+      // Wait for expense badge to appear
+      await waitFor(() => {
+        const badges = screen.getAllByText('expense');
+        expect(badges.length).toBeGreaterThan(0);
+      });
     });
 
     it('should display income badge with success color', async () => {
