@@ -7,7 +7,7 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_
 
-from ..models import Transaction, Account, Category, Membership, MembershipStatus, TransactionSource, CategoryKind
+from ..models import Transaction, Account, Category, Membership, MembershipStatus, TransactionSource, CategoryKind, AccountShare
 from ..schemas import TransactionCreate, TransactionRead, TransactionUpdate, ActiveContext
 from ..deps import get_db, get_current_user, get_active_context
 
@@ -296,6 +296,25 @@ async def update_transaction(transaction_id: UUID, payload: TransactionUpdate, d
         raise HTTPException(status_code=404)
     if transaction_record.created_by != user.id:
         raise HTTPException(status_code=403)
+
+    # Validate account_id update if provided
+    # Ensures multi-tenant safety by verifying account ownership
+    if payload.account_id is not None:
+        # Validate that new account exists
+        new_account = await db.get(Account, payload.account_id)
+        if not new_account:
+            raise HTTPException(status_code=404, detail="Account not found")
+
+        # Ensure account belongs to current user to prevent cross-user data manipulation
+        if new_account.user_id != user.id:
+            raise HTTPException(
+                status_code=403,
+                detail="Cannot assign transaction to another user's account"
+            )
+
+        # Update the account_id
+        transaction_record.account_id = payload.account_id
+
     if payload.category_id is not None:
         transaction_record.category_id = payload.category_id
     if payload.amount is not None:

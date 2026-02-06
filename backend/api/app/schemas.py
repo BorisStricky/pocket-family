@@ -345,6 +345,7 @@ class TransactionUpdate(SQLModel):
     """Input schema for updating transactions.
 
     Args:
+        account_id: New account id (optional).
         category_id: New category id (optional).
         amount: New amount (optional).
         currency: New currency (optional).
@@ -353,6 +354,7 @@ class TransactionUpdate(SQLModel):
         description: New description (optional).
         reconciled: Updated reconciliation flag (optional).
     """
+    account_id: Optional[UUID] = None
     category_id: Optional[UUID] = None
     amount: Optional[Decimal] = None
     currency: Optional[Currency] = None
