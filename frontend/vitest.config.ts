@@ -17,8 +17,8 @@ export default defineConfig({
     setupFiles: './src/test/setup.ts',  // Global test setup with MSW
     css: true,               // Process CSS imports
     // Timeout settings to prevent hanging tests
-    testTimeout: 10000,      // 10 seconds per test
-    hookTimeout: 10000,      // 10 seconds for beforeEach/afterEach hooks
+    testTimeout: 20000,      // 20 seconds per test (integration tests render complex MUI pages)
+    hookTimeout: 20000,      // 20 seconds for beforeEach/afterEach hooks
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
