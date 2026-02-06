@@ -29,6 +29,7 @@ import {
   GlobalAccountDetailPage,
   GlobalAddAccountPage,
 } from '@/features/accounts/pages';
+import { SettingsPage } from '@/features/settings/pages';
 
 // Simple nested page placeholders (will be replaced with family-scoped versions)
 function Dashboard() {
@@ -39,9 +40,6 @@ function Budgets() {
 }
 function Reports() {
   return <div className="text-slate-700">Reports</div>;
-}
-function Settings() {
-  return <div className="text-slate-700">Settings</div>;
 }
 
 export default function AppRouter() {
@@ -124,7 +122,7 @@ export default function AppRouter() {
           </Route>
           <Route path="budgets" element={<Budgets />} />
           <Route path="reports" element={<Reports />} />
-          <Route path="settings" element={<Settings />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
 
         {/* Catch-all - redirect to home */}

@@ -24,6 +24,10 @@ export const API_ENDPOINTS = {
   TENANT_BY_ID: '/tenants/:id',
   TENANT_SWITCH: '/tenants/:id/switch',
 
+  // Categories
+  CATEGORIES: '/categories',
+  CATEGORY_BY_ID: '/categories/:id',
+
   // Health check
   PING: '/ping',
 } as const;

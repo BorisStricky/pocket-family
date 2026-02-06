@@ -228,7 +228,8 @@ describe('apiClient', () => {
 
       // Act & Assert - Verify ApiError is thrown
       await expect(apiFetch('/invalid')).rejects.toThrow(ApiError);
-      await expect(apiFetch('/invalid')).rejects.toThrow('API error 400');
+      // apiClient extracts the 'detail' field from error responses when available
+      await expect(apiFetch('/invalid')).rejects.toThrow('Validation failed');
 
       try {
         await apiFetch('/invalid');
@@ -414,10 +415,11 @@ describe('apiClient', () => {
       // Act & Assert - Should throw ApiError after retry fails
       // Use toMatchObject to verify multiple properties in a single call
       // (calling apiFetch twice would exhaust the mockResolvedValueOnce sequence)
+      // apiClient extracts the 'detail' field from error responses when available
       await expect(apiFetch('/protected')).rejects.toMatchObject({
         name: 'ApiError',
         status: 401,
-        message: 'API error 401',
+        message: 'Still unauthorized',
       });
 
       // Verify only 3 calls were made (original, refresh, retry - no second refresh)

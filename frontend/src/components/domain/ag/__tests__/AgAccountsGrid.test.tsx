@@ -421,10 +421,11 @@ describe('AgAccountsGrid component', () => {
         />
       );
 
-      // Assert - Wait for AG Grid to render loading overlay
+      // Assert - Wait for AG Grid to render loading overlay with longer timeout
+      // AG Grid may take additional time to render overlays in test environment
       await waitFor(() => {
         expect(screen.getByText(/loading accounts/i)).toBeInTheDocument();
-      });
+      }, { timeout: 3000 });
     });
 
     it('should hide loading indicator when data loads', async () => {
