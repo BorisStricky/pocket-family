@@ -45,4 +45,11 @@ export {
   createMockCategoryTree,
 } from './category';
 
+export {
+  createMockMembership,
+  createMockOwnerMembership,
+  createMockPendingMembership,
+  createMockMembershipList,
+} from './membership';
+
 export type { CategoryRead, CategoryCreate, CategoryUpdate, CategoryKind } from './category';

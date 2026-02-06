@@ -20,6 +20,8 @@ import {
   AddTransactionPage,
   TransactionDetailPage,
 } from '@/features/transactions/pages';
+import { FamilyPage } from '@/features/family/pages/FamilyPage';
+import { AcceptInvitePage } from '@/features/family/pages/AcceptInvitePage';
 import {
   AccountsPage,
   AddAccountPage,
@@ -50,6 +52,9 @@ export default function AppRouter() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+
+        {/* Accept invite page (public, no auth required) */}
+        <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
         {/* Test route for auth (remove in production) */}
         <Route path="/test-auth" element={<AuthTest />} />
@@ -120,6 +125,7 @@ export default function AppRouter() {
             <Route path=":accountId" element={<FamilyAccountDetailPage />} />
             <Route path=":accountId/edit" element={<EditAccountPage />} />
           </Route>
+          <Route path="family" element={<FamilyPage />} />
           <Route path="budgets" element={<Budgets />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<SettingsPage />} />

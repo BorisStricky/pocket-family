@@ -1,7 +1,7 @@
 // src/features/settings/pages/SettingsPage.tsx
-// Settings page with tabbed interface for family management and preferences
-// Currently includes Family tab with category management (Phase 1)
-// Future tabs: Profile, Notifications, Preferences (Phase 2)
+// Settings page with tabbed interface for category management, family members, and preferences
+// Categories tab: hierarchical category CRUD
+// Family tab: members list, invite, leave/delete family settings
 
 import { useState } from 'react';
 import {
@@ -16,36 +16,50 @@ import {
   Tabs,
   Tab,
 } from '@mui/material';
-import { Plus } from 'lucide-react';
-import { useParams } from 'react-router-dom';
+import { Plus, UserPlus } from 'lucide-react';
+import { useParams, useNavigate } from 'react-router-dom';
+import { useAuth } from '@/features/auth/hooks/useAuth';
 import { CategoryTree } from '@/components/domain/CategoryTree';
 import { AddCategoryModal } from '@/features/family/components/AddCategoryModal';
 import { EditCategoryModal } from '@/features/family/components/EditCategoryModal';
 import { DeleteCategoryConfirm } from '@/features/family/components/DeleteCategoryConfirm';
+import { MembersList } from '@/features/family/components/MembersList';
+import { InviteMemberModal } from '@/features/family/components/InviteMemberModal';
+import { FamilySettings } from '@/features/family/components/FamilySettings';
 import { useCategories } from '@/features/family/hooks/useCategories';
 import { useCreateCategory } from '@/features/family/hooks/useCreateCategory';
 import { useUpdateCategory } from '@/features/family/hooks/useUpdateCategory';
 import { useDeleteCategory } from '@/features/family/hooks/useDeleteCategory';
 import { useCategoryTransactionCount } from '@/features/family/hooks/useCategoryTransactionCount';
+import { useListMembers } from '@/features/family/hooks/useListMembers';
+import { useInviteMember } from '@/features/family/hooks/useInviteMember';
+import { useRemoveMember } from '@/features/family/hooks/useRemoveMember';
+import { useLeaveFamily } from '@/features/family/hooks/useLeaveFamily';
+import { useDeleteFamily } from '@/features/family/hooks/useDeleteFamily';
+import { useFamilyById } from '@/features/family/hooks/useFamilyById';
+import { ROUTES } from '@/lib/constants';
 import type { CategoryRead, CategoryCreate, CategoryUpdate, CategoryKind } from '@/types/category';
+import type { MembershipRole } from '@/types/family';
 
 /**
  * SettingsPage - Main settings page with tabbed interface
  *
  * Tabs:
- * - Family: Category management with hierarchical tree view and CRUD operations
+ * - Categories: Category management with hierarchical tree view and CRUD operations
+ * - Family: Members list, invitations, and family settings (leave/delete)
  * - Profile: (Future) User profile settings
  * - Notifications: (Future) Notification preferences
- * - Preferences: (Future) App preferences and display options
- *
- * The Family tab contains all category management functionality previously in FamilyPage.
- * This provides a better information architecture with related settings grouped together.
  */
 export function SettingsPage() {
   const { familyId } = useParams<{ familyId: string }>();
+  const navigate = useNavigate();
+  const { user } = useAuth();
 
   // Tab state management - start with categories tab
   const [activeTab, setActiveTab] = useState<string>('categories');
+
+  // Fetch family data for the Family tab header and settings
+  const { data: familyData } = useFamilyById(familyId);
 
   // Fetch categories for this family
   const { data: categories = [], isLoading, error: fetchError } = useCategories(familyId!);
@@ -55,10 +69,18 @@ export function SettingsPage() {
   const { mutate: updateCategory, isPending: isUpdating, error: updateError } = useUpdateCategory(familyId!);
   const { mutate: deleteCategory, isPending: isDeleting, error: deleteError } = useDeleteCategory(familyId!);
 
+  // === Members hooks ===
+  const { data: members = [], isLoading: isLoadingMembers } = useListMembers(familyId!);
+  const { mutate: inviteMember, isPending: isInviting, error: inviteError, isSuccess: isInviteSuccess, reset: resetInvite } = useInviteMember(familyId!);
+  const { mutate: removeMember, isPending: isRemoving } = useRemoveMember(familyId!);
+  const { mutate: leaveFamily, isPending: isLeaving, error: leaveError } = useLeaveFamily(familyId!);
+  const { mutate: deleteFamilyMutation, isPending: isDeletingFamily, error: deleteFamilyError } = useDeleteFamily();
+
   // Modal state management
   const [addModalOpen, setAddModalOpen] = useState(false);
   const [editModalOpen, setEditModalOpen] = useState(false);
   const [deleteModalOpen, setDeleteModalOpen] = useState(false);
+  const [inviteModalOpen, setInviteModalOpen] = useState(false);
 
   // Selected category for edit/delete operations
   const [selectedCategory, setSelectedCategory] = useState<CategoryRead | null>(null);
@@ -74,6 +96,14 @@ export function SettingsPage() {
 
   // Pre-selected kind for add modal (when clicking section header add button)
   const [kindForAdd, setKindForAdd] = useState<CategoryKind | undefined>(undefined);
+
+  // Determine the current user's membership for permission checks
+  // Match by user_id since the JWT sub claim contains the user ID
+  const currentUserMembership = members.find(
+    (member) => member.user_id === user?.id
+  ) || null;
+
+  const isCurrentUserOwner = currentUserMembership?.role === 'owner';
 
   /**
    * Handle tab changes in settings navigation
@@ -154,13 +184,34 @@ export function SettingsPage() {
     );
   };
 
-  /**
-   * Calculate transaction count for a category
-   * Uses the useCategoryTransactionCount hook which fetches real-time data from backend
-   * The count is fetched when a category is selected for deletion
-   */
-  // Transaction count is now fetched via useCategoryTransactionCount hook above
-  // and stored in the 'transactionCount' variable
+  // Transaction count is fetched via useCategoryTransactionCount hook above
+
+  // === Members handlers ===
+  const handleInviteMember = (email: string, role: MembershipRole) => {
+    inviteMember({ user_email: email, role });
+  };
+
+  const handleRemoveMember = (membershipId: string) => {
+    removeMember({ membershipId });
+  };
+
+  const handleLeaveFamily = () => {
+    if (!currentUserMembership) return;
+    leaveFamily(currentUserMembership.id, {
+      onSuccess: () => {
+        navigate(ROUTES.FAMILIES);
+      },
+    });
+  };
+
+  const handleDeleteFamily = () => {
+    if (!familyId) return;
+    deleteFamilyMutation(familyId, {
+      onSuccess: () => {
+        navigate(ROUTES.FAMILIES);
+      },
+    });
+  };
 
   // Loading state
   if (isLoading) {
@@ -181,7 +232,7 @@ export function SettingsPage() {
           <Typography variant="h4" component="h1">
             Settings
           </Typography>
-          {/* Show Add Category button only when on Categories tab */}
+          {/* Show context-appropriate action button based on active tab */}
           {activeTab === 'categories' && (
             <Button
               variant="contained"
@@ -189,6 +240,18 @@ export function SettingsPage() {
               onClick={() => handleOpenAddModal()}
             >
               Add Category
+            </Button>
+          )}
+          {activeTab === 'family' && isCurrentUserOwner && (
+            <Button
+              variant="contained"
+              startIcon={<UserPlus size={20} />}
+              onClick={() => {
+                resetInvite();
+                setInviteModalOpen(true);
+              }}
+            >
+              Invite Member
             </Button>
           )}
         </Box>
@@ -204,11 +267,8 @@ export function SettingsPage() {
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={activeTab} onChange={handleTabChange} aria-label="settings tabs">
             <Tab label="Categories" value="categories" />
-            {/* Future tabs will be added here */}
-            {/* <Tab label="Family" value="family" /> */}
-            {/* <Tab label="Profile" value="profile" /> */}
-            {/* <Tab label="Notifications" value="notifications" /> */}
-            {/* <Tab label="Preferences" value="preferences" /> */}
+            <Tab label="Family" value="family" />
+            {/* Future tabs: Profile, Notifications, Preferences */}
           </Tabs>
         </Box>
 
@@ -234,7 +294,48 @@ export function SettingsPage() {
           </Paper>
         )}
 
-        {/* Future tab panels will be added here */}
+        {/* Family Tab Panel - Members list, invitations, and family settings */}
+        {activeTab === 'family' && (
+          <Paper sx={{ padding: 3 }}>
+            <Stack spacing={3}>
+              {/* Members section header */}
+              <Box>
+                <Typography variant="h6" gutterBottom>
+                  Members
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Manage who has access to this family's financial data.
+                </Typography>
+              </Box>
+
+              {/* Members list with loading state */}
+              {isLoadingMembers ? (
+                <Box sx={{ display: 'flex', justifyContent: 'center', paddingY: 4 }}>
+                  <CircularProgress />
+                </Box>
+              ) : (
+                <MembersList
+                  members={members}
+                  currentUserMembership={currentUserMembership}
+                  onRemoveMember={handleRemoveMember}
+                  isRemoveLoading={isRemoving}
+                />
+              )}
+
+              {/* Family settings: leave or delete family */}
+              {familyData && (
+                <FamilySettings
+                  family={familyData}
+                  currentUserMembership={currentUserMembership}
+                  onLeaveFamily={handleLeaveFamily}
+                  onDeleteFamily={handleDeleteFamily}
+                  isLoading={isLeaving || isDeletingFamily}
+                  error={leaveError?.message || deleteFamilyError?.message}
+                />
+              )}
+            </Stack>
+          </Paper>
+        )}
       </Stack>
 
       {/* Add Category Modal */}
@@ -285,6 +386,15 @@ export function SettingsPage() {
           error={deleteError?.message}
         />
       )}
+      {/* Invite Member Modal */}
+      <InviteMemberModal
+        open={inviteModalOpen}
+        onClose={() => setInviteModalOpen(false)}
+        onInvite={handleInviteMember}
+        isLoading={isInviting}
+        error={inviteError?.message}
+        successMessage={isInviteSuccess ? 'Invitation sent successfully!' : undefined}
+      />
     </Container>
   );
 }

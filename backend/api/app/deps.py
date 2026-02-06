@@ -105,9 +105,51 @@ async def get_active_context(db: AsyncSession = Depends(get_db), authorization: 
     active_context = ActiveContext(active_user = user_record, active_tenant = tenant_record, active_membership=membership_record)
     return active_context
 
+async def get_authenticated_user(db: AsyncSession = Depends(get_db), authorization: str | None = Header(None)):
+    """Return the authenticated user from the JWT without validating tenant membership.
+
+    Use this for endpoints that don't require tenant scope, such as listing families,
+    creating families, or switching tenants. These operations only need user identity.
+
+    This avoids the problem where a user whose active tenant membership was removed
+    gets locked out of ALL endpoints (including listing their other families).
+
+    Returns:
+        User record from the database.
+
+    Raises:
+        HTTPException 401 when credentials are missing, invalid, or expired.
+        HTTPException 404 when the user no longer exists.
+    """
+    if not authorization or not authorization.startswith("Bearer "):
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Missing credentials")
+
+    token_str = authorization.split(" ", 1)[1]
+    jwt_payload = decode_access_token(token_str)
+    if not jwt_payload:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
+
+    user_id = jwt_payload.get("sub")
+    if not user_id:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token payload")
+
+    try:
+        user_uuid = UUIDType(user_id)
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid user id in token")
+
+    user_record = await db.get(User, user_uuid)
+    if not user_record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="User not found")
+
+    return user_record
+
+
 async def get_current_user(active_context: ActiveContext = Depends(get_active_context)):
     """
     Return the active user extracted from the Authorization header.
+    NOTE: This validates tenant membership. For endpoints that only need user identity
+    (list families, create family, switch family), use get_authenticated_user instead.
 
     Returns:
         User record
