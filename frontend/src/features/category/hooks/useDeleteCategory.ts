@@ -1,4 +1,4 @@
-// src/features/family/hooks/useDeleteCategory.ts
+// src/features/category/hooks/useDeleteCategory.ts
 // React Query mutation hook for deleting categories
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';

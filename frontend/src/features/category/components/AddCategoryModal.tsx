@@ -1,4 +1,4 @@
-// src/features/family/components/AddCategoryModal.tsx
+// src/features/category/components/AddCategoryModal.tsx
 // Modal dialog for creating new categories with name, kind, and parent selection
 
 import { useState } from 'react';

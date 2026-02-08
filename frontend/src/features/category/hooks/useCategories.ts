@@ -1,4 +1,4 @@
-// src/features/family/hooks/useCategories.ts
+// src/features/category/hooks/useCategories.ts
 // React Query hook for fetching list of categories for a family
 
 import { useQuery } from '@tanstack/react-query';

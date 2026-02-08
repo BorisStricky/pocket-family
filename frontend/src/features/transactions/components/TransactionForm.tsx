@@ -18,7 +18,7 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
-import { useCategories } from "@/features/family/hooks/useCategories";
+import { useCategories } from "@/features/category/hooks/useCategories";
 import { CategorySelect } from "@/components/domain/CategorySelect";
 import type { TransactionRead, TransactionCreate } from "../types";
 import type { CategoryRead } from "@/types/category";

@@ -1,4 +1,4 @@
-// src/features/family/components/EditCategoryModal.tsx
+// src/features/category/components/EditCategoryModal.tsx
 // Modal dialog for editing existing categories with pre-filled data
 
 import { useState, useEffect } from 'react';

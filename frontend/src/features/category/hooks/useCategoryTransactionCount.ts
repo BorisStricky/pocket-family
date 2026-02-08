@@ -1,4 +1,4 @@
-// src/features/family/hooks/useCategoryTransactionCount.ts
+// src/features/category/hooks/useCategoryTransactionCount.ts
 // React Query hook for fetching transaction count for a category
 
 import { useQuery } from '@tanstack/react-query';
