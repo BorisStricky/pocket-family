@@ -6,7 +6,7 @@ Dashboard shows meaningful KPIs, charts, and recent activity using real transact
 ## Success Criteria
 - [ ] Dashboard shows key metrics (total expenses, income, balance)
 - [ ] Charts display spending by category, trends over time
-- [ ] Recent transactions widget shows current month transactions
+- [ ] Recent transactions widget shows transactions from past 7 days
 - [ ] Quick actions (Add Transaction, View Reports)
 - [ ] Data updates when navigating from other pages
 
@@ -30,11 +30,11 @@ Dashboard shows meaningful KPIs, charts, and recent activity using real transact
 
 ### UI Components (Organisms)
 
-| Done | Component                | File Path                                                        | Props                              | Story                         | Notes                                                                                                                |
-| ---- | ------------------------ | ---------------------------------------------------------------- | ---------------------------------- | ----------------------------- | -------------------------------------------------------------------------------------------------------------------- |
-| [ ]  | OverviewCard             | `src/components/ui/organisms/OverviewCard.tsx`                   | `title, value, delta?, icon?`      | `Organisms/OverviewCard`      | • KPI card showing metric<br>• Delta (up/down indicator)<br>• Icon (optional)                                        |
-| [ ]  | MiniChart                | `src/components/ui/organisms/MiniChart.tsx`                      | `data, type: 'line'\|'bar'\|'pie'` | `Organisms/MiniChart`         | • Small chart for cards<br>• Use Recharts                                                                            |
-| [ ]  | RecentTransactionsWidget | `src/features/dashboard/components/RecentTransactionsWidget.tsx` | `familyId, dateRange?`             | `Features/RecentTransactions` | • Shows transactions from current month<br>• Click → navigate to transactions page<br>• Reuse AG Grid or simple list |
+| Done | Component                | File Path                                                        | Props                              | Story                         | Notes                                                                                                              |
+| ---- | ------------------------ | ---------------------------------------------------------------- | ---------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [ ]  | OverviewCard             | `src/components/ui/organisms/OverviewCard.tsx`                   | `title, value, delta?, icon?`      | `Organisms/OverviewCard`      | • KPI card showing metric<br>• Delta (up/down indicator)<br>• Icon (optional)                                      |
+| [ ]  | MiniChart                | `src/components/ui/organisms/MiniChart.tsx`                      | `data, type: 'line'\|'bar'\|'pie'` | `Organisms/MiniChart`         | • Small chart for cards<br>• Use Recharts                                                                          |
+| [ ]  | RecentTransactionsWidget | `src/features/dashboard/components/RecentTransactionsWidget.tsx` | `familyId, dateRange?`             | `Features/RecentTransactions` | • Shows transactions from past 7 days<br>• Click → navigate to transactions page<br>• Reuse AG Grid or simple list |
 
 ### Feature Components (Dashboard)
 
@@ -83,7 +83,7 @@ Dashboard shows meaningful KPIs, charts, and recent activity using real transact
 
 ### Step 5: Recent Transactions Widget
 - [ ] Build `RecentTransactionsWidget`
-- [ ] Fetch transactions from current month using `useTransactions`
+- [ ] Fetch transactions from past 7 days using `useTransactions`
 - [ ] Display in AG Grid
 - [ ] Add "View All" link → navigate to transactions page
 
