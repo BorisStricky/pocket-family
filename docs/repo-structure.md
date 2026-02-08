@@ -59,12 +59,33 @@ This repository implements a multi-tenant SaaS personal finance application. The
     - main.jsx
     - index.css
     - router/
-      - index.jsx
-    - pages/
-      - app_shell.jsx
-      - landing_page.jsx
-      - login_page.jsx
-      - signup_page.jsx
+      - index.tsx              # React Router configuration
+    - components/
+      - ui/                   # Atomic design: shared UI components
+        - atoms/
+        - molecules/
+        - organisms/
+      - domain/               # Business-logic components (AG Grid wrappers, etc.)
+    - features/               # Feature modules (flat structure)
+      - app/                 # App shell and main layout
+      - auth/                # Authentication (login, signup, logout)
+      - accounts/            # Account management
+      - transactions/        # Transaction CRUD
+      - category/            # Category management (split from family)
+        - api/               # API functions
+        - hooks/             # React Query hooks
+        - components/        # Feature-specific components
+      - family/              # Family/tenant management
+        - components/        # Family-specific components
+      - settings/            # Settings pages (categories, family management)
+    - lib/
+      - apiClient.ts         # Centralized API fetch wrapper
+      - jwtUtils.ts         # JWT utilities
+      - constants.ts         # API endpoints, storage keys
+    - __tests__/             # Frontend tests
+      - components/
+      - features/
+      - lib/
 - personal/                   # Personal notes / non-critical artifacts
 - tests/
   - conftest.py
@@ -112,12 +133,42 @@ Developer helper scripts such as:
 - `recreate_db.py` — quickly reinitializes the local database during development.
 
 ### `frontend/`
-Static frontend site (single-page app).
+React single-page app (SPA) for the personal finance dashboard. Built with TypeScript, Material-UI, React Query, and AG Grid.
+
+Key files:
 - `frontend/Dockerfile` — image build for production.
 - `frontend/nginx.conf` — nginx config used in containerized deployments.
-- `frontend/index.html` — SPA HTML entry.
-- `frontend/package.json` — frontend dependencies & scripts.
-- `frontend/src/` — source code (React) including `main.jsx`, `router`, and `pages/`.
+- `frontend/index.html` — SPA HTML entry point.
+- `frontend/package.json` — frontend dependencies & scripts (React, MUI, React Query, Vitest).
+
+#### `frontend/src/`
+
+**Structure Overview** (Hybrid Atomic + Feature-based):
+- `router/index.tsx` — React Router v6 configuration with protected routes and nested layouts.
+- `components/ui/` — Atomic design components shared across features (Button, Input, Modal, Dialog, etc.).
+- `components/domain/` — Business-logic components reused across features (AG Grid wrappers, CategoryTree).
+- `features/` — Feature modules with flat internal structure (no subdirectories within components/).
+- `lib/` — Shared utilities (API client, JWT decoding, constants).
+- `__tests__/` — Frontend tests using Vitest + React Testing Library + MSW (Mock Service Worker).
+
+**Features Structure**:
+- `features/auth/` — Authentication (login, signup, logout, token management).
+- `features/accounts/` — Account CRUD and management.
+- `features/transactions/` — Transaction creation, editing, listing with filtering.
+- `features/category/` — **Category management (split from family in recent refactor)**
+  - `api/categoriesApi.ts` — API calls for category CRUD.
+  - `hooks/` — React Query hooks (useCategories, useCreateCategory, useUpdateCategory, etc.).
+  - `components/` — Modals and dialogs (AddCategoryModal, EditCategoryModal, DeleteCategoryConfirm).
+- `features/family/` — Family/tenant membership and settings.
+- `features/settings/` — Composed settings page with tabs (Categories, Family management).
+- `features/app/` — App shell and main layout.
+
+**Key Architectural Patterns**:
+- **API Integration**: All calls use `apiFetch()` from `lib/apiClient.ts` (centralized auth headers).
+- **State Management**: TanStack React Query for server state, React Context for auth/tenant context.
+- **Forms**: React Hook Form + Material-UI components with validation.
+- **Tables**: AG Grid Community with custom wrappers in `components/domain/ag/`.
+- **Testing**: Vitest with setupAuthenticatedUser utility and MSW handlers for API mocking.
 
 ### `docs/`
 Architecture and documentation:
