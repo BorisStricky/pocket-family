@@ -5,8 +5,7 @@ from typing import List
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import User, Tenant, Membership, MembershipRole, MembershipStatus, Category, Transaction, AccountShare, Invite
-from sqlmodel import delete as sql_delete
+from ..models import User, Tenant, Membership, MembershipRole, MembershipStatus
 from ..schemas import TenantCreate, TenantRead, TenantUpdate, MembershipCreate, MembershipRead, MembershipUpdate, ActiveContext
 from ..deps import get_db, get_active_context, get_current_user, get_authenticated_user
 from ..auth import create_access_token
@@ -166,16 +165,7 @@ async def delete_tenant(tenant_id: UUID, db: AsyncSession = Depends(get_db), act
     if membership_record.role != MembershipRole.OWNER:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="only tenant owner can update")
 
-    # Application-level cascade: delete all tenant-scoped data before removing the tenant.
-    # Order matters: delete child records first to avoid FK constraint violations.
-    # Accounts are NOT deleted because they belong to users, not tenants.
-    # Only the AccountShare links between accounts and this tenant are removed.
-    await db.execute(sql_delete(AccountShare).where(AccountShare.tenant_id == tenant.id))
-    await db.execute(sql_delete(Transaction).where(Transaction.tenant_id == tenant.id))
-    await db.execute(sql_delete(Category).where(Category.tenant_id == tenant.id))
-    await db.execute(sql_delete(Invite).where(Invite.tenant_id == tenant.id))
-    await db.execute(sql_delete(Membership).where(Membership.tenant_id == tenant.id))
-
+    # Tenant-scoped records are removed by DB-level ON DELETE CASCADE constraints.
     await db.delete(tenant)
     await db.commit()
     return

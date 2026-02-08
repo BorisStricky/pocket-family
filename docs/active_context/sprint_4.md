@@ -16,13 +16,14 @@
 
 ### Phase 2: Family Management (Week 2)
 
-- [ ] Users can create new families and become owners
-- [ ] Owners can invite users via email (creates pending memberships)
-- [ ] Users can view pending invitations (full acceptance flow pending backend)
-- [ ] Owners can remove members from their family
-- [ ] Members can leave families they don't own
-- [ ] Owners can delete families with proper safeguards
-- [ ] Family page shows members, settings, and categories
+- [x] Users can create new families and become owners
+- [x] Owners can invite users via email (creates pending memberships)
+- [x] Users can view pending invitations (full acceptance flow pending backend)
+- [x] Owners can remove members from their family
+- [x] Members can leave families they don't own
+- [x] Owners can delete families with proper safeguards
+- [x] Family page shows members, settings, and categories
+- [ ] Owners cannot leave a family
 
 ---
 

@@ -28,7 +28,7 @@ interface FamilySettingsProps {
   family: TenantRead;
   /** The current user's membership in this family */
   currentUserMembership: MembershipRead | null;
-  /** Called when user clicks "Leave Family" (for non-owners) */
+  /** Called when user clicks "Leave Family" */
   onLeaveFamily?: () => void;
   /** Called when owner clicks "Delete Family" */
   onDeleteFamily?: () => void;
@@ -36,14 +36,17 @@ interface FamilySettingsProps {
   isLoading?: boolean;
   /** Error message for failed operations */
   error?: string;
+  /** Number of active owners in this family (for owner leave rules) */
+  activeOwnerCount?: number;
 }
 
 /**
  * FamilySettings - Displays family info and provides leave/delete actions
  *
- * Shows different actions based on the user's role:
- * - Non-owners see "Leave Family" button with confirmation dialog
- * - Owners see "Delete Family" button with severe warning and name confirmation
+ * Shows role-aware actions:
+ * - Members/viewers can leave
+ * - Owners can leave only if another active owner exists
+ * - Owners can always delete
  *
  * The delete confirmation requires typing the family name to prevent accidental deletions.
  * This is a common pattern for destructive actions on important data.
@@ -55,12 +58,15 @@ export function FamilySettings({
   onDeleteFamily,
   isLoading = false,
   error,
+  activeOwnerCount = 0,
 }: FamilySettingsProps) {
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmationName, setDeleteConfirmationName] = useState('');
 
   const isOwner = currentUserMembership?.role === 'owner';
+  const canOwnerLeave = isOwner && activeOwnerCount > 1;
+  const canShowLeave = !isOwner || canOwnerLeave;
 
   // Delete confirmation requires exact family name match for safety
   const isDeleteConfirmed = deleteConfirmationName === family.name;
@@ -104,8 +110,8 @@ export function FamilySettings({
       </Box>
 
       <Stack spacing={2}>
-        {/* Leave Family - visible for non-owners only */}
-        {!isOwner && (
+        {/* Leave Family - visible for non-owners and owners when another owner exists */}
+        {canShowLeave && (
           <Button
             variant="outlined"
             color="warning"

@@ -20,7 +20,7 @@ export interface RemoveMemberParams {
  * disappears from the UI immediately.
  *
  * Only owners can remove other members. Backend enforces this constraint.
- * Owners cannot remove themselves - they must use deleteFamily or transfer ownership first.
+ * Self-removal is handled by useLeaveFamily.
  *
  * @param familyId UUID of the family to remove the member from
  * @returns Mutation object with mutate function and status flags

@@ -115,6 +115,9 @@ export function FamilyPage() {
   const activeMemberCount = members.filter(
     (member) => member.status === 'active'
   ).length;
+  const activeOwnerCount = members.filter(
+    (member) => member.status === 'active' && member.role === 'owner'
+  ).length;
 
   // === Category handlers ===
   const handleOpenAddCategoryModal = (parent?: CategoryRead, kind?: CategoryKind) => {
@@ -328,6 +331,7 @@ export function FamilyPage() {
                     onDeleteFamily={handleDeleteFamily}
                     isLoading={isLeaving || isDeletingFamily}
                     error={leaveError?.message || deleteFamilyError?.message}
+                    activeOwnerCount={activeOwnerCount}
                   />
                 )}
               </Stack>

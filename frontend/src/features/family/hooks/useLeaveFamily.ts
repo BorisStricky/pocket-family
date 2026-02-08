@@ -13,8 +13,8 @@ import { removeMember } from '../api/familyApi';
  * On success, invalidates both the members list and the families list,
  * because the user will no longer see this family in their family selector.
  *
- * Owners cannot leave their own family - they must delete it or transfer ownership.
- * Backend enforces this constraint and returns 403 if an owner tries to leave.
+ * Owners can leave when at least one other active owner remains.
+ * Backend blocks removal of the last remaining owner.
  *
  * @param familyId UUID of the family to leave
  * @returns Mutation object with mutate function and status flags

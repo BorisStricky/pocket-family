@@ -436,6 +436,20 @@ describe('useLeaveFamily', () => {
     });
   });
 
+  it('allows an owner to leave when removal is permitted by backend', async () => {
+    const { wrapper } = createWrapper();
+
+    const { result } = renderHook(() => useLeaveFamily(TEST_TENANT_ID), { wrapper });
+
+    act(() => {
+      result.current.mutate('membership-owner-uuid');
+    });
+
+    await waitFor(() => {
+      expect(result.current.isSuccess).toBe(true);
+    });
+  });
+
   it('invalidates both members and families queries on success', async () => {
     const { wrapper, queryClient } = createWrapper();
 
@@ -461,7 +475,7 @@ describe('useLeaveFamily', () => {
     expect(familiesState?.isInvalidated).toBe(true);
   });
 
-  it('handles error when owner tries to leave', async () => {
+  it('handles error when backend rejects leave request', async () => {
     const { wrapper } = createWrapper();
 
     const { result } = renderHook(() => useLeaveFamily(TEST_TENANT_ID), { wrapper });

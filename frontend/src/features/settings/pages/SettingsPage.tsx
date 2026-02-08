@@ -104,6 +104,9 @@ export function SettingsPage() {
   ) || null;
 
   const isCurrentUserOwner = currentUserMembership?.role === 'owner';
+  const activeOwnerCount = members.filter(
+    (member) => member.status === 'active' && member.role === 'owner'
+  ).length;
 
   /**
    * Handle tab changes in settings navigation
@@ -331,6 +334,7 @@ export function SettingsPage() {
                   onDeleteFamily={handleDeleteFamily}
                   isLoading={isLeaving || isDeletingFamily}
                   error={leaveError?.message || deleteFamilyError?.message}
+                  activeOwnerCount={activeOwnerCount}
                 />
               )}
             </Stack>
