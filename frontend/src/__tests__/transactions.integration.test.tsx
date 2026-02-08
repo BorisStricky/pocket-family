@@ -146,9 +146,8 @@ describe('TransactionsPage Integration', () => {
       expect(screen.getByText('No transactions found')).toBeInTheDocument();
     });
 
-    // When there are no active filters, show the "get started" message
-    // This encourages the user to create their first transaction
-    expect(screen.getByText('Get started by adding your first transaction.')).toBeInTheDocument();
+    // Date filters are set to current month by default, so the "adjust filters" message appears
+    expect(screen.getByText('Try adjusting your filters to see more results.')).toBeInTheDocument();
 
     // The empty state also includes an Add Transaction button for convenience
     // There are two: one in the header and one in the empty state
@@ -173,9 +172,9 @@ describe('TransactionsPage Integration', () => {
     renderTransactionsPage();
 
     // Wait for initial empty load to complete before typing
-    // At this point the empty state shows "Get started by adding your first transaction."
+    // Date filters default to current month, so the "adjust filters" message appears
     await waitFor(() => {
-      expect(screen.getByText('Get started by adding your first transaction.')).toBeInTheDocument();
+      expect(screen.getByText('Try adjusting your filters to see more results.')).toBeInTheDocument();
     });
 
     // Type a single character to activate the search filter

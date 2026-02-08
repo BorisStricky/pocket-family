@@ -71,15 +71,49 @@ Implementation work is broken down into these standard milestones, unless otherw
 
 When delegating work, use these agent assignments:
 
-| Task Type                  | Primary Agent        | Validation Agent                  | Fallback Agent |
-| -------------------------- | -------------------- | --------------------------------- | -------------- |
-| Write frontend tests       | frontend-test        | frontend-dev (run tests)          | code-reviewer  |
-| Write backend tests        | backend-test         | backend-dev (run tests)           | code-reviewer  |
-| Implement frontend feature | frontend-dev         | frontend-test (verify tests pass) | refactor       |
-| Implement backend feature  | backend-dev          | backend-test (verify tests pass)  | refactor       |
-| Review code quality        | code-reviewer        | -                                 | refactor       |
-| Improve code structure     | refactor             | code-reviewer                     | -              |
-| Generate documentation     | documentation-writer | code-reviewer                     | -              |
+| Task Type                       | Primary Agent        | Validation Agent                  | Fallback Agent |
+| ------------------------------- | -------------------- | --------------------------------- | -------------- |
+| Write frontend tests            | frontend-test        | frontend-dev (run tests)          | code-reviewer  |
+| Write backend tests             | backend-test         | backend-dev (run tests)           | code-reviewer  |
+| Update existing frontend tests  | frontend-test        | frontend-dev (run tests)          | code-reviewer  |
+| Update existing backend tests   | backend-test         | backend-dev (run tests)           | code-reviewer  |
+| Implement frontend feature      | frontend-dev         | frontend-test (verify tests pass) | refactor       |
+| Implement backend feature       | backend-dev          | backend-test (verify tests pass)  | refactor       |
+| Review code quality             | code-reviewer        | -                                 | refactor       |
+| Improve code structure          | refactor             | code-reviewer                     | -              |
+| Generate documentation          | documentation-writer | code-reviewer                     | -              |
+
+## Test Writing Policy (CRITICAL)
+
+**ALWAYS delegate test writing to specialized test agents**. Never write tests directly in the orchestration agent or implementation agents.
+
+### When Tests Must Be Written or Updated
+
+1. **New feature tests** → Delegate to `frontend-test` or `backend-test` BEFORE implementation
+2. **Test updates due to behavior changes** → Delegate to `frontend-test` or `backend-test`
+3. **Test fixes after implementation** → Delegate to `frontend-test` or `backend-test`
+4. **Test refactoring to follow conventions** → Delegate to `frontend-test` or `backend-test`
+
+### Implementation Agents Should NOT Write Tests
+
+- `frontend-dev` implements features but does NOT write or modify tests
+- `backend-dev` implements features but does NOT write or modify tests
+- Implementation agents may RUN tests to verify their work, but never write/modify test files
+
+### Exception: Trivial Test Assertion Updates
+
+The ONLY exception is when an implementation change requires trivial assertion updates (e.g., changing expected text from "Welcome" to "Dashboard" or "7 days" to "30 days"). In this case:
+- Implementation agent may update assertions inline
+- Must still follow test conventions from `.claude/agents/frontend-test.md` or `.claude/agents/backend-test.md`
+- Document the test change in the milestone report
+
+**If unsure whether a test change is "trivial", delegate to the test agent**. When in doubt, ALWAYS delegate.
+
+### Test Agent Context References
+
+Test agents have detailed documentation on project testing patterns:
+- Frontend: See `.claude/agents/frontend-test.md` for test location rules, semantic query patterns, MSW setup
+- Backend: See `.claude/agents/backend-test.md` for pytest patterns, fixture usage, multi-tenant validation
 
 ## Validation Responsibilities
 

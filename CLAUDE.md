@@ -431,6 +431,50 @@ For deeper understanding, refer to:
 6. **Run tests**: Verify changes with `pytest` (backend) or `npm test` (frontend)
 7. **Commit with context**: Use descriptive commit messages
 
+## Testing Philosophy & Requirements
+
+### Test-First Development
+
+All new features require tests BEFORE implementation:
+- Frontend: Write integration tests using Vitest + React Testing Library
+- Backend: Write tests using pytest
+
+### Test Writing Agents (CRITICAL RULE)
+
+**NEVER write tests directly. ALWAYS delegate to specialized test agents:**
+
+- **Frontend tests** → Delegate to `frontend-test` agent
+  - Read `.claude/agents/frontend-test.md` for conventions
+  - Tests go in `src/__tests__/` (NOT co-located with source)
+  - Integration-first approach (full page renders, user workflows)
+  - Semantic queries only (`getByRole`, `getByText`, NOT `getByTestId`)
+  - MSW for API mocking with in-memory stores
+
+- **Backend tests** → Delegate to `backend-test` agent
+  - Read `.claude/agents/backend-test.md` for conventions
+  - Tests go in `backend/api/tests/`
+  - Use pytest fixtures for test isolation
+  - Validate multi-tenant data isolation
+
+### When to Delegate Test Writing
+
+**ALWAYS delegate to test agents when**:
+- Writing tests for a new feature
+- Updating tests after behavior changes
+- Fixing failing tests
+- Rewriting tests to follow project conventions
+- Refactoring test structure or organization
+
+**Exception**: Trivial assertion updates (e.g., changing expected text from "Welcome" to "Dashboard") may be done inline, but must still follow test agent conventions.
+
+**Example**: If you implement a dashboard feature, delegate test writing to `frontend-test` agent with detailed context about:
+- The feature behavior and user workflows
+- Expected UI elements and interactions
+- Edge cases (empty states, loading states, errors)
+- Required MSW handler setup
+
+See [.claude/agents/frontend-test.md](.claude/agents/frontend-test.md) and [.claude/agents/backend-test.md](.claude/agents/backend-test.md) for comprehensive testing patterns and conventions.
+
 ## Orchestration with the `/orchestrate` Command
 
 For complex implementation work involving multiple milestones and specialized agents, use the `/orchestrate` command.
@@ -445,10 +489,13 @@ For complex implementation work involving multiple milestones and specialized ag
 ```
 
 This command manages milestone-based workflows by:
-- Breaking plans into test → implementation → review → documentation phases
-- Delegating to specialized agents (frontend-dev, backend-test, code-reviewer, etc.)
+- Breaking plans into **test → implementation → review → documentation** phases
+- **Delegating test writing to specialized test agents** (frontend-test, backend-test)
+- Delegating implementation to specialized dev agents (frontend-dev, backend-dev)
 - Auto-retrying failures up to 3 times before escalating
 - Reporting progress after each milestone and waiting for user confirmation
+
+**Test agents are ALWAYS used for test writing** - implementation agents focus solely on feature code.
 
 See [.claude/commands/orchestrate.md](.claude/commands/orchestrate.md) for detailed orchestration rules, agent mappings, and validation criteria.
 
