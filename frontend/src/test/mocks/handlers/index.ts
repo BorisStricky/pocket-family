@@ -19,7 +19,7 @@ export const handlers = [
 
 // Also export individual handler groups for selective use
 export { authHandlers } from './auth';
-export { familyHandlers } from './family';
+export { familyHandlers, resetFamilyStore } from './family';
 export { transactionHandlers, resetTransactionStore } from './transactions';
 export { accountHandlers, resetAccountStore } from './accounts';
 export { categoryHandlers, resetCategoryStore } from './categories';

@@ -121,7 +121,14 @@ class Membership(SQLModel, table=True):
         status: Current membership status.
     """
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    tenant_id: UUID = Field(foreign_key="tenant.id", nullable=False, index=True)
+    tenant_id: UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("tenant.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
     user_id: Optional[UUID] = Field(foreign_key="user.id", nullable=True, index=True)  # null for pending invites
     user_email: Optional[str] = Field(default=None, index=True)  # invite flow
     role: MembershipRole = Field(
@@ -176,7 +183,14 @@ class Category(SQLModel, table=True):
         kind: Whether the category is an expense or income.
     """
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    tenant_id: UUID = Field(foreign_key="tenant.id", nullable=False, index=True)
+    tenant_id: UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("tenant.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
     name: str
     parent_id: Optional[UUID] = Field(default=None, foreign_key="category.id")
     kind: CategoryKind = Field(
@@ -203,7 +217,14 @@ class Transaction(SQLModel, table=True):
         source: Origin of the transaction (manual/recurring).
     """
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    tenant_id: UUID = Field(foreign_key="tenant.id", nullable=False, index=True)
+    tenant_id: UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("tenant.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
     account_id: Optional[UUID] = Field(
         default=None,
         sa_column=Column(PGUUID(as_uuid=True), ForeignKey("account.id", ondelete="SET NULL"), nullable=True, index=True)
@@ -245,7 +266,14 @@ class AccountShare(SQLModel, table=True):
     account_id: UUID = Field(
         sa_column=Column(PGUUID(as_uuid=True), ForeignKey("account.id", ondelete="CASCADE"), nullable=False, index=True)
     )
-    tenant_id: UUID = Field(foreign_key="tenant.id", nullable=False, index=True)
+    tenant_id: UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("tenant.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
     visibility: ShareVisibility = Field(
         sa_column=Column(SAEnum(ShareVisibility, name="share_visibility"), nullable=False),
         default=ShareVisibility.HIDDEN,
@@ -285,7 +313,14 @@ class Invite(SQLModel, table=True):
         consumed: Whether the invite token has been used.
     """
     id: UUID = Field(default_factory=uuid4, primary_key=True)
-    tenant_id: UUID = Field(foreign_key="tenant.id", nullable=False, index=True)
+    tenant_id: UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("tenant.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
     email: str
     token_hash: str
     role: MembershipRole = Field(

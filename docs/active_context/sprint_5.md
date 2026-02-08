@@ -6,7 +6,7 @@ Dashboard shows meaningful KPIs, charts, and recent activity using real transact
 ## Success Criteria
 - [ ] Dashboard shows key metrics (total expenses, income, balance)
 - [ ] Charts display spending by category, trends over time
-- [ ] Recent transactions widget shows last 5-10 transactions
+- [ ] Recent transactions widget shows transactions from past 7 days
 - [ ] Quick actions (Add Transaction, View Reports)
 - [ ] Data updates when navigating from other pages
 
@@ -30,19 +30,19 @@ Dashboard shows meaningful KPIs, charts, and recent activity using real transact
 
 ### UI Components (Organisms)
 
-| Done | Component | File Path | Props | Story | Notes |
-|------|-----------|-----------|-------|-------|-------|
-| [ ] | OverviewCard | `src/components/ui/organisms/OverviewCard.tsx` | `title, value, delta?, icon?` | `Organisms/OverviewCard` | • KPI card showing metric<br>• Delta (up/down indicator)<br>• Icon (optional) |
-| [ ] | MiniChart | `src/components/ui/organisms/MiniChart.tsx` | `data, type: 'line'\|'bar'\|'pie'` | `Organisms/MiniChart` | • Small chart for cards<br>• Use Recharts |
-| [ ] | RecentTransactionsWidget | `src/features/dashboard/components/RecentTransactionsWidget.tsx` | `familyId, limit?` | `Features/RecentTransactions` | • Shows last N transactions<br>• Click → navigate to transactions page<br>• Reuse AG Grid or simple list |
+| Done | Component                | File Path                                                        | Props                              | Story                         | Notes                                                                                                              |
+| ---- | ------------------------ | ---------------------------------------------------------------- | ---------------------------------- | ----------------------------- | ------------------------------------------------------------------------------------------------------------------ |
+| [ ]  | OverviewCard             | `src/components/ui/organisms/OverviewCard.tsx`                   | `title, value, delta?, icon?`      | `Organisms/OverviewCard`      | • KPI card showing metric<br>• Delta (up/down indicator)<br>• Icon (optional)                                      |
+| [ ]  | MiniChart                | `src/components/ui/organisms/MiniChart.tsx`                      | `data, type: 'line'\|'bar'\|'pie'` | `Organisms/MiniChart`         | • Small chart for cards<br>• Use Recharts                                                                          |
+| [ ]  | RecentTransactionsWidget | `src/features/dashboard/components/RecentTransactionsWidget.tsx` | `familyId, dateRange?`             | `Features/RecentTransactions` | • Shows transactions from past 7 days<br>• Click → navigate to transactions page<br>• Reuse AG Grid or simple list |
 
 ### Feature Components (Dashboard)
 
-| Done | Component | File Path | Props | Used In | Notes |
-|------|-----------|-----------|-------|---------|-------|
-| [ ] | SpendingByCategory | `src/features/dashboard/components/SpendingByCategory.tsx` | `familyId, dateRange?` | Dashboard | • Pie or bar chart<br>• Group expenses by category<br>• Use Recharts |
-| [ ] | IncomeVsExpenses | `src/features/dashboard/components/IncomeVsExpenses.tsx` | `familyId, dateRange?` | Dashboard | • Line or bar chart<br>• Compare income vs expenses over time<br>• Use Recharts |
-| [ ] | QuickActions | `src/features/dashboard/components/QuickActions.tsx` | - | Dashboard | • Button grid<br>• Add Transaction, View Reports, Import CSV |
+| Done | Component          | File Path                                                  | Props                  | Used In   | Notes                                                                           |
+| ---- | ------------------ | ---------------------------------------------------------- | ---------------------- | --------- | ------------------------------------------------------------------------------- |
+| [ ]  | SpendingByCategory | `src/features/dashboard/components/SpendingByCategory.tsx` | `familyId, dateRange?` | Dashboard | • Pie or bar chart<br>• Group expenses by category<br>• Use Recharts            |
+| [ ]  | IncomeVsExpenses   | `src/features/dashboard/components/IncomeVsExpenses.tsx`   | `familyId, dateRange?` | Dashboard | • Line or bar chart<br>• Compare income vs expenses over time<br>• Use Recharts |
+| [ ]  | QuickActions       | `src/features/dashboard/components/QuickActions.tsx`       | -                      | Dashboard | • Button grid<br>• Add Transaction, View Reports, Import CSV                    |
 
 ### Pages
 
@@ -83,8 +83,8 @@ Dashboard shows meaningful KPIs, charts, and recent activity using real transact
 
 ### Step 5: Recent Transactions Widget
 - [ ] Build `RecentTransactionsWidget`
-- [ ] Fetch last 5-10 transactions using `useTransactions` with limit
-- [ ] Display in simple list or mini AG Grid
+- [ ] Fetch transactions from past 7 days using `useTransactions`
+- [ ] Display in AG Grid
 - [ ] Add "View All" link → navigate to transactions page
 
 ### Step 6: Quick Actions
@@ -94,7 +94,7 @@ Dashboard shows meaningful KPIs, charts, and recent activity using real transact
 
 ### Step 7: Dashboard Page
 - [ ] Create `DashboardPage` layout
-- [ ] Arrange overview cards in grid (2-3 columns)
+- [ ] Arrange overview cards in grid (2-3 columns) (use full page width)
 - [ ] Add charts below cards
 - [ ] Add recent transactions widget
 - [ ] Add quick actions at top or sidebar

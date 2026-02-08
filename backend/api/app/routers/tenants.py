@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import User, Tenant, Membership, MembershipRole, MembershipStatus
 from ..schemas import TenantCreate, TenantRead, TenantUpdate, MembershipCreate, MembershipRead, MembershipUpdate, ActiveContext
-from ..deps import get_db, get_active_context, get_current_user
+from ..deps import get_db, get_active_context, get_current_user, get_authenticated_user
 from ..auth import create_access_token
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
@@ -19,7 +19,7 @@ router = APIRouter(prefix="/tenants", tags=["tenants"])
 
 
 @router.post("", response_model=TenantRead)
-async def create_tenant(payload: TenantCreate, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+async def create_tenant(payload: TenantCreate, db: AsyncSession = Depends(get_db), user=Depends(get_authenticated_user)):
     """Create a new tenant and grant owner membership to the creator.
 
     Args:
@@ -52,7 +52,7 @@ async def create_tenant(payload: TenantCreate, db: AsyncSession = Depends(get_db
 
 
 @router.get("", response_model=List[TenantRead])
-async def list_tenants(db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
+async def list_tenants(db: AsyncSession = Depends(get_db), user=Depends(get_authenticated_user)):
     """List tenants the current user is an active member of.
 
     Args:
@@ -165,16 +165,13 @@ async def delete_tenant(tenant_id: UUID, db: AsyncSession = Depends(get_db), act
     if membership_record.role != MembershipRole.OWNER:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="only tenant owner can update")
 
-    # Deleting tenant: ensure no active memberships or dependent resources OR perform a safe soft-delete.
-    # Consider retention / GDPR policies before hard-deleting data.
-    # Cascade plan: explicitly list affected tables (accounts, transactions, memberships, shares).
-    # Use DB transactions to ensure atomicity and avoid partial deletes.
+    # Tenant-scoped records are removed by DB-level ON DELETE CASCADE constraints.
     await db.delete(tenant)
     await db.commit()
     return
 
 @router.post("/{tenant_id}/switch", response_model=dict)
-async def switch_active_tenant(tenant_id: str, db: AsyncSession = Depends(get_db), current_user = Depends(get_current_user)):
+async def switch_active_tenant(tenant_id: str, db: AsyncSession = Depends(get_db), current_user = Depends(get_authenticated_user)):
     """
     Issue a new access token with the requested tenant_id after validating membership.
 
@@ -364,28 +361,51 @@ async def delete_membership_for_tenant(
     db: AsyncSession = Depends(get_db),
     active_context:ActiveContext = Depends(get_active_context),
 ):
-    """Delete a membership. Only tenant owners may delete memberships."""
-    tenant = active_context.active_tenant
-    membership_record = active_context.active_membership
+    """Delete a membership. Owners can remove any member; members can remove themselves (leave).
 
-    #Check if the user is signed in to the tenant in the path params
+    Permission rules:
+    - Owners can remove any membership (including other owners, if >1 owner remains)
+    - Non-owners can only remove their own membership (leave the family)
+    - Cannot remove the last owner of a tenant to prevent orphaned tenants
+    """
+    tenant = active_context.active_tenant
+    actor_membership = active_context.active_membership
+
+    # Verify the actor's token matches the tenant in the URL path
     if str(tenant.id) != str(tenant_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token tenant does not match path tenant")
 
-    # enforce role (only owner can update)
-    if membership_record.role != MembershipRole.OWNER:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="only tenant owner can update")
-    
-    #No check if the membership_id == memebrship_record.id since we are deleting the
-    #memebership from another user
-    db_session = db
+    # Non-owners can only delete their own membership (leave)
+    is_self_removal = str(actor_membership.id) == str(membership_id)
+    if actor_membership.role != MembershipRole.OWNER and not is_self_removal:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only owners can remove other members")
+
+    # Fetch the membership to delete
     membership_query = select(Membership).where(
-            Membership.id == membership_id,
-            Membership.tenant_id == tenant_id,
-        )
-    membership_query_result = await db_session.execute(membership_query)
+        Membership.id == membership_id,
+        Membership.tenant_id == tenant_id,
+    )
+    membership_query_result = await db.execute(membership_query)
     membership_record_to_delete = membership_query_result.scalars().first()
-    
+
+    if not membership_record_to_delete:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Membership not found")
+
+    # Prevent removing the last owner to avoid orphaned tenants
+    if membership_record_to_delete.role == MembershipRole.OWNER:
+        owner_count_query = select(Membership).where(
+            Membership.tenant_id == tenant_id,
+            Membership.role == MembershipRole.OWNER,
+            Membership.status == MembershipStatus.ACTIVE,
+        )
+        owner_count_result = await db.execute(owner_count_query)
+        owner_count = len(owner_count_result.scalars().all())
+        if owner_count <= 1:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Cannot remove the last owner. Transfer ownership first or delete the family.",
+            )
+
     await db.delete(membership_record_to_delete)
     await db.commit()
     return
