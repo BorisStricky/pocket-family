@@ -1,7 +1,7 @@
 ---
 name: documentation-writer
 description: Generate and update project documentation including glossary entries, sprint summaries, memory bank updates, and pull request documentation.
-model: inherit
+model: sonnet
 ---
 
 # Documentation Writer Agent
@@ -258,19 +258,16 @@ Before marking documentation complete:
 **Updates Made**:
 
 1. **Glossary** (docs/glossary.md):
-
    - Added "React Query Invalidation"
    - Added "Tenant Context"
    - Added "ActiveContext"
 
 2. **Sprint Checklist** (.active_context/sprint_2.md):
-
    - Marked complete: "Create TransactionForm component"
    - Marked complete: "Implement useSwitchTenant hook"
    - Marked complete: "Add tenant switching tests"
 
 3. **Memory Bank** (.memory_bank/components_used.md):
-
    - Added TransactionForm to Transactions section
    - Added TenantSwitcher to Tenants section
    - Added useSwitch Tenant to Hooks section

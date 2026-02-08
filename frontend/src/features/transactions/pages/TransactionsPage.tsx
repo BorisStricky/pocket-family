@@ -11,6 +11,7 @@ import { AgTransactionsGrid } from '@/components/domain/ag/AgTransactionsGrid';
 import { DateRangePicker } from '@/components/molecules/DateRangePicker';
 import { SearchInput } from '@/components/molecules/SearchInput';
 import { BulkActions } from '../components/BulkActions';
+import { useDebounce } from '@/hooks/useDebounce';
 import type { TransactionFilters, TransactionRead } from '../types';
 
 /**
@@ -40,13 +41,31 @@ export function TransactionsPage() {
   const { familyId } = useParams<{ familyId: string }>();
   const navigate = useNavigate();
 
-  // Track filter state for API queries
-  const [filters, setFilters] = useState<TransactionFilters>({});
+  // Separate local state for immediate UI updates from debounced state for API calls
+  // This prevents API call on every keystroke while keeping UI responsive
+  const [localSearchQuery, setLocalSearchQuery] = useState('');
+  const [localStartDate, setLocalStartDate] = useState<string | null>(null);
+  const [localEndDate, setLocalEndDate] = useState<string | null>(null);
+
+  // Debounce search and date inputs to reduce API calls
+  // Only triggers API call 500ms after user stops typing/selecting
+  const debouncedSearchQuery = useDebounce(localSearchQuery, 500);
+  const debouncedStartDate = useDebounce(localStartDate, 500);
+  const debouncedEndDate = useDebounce(localEndDate, 500);
+
+  // Build filters object from debounced values
+  // This is what goes into the React Query key, triggering API calls
+  const filters: TransactionFilters = {
+    start_date: debouncedStartDate || undefined,
+    end_date: debouncedEndDate || undefined,
+    search: debouncedSearchQuery || undefined,
+  };
 
   // Track selected transaction IDs for bulk operations
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
-  // Fetch transactions with current filters
+  // Fetch transactions with debounced filters
+  // API is only called when debounced values change (not on every keystroke)
   const { data: transactions = [], isLoading, error } = useTransactions(familyId!, filters);
 
   // Delete mutation for bulk operations
@@ -75,21 +94,17 @@ export function TransactionsPage() {
     setSelectedIds([]);
   };
 
-  // Handle date range filter change
+  // Handle date range filter change (updates local state immediately)
+  // Debounced values will trigger API call 500ms after user stops selecting dates
   const handleDateRangeChange = (startDate: string | null, endDate: string | null) => {
-    setFilters({
-      ...filters,
-      start_date: startDate || undefined,
-      end_date: endDate || undefined,
-    });
+    setLocalStartDate(startDate);
+    setLocalEndDate(endDate);
   };
 
-  // Handle search input change
+  // Handle search input change (updates local state immediately for responsive UI)
+  // Debounced value will trigger API call 500ms after user stops typing
   const handleSearchChange = (searchValue: string) => {
-    setFilters({
-      ...filters,
-      search: searchValue || undefined,
-    });
+    setLocalSearchQuery(searchValue);
   };
 
   return (
@@ -118,16 +133,18 @@ export function TransactionsPage() {
 
         <Stack spacing={2}>
           {/* Date Range Filter */}
+          {/* Uses local state for immediate UI updates, debounced for API calls */}
           <DateRangePicker
-            startDate={filters.start_date || null}
-            endDate={filters.end_date || null}
+            startDate={localStartDate}
+            endDate={localEndDate}
             onChange={handleDateRangeChange}
             label="Filter by date"
           />
 
           {/* Search Filter */}
+          {/* Uses local state for immediate UI updates, debounced for API calls */}
           <SearchInput
-            value={filters.search || ''}
+            value={localSearchQuery}
             onChange={handleSearchChange}
             placeholder="Search transactions by description..."
             fullWidth
@@ -179,7 +196,7 @@ export function TransactionsPage() {
             No transactions found
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            {filters.search || filters.start_date || filters.end_date
+            {localSearchQuery || localStartDate || localEndDate
               ? 'Try adjusting your filters to see more results.'
               : 'Get started by adding your first transaction.'}
           </Typography>

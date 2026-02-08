@@ -16,3 +16,5 @@ export const server = setupServer(...handlers);
 // Re-export utility functions for test store management
 export { resetTransactionStore } from './handlers/transactions';
 export { resetAccountStore } from './handlers/accounts';
+export { resetCategoryStore } from './handlers/categories';
+export { resetFamilyStore } from './handlers/family';

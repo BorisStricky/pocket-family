@@ -18,8 +18,9 @@ export function createTestQueryClient(): QueryClient {
     defaultOptions: {
       queries: {
         retry: false,           // Don't retry failed queries in tests
-        gcTime: 0,              // Immediately garbage collect (was cacheTime in v4)
-        staleTime: 0,           // Data is immediately stale (forces refetch)
+        staleTime: 30_000,      // Match production: data stays fresh during user interactions
+        // gcTime defaults to 5 minutes — must be >= staleTime per React Query docs
+        // Each test gets a fresh QueryClient so isolation is guaranteed
       },
       mutations: {
         retry: false,           // Don't retry failed mutations

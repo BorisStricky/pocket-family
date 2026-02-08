@@ -24,6 +24,14 @@ export const API_ENDPOINTS = {
   TENANT_BY_ID: '/tenants/:id',
   TENANT_SWITCH: '/tenants/:id/switch',
 
+  // Tenant members (family membership management)
+  TENANT_MEMBERS: '/tenants/:tenantId/members',
+  TENANT_MEMBER_BY_ID: '/tenants/:tenantId/members/:membershipId',
+
+  // Categories
+  CATEGORIES: '/categories',
+  CATEGORY_BY_ID: '/categories/:id',
+
   // Health check
   PING: '/ping',
 } as const;
@@ -45,4 +53,6 @@ export const ROUTES = {
   BUDGETS: '/app/budgets',
   REPORTS: '/app/reports',
   SETTINGS: '/app/settings',
+  FAMILIES: '/app/families',
+  ACCEPT_INVITE: '/accept-invite',
 } as const;

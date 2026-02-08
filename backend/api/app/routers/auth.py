@@ -89,14 +89,25 @@ async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depen
     existing_user_record = user_query_result.scalars().first()
     if existing_user_record:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Email already registered")
-    user = User(email=payload.email, password_hash=hash_password(payload.password), created_at=datetime.utcnow())
+    user = User(
+        email=payload.email,
+        password_hash=hash_password(payload.password),
+        name=payload.name,
+        created_at=datetime.utcnow(),
+    )
     db.add(user)
     # create tenant for user by default
     tenant = Tenant(name=f"{payload.name or payload.email}'s family", created_at=datetime.utcnow())
 
     db.add(tenant)
     await db.flush()  # ensure tenant/user ids populated
-    membership = Membership(user_id=user.id, tenant_id=tenant.id, role="owner", created_at=datetime.utcnow())
+    membership = Membership(
+        user_id=user.id,
+        user_email=user.email,
+        tenant_id=tenant.id,
+        role="owner",
+        created_at=datetime.utcnow(),
+    )
     db.add(membership)
     await db.commit()
     await db.refresh(user)

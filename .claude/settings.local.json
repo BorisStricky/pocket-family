@@ -45,7 +45,9 @@
       "Bash(git fetch:*)",
       "Skill(orchestrate)",
       "Skill(orchestrate:*)",
-      "Bash(python -m pytest:*)"
+      "Bash(python -m pytest:*)",
+      "Bash(grep:*)",
+      "Bash(npx vitest:*)"
     ],
     "deny": [],
     "ask": []

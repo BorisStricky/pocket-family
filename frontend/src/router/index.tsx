@@ -20,6 +20,7 @@ import {
   AddTransactionPage,
   TransactionDetailPage,
 } from '@/features/transactions/pages';
+import { AcceptInvitePage } from '@/features/family/pages/AcceptInvitePage';
 import {
   AccountsPage,
   AddAccountPage,
@@ -29,6 +30,7 @@ import {
   GlobalAccountDetailPage,
   GlobalAddAccountPage,
 } from '@/features/accounts/pages';
+import { SettingsPage } from '@/features/settings/pages';
 
 // Simple nested page placeholders (will be replaced with family-scoped versions)
 function Dashboard() {
@@ -40,9 +42,6 @@ function Budgets() {
 function Reports() {
   return <div className="text-slate-700">Reports</div>;
 }
-function Settings() {
-  return <div className="text-slate-700">Settings</div>;
-}
 
 export default function AppRouter() {
   return (
@@ -52,6 +51,9 @@ export default function AppRouter() {
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+
+        {/* Accept invite page (public, no auth required) */}
+        <Route path="/accept-invite" element={<AcceptInvitePage />} />
 
         {/* Test route for auth (remove in production) */}
         <Route path="/test-auth" element={<AuthTest />} />
@@ -122,9 +124,10 @@ export default function AppRouter() {
             <Route path=":accountId" element={<FamilyAccountDetailPage />} />
             <Route path=":accountId/edit" element={<EditAccountPage />} />
           </Route>
+          <Route path="family" element={<Navigate to="../settings" replace />} />
           <Route path="budgets" element={<Budgets />} />
           <Route path="reports" element={<Reports />} />
-          <Route path="settings" element={<Settings />} />
+          <Route path="settings" element={<SettingsPage />} />
         </Route>
 
         {/* Catch-all - redirect to home */}

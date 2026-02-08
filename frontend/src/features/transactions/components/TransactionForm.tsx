@@ -18,7 +18,10 @@ import {
   CircularProgress,
 } from "@mui/material";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
+import { useCategories } from "@/features/category/hooks/useCategories";
+import { CategorySelect } from "@/components/domain/CategorySelect";
 import type { TransactionRead, TransactionCreate } from "../types";
+import type { CategoryRead } from "@/types/category";
 
 /**
  * Props for TransactionForm component
@@ -36,8 +39,8 @@ interface TransactionFormProps {
  *
  * Features:
  * - React Hook Form for form state management and validation
- * - Required fields: account, amount, date, transaction type
- * - Optional fields: category, description
+ * - Required fields: account, amount, currency, date, transaction type, category
+ * - Optional fields: description
  * - Client-side validation with helpful error messages
  * - Pre-populated fields in edit mode
  * - Loading state during submission
@@ -47,6 +50,8 @@ interface TransactionFormProps {
  * - Transaction date is required and must be valid ISO date
  * - Account must be selected
  * - Transaction type must be selected (expense or income)
+ * - Category must be selected
+ * - Currency must be selected (BRL, USD, or EUR)
  *
  * @example
  * // Create mode
@@ -84,6 +89,11 @@ export function TransactionForm({
     isError: isAccountsError,
   } = useAccounts(familyId);
 
+  // Fetch categories for the current family to populate category selector
+  // Categories are filtered by transaction type (expense/income) in CategorySelect component
+  const { data: categories = [], isLoading: isLoadingCategories } =
+    useCategories(familyId);
+
   // Set up form with React Hook Form and default values
   // In edit mode, pre-populate fields from initialData
   // In create mode, use sensible defaults (today's date, expense type)
@@ -91,6 +101,8 @@ export function TransactionForm({
     control,
     register,
     handleSubmit,
+    watch,
+    setValue,
     formState: { errors, isSubmitting },
   } = useForm<TransactionCreate>({
     defaultValues: initialData
@@ -115,6 +127,19 @@ export function TransactionForm({
           description: "",
         },
   });
+
+  // Watch transaction_type to dynamically filter categories in CategorySelect
+  // When user switches between expense/income, CategorySelect will only show relevant categories
+  const watchedTransactionType = watch("transaction_type");
+
+  // Watch category_id to track selected category for CategorySelect component
+  const selectedCategoryId = watch("category_id");
+
+  // Find selected category object from categories list
+  // CategorySelect expects the full category object, not just the ID
+  const selectedCategory = categories.find(
+    (category: CategoryRead) => category.id === selectedCategoryId,
+  );
 
   // Handle form submission by passing data to parent component
   // The parent component will handle the API call and state updates
@@ -162,8 +187,8 @@ export function TransactionForm({
                     {isLoadingAccounts
                       ? "Loading accounts..."
                       : isAccountsError
-                      ? "Error loading accounts"
-                      : "Select an account"}
+                        ? "Error loading accounts"
+                        : "Select an account"}
                   </em>
                 </MenuItem>
                 {accounts.map((account) => (
@@ -178,74 +203,6 @@ export function TransactionForm({
             <FormHelperText>{errors.account_id.message}</FormHelperText>
           )}
         </FormControl>
-
-        {/* Category Selection - Optional Field */}
-        <FormControl fullWidth error={!!errors.category_id}>
-          <InputLabel id="category-select-label">Category</InputLabel>
-          <Controller
-            name="category_id"
-            control={control}
-            render={({ field }) => (
-              <Select
-                {...field}
-                labelId="category-select-label"
-                label="Category"
-                disabled={isLoading}
-              >
-                {/* Temporary placeholder - replaced with real category from development database
-                    TODO: Replace with dynamic category loading from /categories API in future sprint */}
-                <MenuItem value="">
-                  <em>Uncategorized</em>
-                </MenuItem>
-                <MenuItem value="638d246d-ed81-4831-a511-8e76faa25e4a">
-                  Test (Expense)
-                </MenuItem>
-              </Select>
-            )}
-          />
-          {errors.category_id && (
-            <FormHelperText>{errors.category_id.message}</FormHelperText>
-          )}
-        </FormControl>
-
-        {/* Amount Input - Required Field with Validation */}
-        <TextField
-          label="Amount"
-          type="text"
-          required
-          fullWidth
-          error={!!errors.amount}
-          helperText={errors.amount?.message || "Enter a positive number"}
-          disabled={isLoading}
-          {...register("amount", {
-            required: "Amount is required",
-            validate: (value) => {
-              const numValue = Number(value);
-              if (isNaN(numValue)) {
-                return "Amount must be a valid number";
-              }
-              if (numValue <= 0) {
-                return "Amount must be positive";
-              }
-              return true;
-            },
-          })}
-        />
-
-        {/* Transaction Date Input - Required Field */}
-        <TextField
-          label="Date"
-          type="date"
-          required
-          fullWidth
-          InputLabelProps={{ shrink: true }}
-          error={!!errors.transaction_date}
-          helperText={errors.transaction_date?.message}
-          disabled={isLoading}
-          {...register("transaction_date", {
-            required: "Date is required",
-          })}
-        />
 
         {/* Transaction Type Selection - Required Field */}
         <FormControl fullWidth error={!!errors.transaction_type} required>
@@ -271,6 +228,113 @@ export function TransactionForm({
           )}
         </FormControl>
 
+        {/* Category Selection - Required Field */}
+        {/* CategorySelect filters by transaction type to show only relevant categories */}
+        {/* Supports hierarchical display (parent > child) and search functionality */}
+        {isLoadingCategories ? (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+            <CircularProgress size={20} />
+            <Typography variant="body2" color="text.secondary">
+              Loading categories...
+            </Typography>
+          </Box>
+        ) : (
+          <Controller
+            name="category_id"
+            control={control}
+            rules={{
+              required: "Category is required",
+              validate: (value) =>
+                (value && value !== "") || "Please select a category",
+            }}
+            render={({ field }) => (
+              <CategorySelect
+                label="Category"
+                value={field.value || null}
+                onChange={(categoryId: string | null) => {
+                  // Update form value when category selection changes
+                  // CategorySelect passes the category ID directly (not the full object)
+                  field.onChange(categoryId || "");
+                }}
+                categories={categories}
+                kind={watchedTransactionType}
+                required={true}
+                disabled={isLoading}
+                error={!!errors.category_id}
+                helperText={
+                  errors.category_id?.message ||
+                  "Required - select a category to classify this transaction"
+                }
+              />
+            )}
+          />
+        )}
+
+        {/* Amount Input - Required Field with Validation */}
+        <TextField
+          label="Amount"
+          type="text"
+          required
+          fullWidth
+          error={!!errors.amount}
+          helperText={errors.amount?.message || "Enter a positive number"}
+          disabled={isLoading}
+          {...register("amount", {
+            required: "Amount is required",
+            validate: (value) => {
+              const numValue = Number(value);
+              if (isNaN(numValue)) {
+                return "Amount must be a valid number";
+              }
+              if (numValue <= 0) {
+                return "Amount must be positive";
+              }
+              return true;
+            },
+          })}
+        />
+
+        {/* Currency Selection - Required Field */}
+        {/* Multi-currency support for international transactions */}
+        <FormControl fullWidth error={!!errors.currency} required>
+          <InputLabel id="currency-select-label">Currency</InputLabel>
+          <Controller
+            name="currency"
+            control={control}
+            rules={{ required: "Currency is required" }}
+            render={({ field }) => (
+              <Select
+                {...field}
+                labelId="currency-select-label"
+                label="Currency"
+                disabled={isLoading}
+              >
+                <MenuItem value="BRL">Brazilian Real (BRL)</MenuItem>
+                <MenuItem value="USD">United States Dollar (USD)</MenuItem>
+                <MenuItem value="EUR">Euro (EUR)</MenuItem>
+              </Select>
+            )}
+          />
+          {errors.currency && (
+            <FormHelperText>{errors.currency.message}</FormHelperText>
+          )}
+        </FormControl>
+
+        {/* Transaction Date Input - Required Field */}
+        <TextField
+          label="Date"
+          type="date"
+          required
+          fullWidth
+          InputLabelProps={{ shrink: true }}
+          error={!!errors.transaction_date}
+          helperText={errors.transaction_date?.message}
+          disabled={isLoading}
+          {...register("transaction_date", {
+            required: "Date is required",
+          })}
+        />
+
         {/* Description Input - Optional Field */}
         <TextField
           label="Description"
@@ -288,7 +352,11 @@ export function TransactionForm({
 
         {/* Form Action Buttons */}
         <Stack direction="row" spacing={2} justifyContent="flex-end">
-          <Button onClick={onCancel} disabled={isLoading || isSubmitting} variant="outlined">
+          <Button
+            onClick={onCancel}
+            disabled={isLoading || isSubmitting}
+            variant="outlined"
+          >
             Cancel
           </Button>
           <Button
@@ -297,7 +365,11 @@ export function TransactionForm({
             variant="contained"
             color="primary"
           >
-            {isLoading || isSubmitting ? "Saving..." : isEditMode ? "Update" : "Save"}
+            {isLoading || isSubmitting
+              ? "Saving..."
+              : isEditMode
+                ? "Update"
+                : "Save"}
           </Button>
         </Stack>
       </Stack>

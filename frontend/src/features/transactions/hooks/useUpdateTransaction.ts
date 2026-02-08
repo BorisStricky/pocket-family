@@ -8,8 +8,9 @@ import type { TransactionUpdate } from '../types';
 /**
  * React Query mutation hook for updating existing transaction
  *
- * Automatically invalidates both list queries and the specific transaction query
- * on success to ensure all views reflect the updated data
+ * Automatically invalidates transaction list queries on success to ensure
+ * all list views reflect the updated data. Detail query is not invalidated
+ * since users typically navigate away from detail page after update.
  *
  * @param transactionId UUID of the transaction to update
  * @returns TanStack Query mutation result with mutate function and state
@@ -39,18 +40,15 @@ export function useUpdateTransaction(transactionId: string) {
     // Only provided fields will be updated on the backend
     mutationFn: (data: TransactionUpdate) => updateTransaction(transactionId, data),
 
-    // On success, invalidate both list and detail queries
+    // On success, invalidate only list queries (not detail query)
     onSuccess: () => {
       // Invalidate all transaction list queries to refresh list views
       // This catches queries like ['transactions', familyId, filters?]
+      // Detail query invalidation removed - user navigates away immediately
+      // (see TransactionDetailPage.tsx:68), so detail refetch is wasted
+      // If user navigates back to detail page, React Query will fetch fresh data automatically
       queryClient.invalidateQueries({
         queryKey: ['transactions'],
-      });
-
-      // Also invalidate the specific transaction detail query
-      // This ensures the detail view shows updated data
-      queryClient.invalidateQueries({
-        queryKey: ['transactions', transactionId],
       });
     },
   });
