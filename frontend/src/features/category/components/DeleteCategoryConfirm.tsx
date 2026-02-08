@@ -1,4 +1,4 @@
-// src/features/family/components/DeleteCategoryConfirm.tsx
+// src/features/category/components/DeleteCategoryConfirm.tsx
 // Confirmation dialog for deleting categories with transaction reassignment option
 
 import { useState } from 'react';

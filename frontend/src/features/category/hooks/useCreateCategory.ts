@@ -1,4 +1,4 @@
-// src/features/family/hooks/useCreateCategory.ts
+// src/features/category/hooks/useCreateCategory.ts
 // React Query mutation hook for creating new categories
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';

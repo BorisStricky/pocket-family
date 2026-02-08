@@ -1,4 +1,4 @@
-// src/features/family/hooks/useUpdateCategory.ts
+// src/features/category/hooks/useUpdateCategory.ts
 // React Query mutation hook for updating existing categories
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';

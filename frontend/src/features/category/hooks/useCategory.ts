@@ -1,4 +1,4 @@
-// src/features/family/hooks/useCategory.ts
+// src/features/category/hooks/useCategory.ts
 // React Query hook for fetching a single category by ID
 
 import { useQuery } from '@tanstack/react-query';

@@ -1,4 +1,4 @@
-// src/features/family/api/categoriesApi.ts
+// src/features/category/api/categoriesApi.ts
 // API functions for category CRUD operations
 
 import { apiFetch } from '@/lib/apiClient';

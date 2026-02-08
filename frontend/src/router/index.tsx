@@ -20,7 +20,6 @@ import {
   AddTransactionPage,
   TransactionDetailPage,
 } from '@/features/transactions/pages';
-import { FamilyPage } from '@/features/family/pages/FamilyPage';
 import { AcceptInvitePage } from '@/features/family/pages/AcceptInvitePage';
 import {
   AccountsPage,
@@ -125,7 +124,7 @@ export default function AppRouter() {
             <Route path=":accountId" element={<FamilyAccountDetailPage />} />
             <Route path=":accountId/edit" element={<EditAccountPage />} />
           </Route>
-          <Route path="family" element={<FamilyPage />} />
+          <Route path="family" element={<Navigate to="../settings" replace />} />
           <Route path="budgets" element={<Budgets />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<SettingsPage />} />
