@@ -54,20 +54,20 @@ Sprint 0 established the core authentication system and foundation components. F
 
 ---
 
-### Organisms (2 implemented - Pre-built for Future)
+### Organisms (3 implemented)
 
-| Component | File Path | Status | Used In Sprint 0 | Storybook |
+| Component | File Path | Status | Used In | Storybook |
 |-----------|-----------|--------|------------------|-----------|
 | **TransactionsList** | `src/components/organisms/TransactionsList.tsx` | ✅ Sprint 0 (Pre-built) | Not used yet | ✅ Yes |
 | **TransactionsGrid** | `src/components/organisms/TransactionsGrid.tsx` | ✅ Sprint 0 (Pre-built) | Not used yet | ✅ Yes |
+| **OverviewCard** | `src/components/ui/organisms/OverviewCard.tsx` | ✅ Sprint 5 | DashboardPage | ❌ No |
 
-**Note**: AG Grid-based components pre-built for Sprint 1+ transaction features.
+**Note**: OverviewCard displays KPI metrics with optional delta indicator and icon. 8 tests passing.
 
 **Missing Organisms** (Future sprints):
 - ❌ TopNav
 - ❌ SideNav
-- ❌ OverviewCard
-- ❌ MiniChart
+- ❌ MiniChart (not needed - charts embedded directly in dashboard components)
 - ❌ CategoryTree
 - ❌ AgAccountsGrid
 - ❌ ImportPreviewGrid
@@ -216,6 +216,28 @@ Based on typical feature development needs:
 - **categories.ts (handlers)**: MSW HTTP handlers for all category endpoints - list, get, create, update, delete with multi-tenant validation
 
 **Milestone 1 Achievement**: All 55 tests passing, zero TypeScript errors, code review approved, full JSDoc documentation, strict no-abbreviation compliance.
+
+---
+
+## Sprint 5: Dashboard (Complete)
+
+### Dashboard Hooks (`/workspace/frontend/src/features/dashboard/hooks/`)
+- **useDashboardSummary(familyId, dateRange)**: Client-side aggregation hook that computes KPI metrics, spending by category, and income vs expenses trend from transactions, accounts, and categories data. Returns summary object with totalExpenses, totalIncome, accountsBalance, spendingByCategory array, and incomeVsExpensesData array for charts.
+
+### Dashboard Components (`/workspace/frontend/src/features/dashboard/components/`)
+- **SpendingByCategory.tsx**: Pie chart component displaying expense breakdown by category using Recharts PieChart. Props: familyId, dateRange. Shows category name and amount in tooltip.
+- **IncomeVsExpenses.tsx**: Line chart component comparing income vs expenses over time using Recharts LineChart. Props: familyId, dateRange. Displays daily trends with dual y-axis lines.
+- **RecentTransactionsWidget.tsx**: AG Grid-based widget showing recent transactions from specified date range. Props: familyId, dateRange. Includes "View All" link to transactions page.
+- **QuickActions.tsx**: Button grid with navigation shortcuts to Add Transaction, View Accounts, and Settings pages. No props.
+
+### Dashboard Pages (`/workspace/frontend/src/features/dashboard/pages/`)
+- **DashboardPage.tsx**: Main dashboard page at route `/app/:familyId/dashboard`. Displays 3 OverviewCard KPIs (Total Expenses, Total Income, Accounts Balance), 2 charts (SpendingByCategory, IncomeVsExpenses), RecentTransactionsWidget, and QuickActions. Includes date range selector (7d, 30d, This Month, This Year).
+
+### Dashboard Tests
+- **DashboardPage.test.tsx**: 8 tests passing - renders overview cards, charts, recent transactions, quick actions, loading states, error states, empty states.
+- **OverviewCard.test.tsx**: 8 tests passing - renders title/value, delta indicators, icons, formatting, accessibility.
+
+**Sprint 5 Achievement**: Full dashboard implementation with client-side aggregation, responsive charts, 16 tests passing, route wired at /app/:familyId/dashboard, SideNav updated with Dashboard link.
 
 ---
 

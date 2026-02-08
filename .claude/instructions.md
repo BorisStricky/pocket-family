@@ -198,9 +198,36 @@ If context fills up, **prioritize keeping**:
 
 ---
 
-## 9. Testing & Verification
+## 9. Testing Requirements (CRITICAL RULE)
 
-After each feature, suggest testing steps:
+### Test Writing - ALWAYS Delegate to Test Agents
+
+**NEVER write tests directly. ALWAYS delegate to specialized test agents:**
+
+- **Frontend tests** → Use `frontend-test` agent (see `.claude/agents/frontend-test.md`)
+  - Tests go in `src/__tests__/` (NOT co-located with source files)
+  - Integration-first approach (full page workflows, not unit tests)
+  - Semantic queries only (`getByRole`, `getByText`)
+  - MSW for API mocking
+
+- **Backend tests** → Use `backend-test` agent (see `.claude/agents/backend-test.md`)
+  - Tests go in `backend/api/tests/`
+  - pytest fixtures for isolation
+  - Multi-tenant validation
+
+### When to Delegate
+
+**ALWAYS delegate when**:
+- Writing tests for new features
+- Updating tests after behavior changes
+- Fixing failing tests
+- Rewriting tests to follow conventions
+
+**Exception**: Trivial assertion updates (e.g., changing "Welcome" to "Dashboard") may be done inline, but must follow test agent conventions.
+
+### Manual Verification
+
+After implementation, suggest manual testing steps:
 ```
 To verify:
 1. Run `npm run dev`
@@ -236,6 +263,7 @@ To verify:
 - [ ] Use full variable names (no abbreviations)
 - [ ] Add new concepts to glossary
 - [ ] Update components_used.md if applicable
+- [ ] **Delegate test writing to test agents** (NEVER write tests directly)
 - [ ] Mark task as `[x]` complete in sprint checklist
 - [ ] Ask approval if architecture/structure change needed
 - [ ] Summarize what was built in chat
