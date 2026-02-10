@@ -16,8 +16,9 @@ services:
 
   backend:
     build:
-      context: ./backend  
-      dockerfile: api/Dockerfile   # your uploaded backend Dockerfile at ./backend/Dockerfile
+      context: ./backend
+      dockerfile: api/Dockerfile
+    image: pocket-family-backend:latest
     restart: unless-stopped
     env_file:
       - .env   # optional: keep your env vars here
@@ -38,6 +39,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+    image: pocket-family-frontend:latest
     restart: unless-stopped
     ports:
       - "3000:80"   # host:container (nginx serves on 80)
