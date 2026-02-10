@@ -151,8 +151,9 @@ src/
 | **Sprint 3** | 1 week   | Accounts CRUD                  | Accounts List, Account Detail           |
 | **Sprint 4** | 1 week   | Categories & Family Management | Family Page, Category Tree + Modals     |
 | **Sprint 5** | 1 week   | Dashboard (with real data)     | Dashboard Page, Charts, KPI Cards       |
-| **Sprint 6** | 1 week   | Import Flow                    | Import Page, CSV Preview, Mapping       |
-| **Sprint 7** | 1 week   | Reports & Settings             | Reports, Budgets, Settings              |
+| ~~Sprint 6~~ | -        | ~~Import Flow~~ (Deferred)     | See [docs/roadmap/import_flow.md](../roadmap/import_flow.md) |
+| **Sprint 6** | 1 week   | Budgets (Full-Stack CRUD)      | Budgets Page, Backend API               |
+| **Sprint 7** | 1 week   | Reports & Settings             | Reports, Settings, Profile              |
 
 ---
 
@@ -244,17 +245,17 @@ Users can manage categories in hierarchical tree structure. Users can create fam
 
 #### Success Criteria
 
-- [ ] Users can view category tree (parent-child hierarchy)
-- [ ] Users can create, edit, delete categories
-- [ ] Deleting category with transactions prompts reassignment
-- [ ] Users can create new families and become owners
-- [ ] Owners can invite users via email (creates pending memberships)
-- [ ] Users can view pending invitations (full acceptance flow pending backend)
-- [ ] Owners can remove members from their family
-- [ ] Members can leave families they don't own
-- [ ] Owners can delete families with proper safeguards
-- [ ] Family page shows members, settings, and categories
-- [ ] Category select works in transaction form
+- [x] Users can view category tree (parent-child hierarchy)
+- [x] Users can create, edit, delete categories
+- [x] Deleting category with transactions prompts reassignment
+- [x] Users can create new families and become owners
+- [x] Owners can invite users via email (creates pending memberships)
+- [x] Users can view pending invitations (full acceptance flow pending backend)
+- [x] Owners can remove members from their family
+- [x] Members can leave families they don't own
+- [x] Owners can delete families with proper safeguards
+- [x] Family page shows members, settings, and categories
+- [x] Category select works in transaction form
 
 Read the details in .active_context/sprint_4.md for detailed info
 
@@ -268,49 +269,54 @@ Dashboard shows meaningful KPIs, charts, and recent activity using real transact
 
 #### Success Criteria
 
-- [ ] Dashboard shows key metrics (total expenses, income, balance)
-- [ ] Charts display spending by category, trends over time
-- [ ] Recent transactions widget shows last 5-10 transactions
-- [ ] Quick actions (Add Transaction, View Reports)
-- [ ] Data updates when navigating from other pages
+- [x] Dashboard shows key metrics (total expenses, income, balance)
+- [x] Charts display spending by category, trends over time
+- [x] Recent transactions widget shows last 5-10 transactions
+- [x] Quick actions (Add Transaction, View Reports)86rq
+- [x] Data updates when navigating from other pages
 
 Read the details in .active_context/sprint_5.md for detailed info
 
 ---
 
-### Sprint 6: Import Flow (1 week)
+### ~~Sprint 6: Import Flow~~ (Deferred)
 
-#### Goal
-
-Users can import transactions in bulk via CSV upload. Multi-step flow with file upload, preview, column mapping, and confirmation.
-
-#### Success Criteria
-
-- [ ] Users can upload CSV file
-- [ ] Preview shows parsed data in AG Grid
-- [ ] Users can map CSV columns to transaction fields
-- [ ] Import creates transactions in batch
-- [ ] Import job status tracked (optional: background job)
-
-Read the details in .active_context/sprint_6.md for detailed info
+Moved to [docs/roadmap/import_flow.md](../roadmap/import_flow.md). Requires backend infrastructure (Celery job queue, file storage) to be implemented first.
 
 ---
 
-### Sprint 7: Reports, Budgets & Settings (1 week)
+### Sprint 6: Budgets — Full-Stack CRUD (1 week)
 
 #### Goal
 
-Add remaining MVP pages: Reports (generate/export), Budgets (spending limits), and Settings (user profile, integrations). Completes core feature set.
+Implement full budget management: backend model, API endpoints, and frontend UI. Users can create, view, edit, and delete monthly budgets per category.
+
+#### Success Criteria
+
+- [ ] Budget model + Alembic migration
+- [ ] Full CRUD API endpoints with tenant isolation
+- [ ] Frontend budgets page with progress bars (spent vs limit)
+- [ ] Create, edit, delete budgets via modal forms
+- [ ] Backend + frontend tests
+
+Read the details in .active_context/sprint_7.md for detailed info
+
+---
+
+### Sprint 7: Reports & Settings (1 week)
+
+#### Goal
+
+Add remaining MVP pages: Reports (generate/export) and Settings (user profile). Completes core feature set.
 
 #### Success Criteria
 
 - [ ] Users can generate reports with date range and filters
 - [ ] Reports can be exported to CSV/PDF
-- [ ] Users can create and manage budgets per category
 - [ ] Settings page allows updating profile
 - [ ] All core MVP features complete
 
-Read the details in .active_context/sprint_7.md for detailed info
+Details TBD
 
 ---
 
@@ -368,8 +374,9 @@ This roadmap provides a comprehensive, sprint-by-sprint implementation plan for 
 - ✅ Sprint 3: Accounts CRUD
 - ✅ Sprint 4: Categories + family management
 - ✅ Sprint 5: Dashboard with charts
-- ✅ Sprint 6: CSV import flow
-- ✅ Sprint 7: Reports, budgets, settings
+- Sprint 6: Budgets (full-stack CRUD)
+- Sprint 7: Reports & settings
+- Deferred: Import flow (see docs/roadmap/import_flow.md)
 
 **Total Timeline:** ~7-8 weeks for MVP (assuming 1-person team, part-time)
 
