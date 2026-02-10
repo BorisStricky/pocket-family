@@ -1,5 +1,5 @@
 # frontend/Dockerfile
-FROM node:18-alpine AS build
+FROM node:20-alpine AS build
 WORKDIR /app
 
 # Install dependencies (copy only package files first for caching)

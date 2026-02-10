@@ -11,16 +11,16 @@ The architecture is modular and service-oriented, built for scalability, backgro
 
 ## 2. Core Stack
 
-| Layer | Technology | Purpose |
-|-------|-------------|----------|
-| **Backend API** | **FastAPI (Python)** | Main REST API layer, handles user actions, CRUD, auth, and orchestration |
-| **Database** | **PostgreSQL** | Relational data store, multi-tenant via tenant_id column and schema isolation |
-| **Async Processing** | **Celery + Redis** | Task queue for background jobs (CSV import, email sending, etc.) |
-| **Storage** | **AWS S3 / MinIO** | File uploads (CSV imports, reports, attachments) |
-| **Frontend** | **React + TypeScript + React Query** | SPA for user interface, integrates with API |
-| **Auth** | **JWT (access/refresh tokens)** | Secure authentication and tenant-level access control |
-| **Infra** | **Docker + Docker Compose** | Local development and reproducible deployment |
-| **Monitoring** | **Prometheus + Grafana** | Metrics, health checks, and observability |
+| Layer                | Technology                           | Purpose                                                                       |
+| -------------------- | ------------------------------------ | ----------------------------------------------------------------------------- |
+| **Backend API**      | **FastAPI (Python)**                 | Main REST API layer, handles user actions, CRUD, auth, and orchestration      |
+| **Database**         | **PostgreSQL**                       | Relational data store, multi-tenant via tenant_id column and schema isolation |
+| **Async Processing** | **[[Celery]] + [[Redis]]**           | Task queue for background jobs (CSV import, email sending, etc.)              |
+| **Storage**          | **AWS S3 / MinIO**                   | File uploads (CSV imports, reports, attachments)                              |
+| **Frontend**         | **React + TypeScript + React Query** | SPA for user interface, integrates with API                                   |
+| **Auth**             | **JWT (access/refresh tokens)**      | Secure authentication and tenant-level access control                         |
+| **Infra**            | **Docker + Docker Compose**          | Local development and reproducible deployment                                 |
+| **Monitoring**       | **Prometheus + Grafana**             | Metrics, health checks, and observability                                     |
 
 ---
 

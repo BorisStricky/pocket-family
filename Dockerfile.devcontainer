@@ -1,0 +1,35 @@
+# Unified devcontainer: Python 3.11 + Node 20
+# For development only — run backend/frontend servers from the terminal
+FROM python:3.11-slim
+
+# System dependencies for development tooling
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    git \
+    curl \
+    build-essential \
+    openssh-client \
+    ca-certificates \
+    && rm -rf /var/lib/apt/lists/*
+
+# Install Node.js 20.x via NodeSource
+RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
+    && apt-get install -y --no-install-recommends nodejs \
+    && rm -rf /var/lib/apt/lists/*
+
+# Create non-root user matching host UID for file permission consistency
+RUN groupadd --gid 1000 devuser \
+    && useradd --uid 1000 --gid 1000 -m devuser
+
+# Install Python dependencies as root (globally available)
+COPY backend/requirements.txt /tmp/requirements.txt
+RUN pip install --no-cache-dir -r /tmp/requirements.txt \
+    && pip install --no-cache-dir uvicorn alembic pytest \
+    && rm /tmp/requirements.txt
+
+# Ensure devuser's local bin is on PATH (for pip install --user packages)
+ENV PATH="/home/devuser/.local/bin:${PATH}"
+
+WORKDIR /workspace
+
+# Keep container running for devcontainer attach
+CMD ["sleep", "infinity"]
