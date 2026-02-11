@@ -32,6 +32,10 @@ export const API_ENDPOINTS = {
   CATEGORIES: '/categories',
   CATEGORY_BY_ID: '/categories/:id',
 
+  // Budgets
+  BUDGETS: '/budgets',
+  BUDGET_BY_ID: '/budgets/:id',
+
   // Health check
   PING: '/ping',
 } as const;

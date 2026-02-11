@@ -59,3 +59,11 @@ tags:
 **Date Range Preset**: Predefined time periods (7d, 30d, month, year) used to filter dashboard data display. Context: UI abstraction that translates to startDate/endDate parameters for filtering transactions and computing metrics. Simplifies user interface while maintaining flexible query capabilities. Common pattern in analytics dashboards.
 
 **Overview Card**: Reusable KPI card component that displays a metric value with optional trend delta indicator and icon. Context: Composition pattern for dashboard metrics - combines typography, icons, and conditional rendering for positive/negative trends. Reused across Total Expenses, Total Income, and Accounts Balance cards in DashboardPage.
+
+**Budget**: A monthly spending limit that tracks expenses across one or more categories within a tenant. Each budget has a name, amount limit, and currency. The "spent" amount is calculated on-read by aggregating expense transactions. Context: Budgets help users manage spending by tracking progress against defined limits with visual indicators (green/yellow/red) based on percentage spent.
+
+**BudgetCategory**: A join table linking budgets to categories in a many-to-many relationship. One budget can track multiple categories, and one category can belong to multiple budgets. Context: Implements flexible budget tracking where users can create specific budgets (e.g., "Entertainment" covering Movies + Games) or combine overlapping categories across different budget goals.
+
+**Universal Budget**: A budget with no categories that tracks ALL tenant expense transactions matching its currency for the month. Context: Provides overall spending limits without category restrictions, useful for total monthly spending caps. Implemented by checking if budget has zero category associations.
+
+**Spent Calculation**: The on-read aggregation of expense transactions across a budget's categories for a specific calendar month, filtered by the budget's currency. Context: Calculated dynamically on GET requests to ensure accuracy without maintaining denormalized state. Only transactions matching budget.currency are summed to prevent mixing BRL and USD amounts.

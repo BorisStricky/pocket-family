@@ -1,6 +1,6 @@
 # backend/api/app/schemas.py
 from __future__ import annotations
-from typing import Optional
+from typing import Optional, List
 from uuid import UUID
 from datetime import datetime, date
 from decimal import Decimal
@@ -426,3 +426,75 @@ class AccountShareUpdate(SQLModel):
         visibility: New visibility setting (optional).
     """
     visibility: Optional[ShareVisibility] = None
+
+
+# -------------------------
+# Budget
+# -------------------------
+class BudgetCreate(SQLModel):
+    """Input schema to create a budget.
+
+    The tenant_id is derived from the active context (access token).
+    Category IDs are optional; when omitted the budget becomes a universal
+    budget that tracks ALL tenant expense transactions.
+
+    Args:
+        name: Human-readable budget name.
+        amount: Spending limit (must be > 0).
+        currency: Currency code for the budget (defaults to BRL).
+        category_ids: Optional list of category UUIDs to associate.
+    """
+    name: str
+    amount: Decimal = Field(gt=0)
+    currency: Optional[Currency] = Currency.BRL
+    category_ids: Optional[List[UUID]] = None
+
+
+class BudgetRead(SQLModel):
+    """Read schema for budget data returned by the API.
+
+    Includes computed fields (spent, month, year) that are calculated
+    on-read by aggregating expense transactions for the requested month.
+
+    Attributes:
+        id: Budget identifier.
+        tenant_id: Tenant the budget belongs to.
+        name: Budget name.
+        amount: Budget spending limit.
+        currency: Currency code.
+        categories: List of associated categories.
+        spent: Total expenses in the budget's categories for the month.
+        month: Calendar month the spent calculation covers.
+        year: Calendar year the spent calculation covers.
+        created_at: Creation timestamp.
+        updated_at: Last update timestamp.
+    """
+    id: UUID
+    tenant_id: UUID
+    name: str
+    amount: Decimal
+    currency: Currency
+    categories: List[CategoryRead] = []
+    spent: Decimal = Decimal("0.00")
+    month: int
+    year: int
+    created_at: datetime
+    updated_at: datetime
+
+
+class BudgetUpdate(SQLModel):
+    """Input schema for updating a budget.
+
+    When category_ids is provided it fully replaces the existing category
+    set. When omitted, categories remain unchanged.
+
+    Args:
+        name: New budget name (optional).
+        amount: New spending limit (optional, must be > 0).
+        currency: New currency code (optional).
+        category_ids: Optional list replacing the entire category set.
+    """
+    name: Optional[str] = None
+    amount: Optional[Decimal] = Field(default=None, gt=0)
+    currency: Optional[Currency] = None
+    category_ids: Optional[List[UUID]] = None

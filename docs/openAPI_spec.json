@@ -1,9 +1,6 @@
 {
   "openapi": "3.1.0",
-  "info": {
-    "title": "Expense SaaS API",
-    "version": "0.1.0"
-  },
+  "info": { "title": "Expense SaaS API", "version": "0.1.0" },
   "paths": {
     "/ping": {
       "get": {
@@ -13,31 +10,21 @@
         "responses": {
           "200": {
             "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-
-                }
-              }
-            }
+            "content": { "application/json": { "schema": {} } }
           }
         }
       }
     },
     "/auth/signup": {
       "post": {
-        "tags": [
-          "auth"
-        ],
+        "tags": ["auth"],
         "summary": "Signup",
         "description": "Register a new user, create a default tenant and return auth tokens.\n\nArgs:\n    payload: SignupIn input schema with email, password and optional name.\n    response: FastAPI Response object for setting cookies.\n    db: Async DB session.\n\nReturns:\n    TokenOut containing an access token and (in test mode) a refresh token.\n    Also sets refresh_token as HttpOnly cookie.\n\nRaises:\n    HTTPException 400 when email already exists.",
         "operationId": "signup_auth_signup_post",
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/SignupIn"
-              }
+              "schema": { "$ref": "#/components/schemas/SignupIn" }
             }
           },
           "required": true
@@ -47,9 +34,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenOut"
-                }
+                "schema": { "$ref": "#/components/schemas/TokenOut" }
               }
             }
           },
@@ -57,9 +42,7 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -68,18 +51,14 @@
     },
     "/auth/login": {
       "post": {
-        "tags": [
-          "auth"
-        ],
+        "tags": ["auth"],
         "summary": "Login",
         "description": "Authenticate a user and issue access/refresh tokens.\n\nArgs:\n    payload: LoginIn schema with email and password.\n    response: FastAPI Response object for setting cookies.\n    db: Async DB session.\n\nReturns:\n    TokenOut containing access token and optional refresh token (in test mode).\n    Also sets refresh_token as HttpOnly cookie.\n\nRaises:\n    HTTPException 401 when credentials are invalid.",
         "operationId": "login_auth_login_post",
         "requestBody": {
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/LoginIn"
-              }
+              "schema": { "$ref": "#/components/schemas/LoginIn" }
             }
           },
           "required": true
@@ -89,9 +68,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenOut"
-                }
+                "schema": { "$ref": "#/components/schemas/TokenOut" }
               }
             }
           },
@@ -99,9 +76,7 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -110,9 +85,7 @@
     },
     "/auth/refresh": {
       "post": {
-        "tags": [
-          "auth"
-        ],
+        "tags": ["auth"],
         "summary": "Refresh",
         "description": "Rotate a refresh token and issue a new access token.\n\nArgs:\n    request: FastAPI Request object for reading cookies.\n    response: FastAPI Response object for setting cookies.\n    db: Async DB session.\n\nReturns:\n    TokenOut containing new access token and (in test mode) the new refresh token.\n    Also sets new refresh_token as HttpOnly cookie.\n\nRaises:\n    HTTPException 401 when the refresh token is invalid or expired.",
         "operationId": "refresh_auth_refresh_post",
@@ -121,9 +94,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TokenOut"
-                }
+                "schema": { "$ref": "#/components/schemas/TokenOut" }
               }
             }
           }
@@ -132,31 +103,21 @@
     },
     "/auth/logout": {
       "post": {
-        "tags": [
-          "auth"
-        ],
+        "tags": ["auth"],
         "summary": "Logout",
         "description": "Revoke a refresh token to log a user out.\n\nArgs:\n    request: FastAPI Request object for reading cookies.\n    response: FastAPI Response object for deleting cookies.\n    db: Async DB session.\n\nReturns:\n    Dict indicating operation success. Also clears refresh_token cookie.",
         "operationId": "logout_auth_logout_post",
         "responses": {
           "200": {
             "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-
-                }
-              }
-            }
+            "content": { "application/json": { "schema": {} } }
           }
         }
       }
     },
     "/auth/tenants/{tenant_id}/invite": {
       "post": {
-        "tags": [
-          "auth"
-        ],
+        "tags": ["auth"],
         "summary": "Create Invite",
         "description": "Create an invite record for a tenant.\n\nSecurity:\n    Requires authentication via JWT token.\n    Only tenant owners can create invites (enforced below).\n\nArgs:\n    tenant_id: Tenant identifier to invite into.\n    payload: InviteCreate schema with invitee email and role.\n    db: Async DB session.\n    context: Active user context with authentication and membership info.\n\nReturns:\n    A small hint of the invite token that was generated.\n\nRaises:\n    HTTPException 403: If user is not an owner of the tenant.\n    HTTPException 401: If authentication fails.",
         "operationId": "create_invite_auth_tenants__tenant_id__invite_post",
@@ -165,24 +126,14 @@
             "name": "tenant_id",
             "in": "path",
             "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
+            "schema": { "type": "string", "title": "Tenant Id" }
           },
           {
             "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -191,30 +142,20 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/InviteCreate"
-              }
+              "schema": { "$ref": "#/components/schemas/InviteCreate" }
             }
           }
         },
         "responses": {
           "200": {
             "description": "Successful Response",
-            "content": {
-              "application/json": {
-                "schema": {
-
-                }
-              }
-            }
+            "content": { "application/json": { "schema": {} } }
           },
           "422": {
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -223,9 +164,7 @@
     },
     "/tenants": {
       "post": {
-        "tags": [
-          "tenants"
-        ],
+        "tags": ["tenants"],
         "summary": "Create Tenant",
         "description": "Create a new tenant and grant owner membership to the creator.\n\nArgs:\n    payload: TenantCreate input schema with the tenant name.\n    db: Async DB session.\n    user: Current authenticated user (will become tenant owner).\n\nReturns:\n    The created Tenant object.",
         "operationId": "create_tenant_tenants_post",
@@ -235,14 +174,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -251,9 +183,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TenantCreate"
-              }
+              "schema": { "$ref": "#/components/schemas/TenantCreate" }
             }
           }
         },
@@ -262,9 +192,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TenantRead"
-                }
+                "schema": { "$ref": "#/components/schemas/TenantRead" }
               }
             }
           },
@@ -272,18 +200,14 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "get": {
-        "tags": [
-          "tenants"
-        ],
+        "tags": ["tenants"],
         "summary": "List Tenants",
         "description": "List tenants the current user is an active member of.\n\nArgs:\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    List of Tenant objects the user is a member of.",
         "operationId": "list_tenants_tenants_get",
@@ -293,14 +217,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -312,9 +229,7 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/TenantRead"
-                  },
+                  "items": { "$ref": "#/components/schemas/TenantRead" },
                   "title": "Response List Tenants Tenants Get"
                 }
               }
@@ -324,9 +239,7 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -335,9 +248,7 @@
     },
     "/tenants/{tenant_id}": {
       "get": {
-        "tags": [
-          "tenants"
-        ],
+        "tags": ["tenants"],
         "summary": "Get Tenant",
         "description": "Retrieve a tenant by id if the requester is an active member.\n\nArgs:\n    tenant_id: UUID of the tenant to retrieve.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    The Tenant object when the user is an active member.\n\nRaises:\n    HTTPException 403 when the user is not a member.\n    HTTPException 404 when the tenant does not exist.",
         "operationId": "get_tenant_tenants__tenant_id__get",
@@ -357,14 +268,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -374,9 +278,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TenantRead"
-                }
+                "schema": { "$ref": "#/components/schemas/TenantRead" }
               }
             }
           },
@@ -384,18 +286,14 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "patch": {
-        "tags": [
-          "tenants"
-        ],
+        "tags": ["tenants"],
         "summary": "Update Tenant",
         "description": "Update tenant properties; only owners may perform this action.\n\nArgs:\n    tenant_id: UUID of the tenant to update.\n    payload: TenantUpdate schema with changes.\n    db: Async DB session.\n    user: Current authenticated user; must be OWNER.\n\nReturns:\n    The updated Tenant object.\n\nRaises:\n    HTTPException 403 when the user is not the owner.\n    HTTPException 404 when the tenant does not exist.",
         "operationId": "update_tenant_tenants__tenant_id__patch",
@@ -415,14 +313,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -431,9 +322,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TenantUpdate"
-              }
+              "schema": { "$ref": "#/components/schemas/TenantUpdate" }
             }
           }
         },
@@ -442,9 +331,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TenantRead"
-                }
+                "schema": { "$ref": "#/components/schemas/TenantRead" }
               }
             }
           },
@@ -452,18 +339,14 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "delete": {
-        "tags": [
-          "tenants"
-        ],
+        "tags": ["tenants"],
         "summary": "Delete Tenant",
         "description": "Delete a tenant. Only owners can delete their tenant.\n\nArgs:\n    tenant_id: UUID of the tenant to delete.\n    db: Async DB session.\n    user: Current authenticated user; must be OWNER.\n\nRaises:\n    HTTPException 403 when the user is not the owner.\n    HTTPException 404 when the tenant does not exist.",
         "operationId": "delete_tenant_tenants__tenant_id__delete",
@@ -483,29 +366,18 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
         ],
         "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
+          "204": { "description": "Successful Response" },
           "422": {
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -514,35 +386,23 @@
     },
     "/tenants/{tenant_id}/switch": {
       "post": {
-        "tags": [
-          "tenants"
-        ],
+        "tags": ["tenants"],
         "summary": "Switch Active Tenant",
-        "description": "Issue a new access token with the requested tenant_id after validating membership.\n\nReturns:\n    {\"access_token\": \"\u003Cjwt\u003E\"}\nRaises:\n    403 if user is not an active member of the requested tenant.\n    404 if tenant not found.",
+        "description": "Issue a new access token with the requested tenant_id after validating membership.\n\nReturns:\n    {\"access_token\": \"<jwt>\"}\nRaises:\n    403 if user is not an active member of the requested tenant.\n    404 if tenant not found.",
         "operationId": "switch_active_tenant_tenants__tenant_id__switch_post",
         "parameters": [
           {
             "name": "tenant_id",
             "in": "path",
             "required": true,
-            "schema": {
-              "type": "string",
-              "title": "Tenant Id"
-            }
+            "schema": { "type": "string", "title": "Tenant Id" }
           },
           {
             "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -564,9 +424,7 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -575,9 +433,7 @@
     },
     "/tenants/{tenant_id}/members": {
       "post": {
-        "tags": [
-          "tenants"
-        ],
+        "tags": ["tenants"],
         "summary": "Create Membership For Tenant",
         "description": "Create a membership or invite for a tenant. Only tenant owners may invite.",
         "operationId": "create_membership_for_tenant_tenants__tenant_id__members_post",
@@ -597,14 +453,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -613,9 +462,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MembershipCreate"
-              }
+              "schema": { "$ref": "#/components/schemas/MembershipCreate" }
             }
           }
         },
@@ -624,9 +471,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MembershipRead"
-                }
+                "schema": { "$ref": "#/components/schemas/MembershipRead" }
               }
             }
           },
@@ -634,18 +479,14 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "get": {
-        "tags": [
-          "tenants"
-        ],
+        "tags": ["tenants"],
         "summary": "List Members For Tenant",
         "description": "List all memberships for a tenant. Requester must be an active member.",
         "operationId": "list_members_for_tenant_tenants__tenant_id__members_get",
@@ -665,14 +506,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -684,9 +518,7 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/MembershipRead"
-                  },
+                  "items": { "$ref": "#/components/schemas/MembershipRead" },
                   "title": "Response List Members For Tenant Tenants  Tenant Id  Members Get"
                 }
               }
@@ -696,9 +528,7 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -707,9 +537,7 @@
     },
     "/tenants/{tenant_id}/members/{membership_id}": {
       "patch": {
-        "tags": [
-          "tenants"
-        ],
+        "tags": ["tenants"],
         "summary": "Update Membership For Tenant",
         "description": "Update membership properties such as role or status. Only tenant owners may update.",
         "operationId": "update_membership_for_tenant_tenants__tenant_id__members__membership_id__patch",
@@ -739,14 +567,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -755,9 +576,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/MembershipUpdate"
-              }
+              "schema": { "$ref": "#/components/schemas/MembershipUpdate" }
             }
           }
         },
@@ -766,9 +585,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/MembershipRead"
-                }
+                "schema": { "$ref": "#/components/schemas/MembershipRead" }
               }
             }
           },
@@ -776,20 +593,16 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "delete": {
-        "tags": [
-          "tenants"
-        ],
+        "tags": ["tenants"],
         "summary": "Delete Membership For Tenant",
-        "description": "Delete a membership. Only tenant owners may delete memberships.",
+        "description": "Delete a membership. Owners can remove any member; members can remove themselves (leave).\n\nPermission rules:\n- Owners can remove any membership (including other owners, if >1 owner remains)\n- Non-owners can only remove their own membership (leave the family)\n- Cannot remove the last owner of a tenant to prevent orphaned tenants",
         "operationId": "delete_membership_for_tenant_tenants__tenant_id__members__membership_id__delete",
         "parameters": [
           {
@@ -817,29 +630,18 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
         ],
         "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
+          "204": { "description": "Successful Response" },
           "422": {
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -848,9 +650,7 @@
     },
     "/accounts": {
       "post": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "summary": "Create Account",
         "description": "Create a new account owned by the authenticated user.\n\nOptionally shares the account with another tenant atomically in a single transaction.\nIf share_with is provided, validates that the user is an active member of that tenant\nbefore creating both the account and the share.\n\nArgs:\n    payload: AccountCreate schema with account properties and optional share_with.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    The created Account instance.\n\nRaises:\n    HTTPException 403 when share_with tenant provided but user is not an active member.\n    HTTPException 404 when share_with tenant does not exist.",
         "operationId": "create_account_accounts_post",
@@ -860,14 +660,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -876,9 +669,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AccountCreate"
-              }
+              "schema": { "$ref": "#/components/schemas/AccountCreate" }
             }
           }
         },
@@ -887,9 +678,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountRead"
-                }
+                "schema": { "$ref": "#/components/schemas/AccountRead" }
               }
             }
           },
@@ -897,18 +686,14 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "get": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "summary": "List Accounts",
         "description": "List accounts belonging to the user and accounts shared with their families (tenants).\n\nWhen tenant_id is provided, only returns accounts shared with that specific tenant.\nUser must be an active member of the specified tenant.\n\nArgs:\n    tenant_id: Optional tenant ID to filter accounts shared with that tenant.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    List of serialized account dicts (balance masked according to visibility rules).\n\nRaises:\n    HTTPException 403 when user is not an active member of the specified tenant.",
         "operationId": "list_accounts_accounts_get",
@@ -919,13 +704,8 @@
             "required": false,
             "schema": {
               "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
+                { "type": "string", "format": "uuid" },
+                { "type": "null" }
               ],
               "title": "Tenant Id"
             }
@@ -935,14 +715,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -954,9 +727,7 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AccountRead"
-                  },
+                  "items": { "$ref": "#/components/schemas/AccountRead" },
                   "title": "Response List Accounts Accounts Get"
                 }
               }
@@ -966,9 +737,7 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -977,9 +746,7 @@
     },
     "/accounts/{account_id}": {
       "get": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "summary": "Get Account",
         "description": "Get a single account by id and serialize according to requestor privileges.\n\nArgs:\n    account_id: UUID of the account.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    Serialized account dict (balance may be masked).\n\nRaises:\n    HTTPException 404 when account does not exist.",
         "operationId": "get_account_accounts__account_id__get",
@@ -999,14 +766,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -1016,9 +776,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountRead"
-                }
+                "schema": { "$ref": "#/components/schemas/AccountRead" }
               }
             }
           },
@@ -1026,18 +784,14 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "patch": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "summary": "Update Account",
         "description": "Update account fields. Only the account owner may modify.\n\nArgs:\n    account_id: UUID of the account to update.\n    payload: AccountUpdate schema with optional fields.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    The updated Account instance.\n\nRaises:\n    HTTPException 404 when account is not found.\n    HTTPException 403 when requester is not the owner.",
         "operationId": "update_account_accounts__account_id__patch",
@@ -1057,14 +811,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -1073,9 +820,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AccountUpdate"
-              }
+              "schema": { "$ref": "#/components/schemas/AccountUpdate" }
             }
           }
         },
@@ -1084,9 +829,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountRead"
-                }
+                "schema": { "$ref": "#/components/schemas/AccountRead" }
               }
             }
           },
@@ -1094,20 +837,16 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "delete": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "summary": "Delete Account",
-        "description": "Delete an account. Only the account owner may delete their account.\n\nArgs:\n    account_id: UUID of the account to delete.\n    db: Async DB session.\n    user: Current authenticated user.\n\nRaises:\n    HTTPException 404 when account does not exist.\n    HTTPException 403 when requester is not the owner.",
+        "description": "Delete an account. Only the account owner may delete their account.\n\nWhen deleting from a family context (family detail page), the account can only\nbe deleted if it is shared with exactly one family. If shared with multiple\nfamilies, the user must delete from the main accounts page instead.\n\nArgs:\n    account_id: UUID of the account to delete.\n    from_family_context: Whether deletion is initiated from family page context.\n    db: Async DB session.\n    user: Current authenticated user.\n\nRaises:\n    HTTPException 404 when account does not exist.\n    HTTPException 403 when requester is not the owner.\n    HTTPException 409 when account is shared with multiple families and\n                    deletion is attempted from family context.",
         "operationId": "delete_account_accounts__account_id__delete",
         "parameters": [
           {
@@ -1121,33 +860,32 @@
             }
           },
           {
+            "name": "from_family_context",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "boolean",
+              "default": false,
+              "title": "From Family Context"
+            }
+          },
+          {
             "name": "authorization",
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
         ],
         "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
+          "204": { "description": "Successful Response" },
           "422": {
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -1156,9 +894,7 @@
     },
     "/accounts/{account_id}/shares": {
       "get": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "summary": "Get Account Shares",
         "description": "Return shares for a given account; only the account owner may view shares.\n\nArgs:\n    account_id: UUID of the account.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    List of AccountShare records for the account.\n\nRaises:\n    HTTPException 404 when account not found.\n    HTTPException 403 when requester is not the owner.",
         "operationId": "get_account_shares_accounts__account_id__shares_get",
@@ -1178,14 +914,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -1197,9 +926,7 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/AccountShareRead"
-                  },
+                  "items": { "$ref": "#/components/schemas/AccountShareRead" },
                   "title": "Response Get Account Shares Accounts  Account Id  Shares Get"
                 }
               }
@@ -1209,18 +936,14 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "post": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "summary": "Create Account Share",
         "description": "Create an AccountShare linking an account to a tenant (family).\n\nThe account owner may grant visibility to another tenant.",
         "operationId": "create_account_share_accounts__account_id__shares_post",
@@ -1240,14 +963,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -1256,9 +972,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AccountShareCreate"
-              }
+              "schema": { "$ref": "#/components/schemas/AccountShareCreate" }
             }
           }
         },
@@ -1267,9 +981,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountShareRead"
-                }
+                "schema": { "$ref": "#/components/schemas/AccountShareRead" }
               }
             }
           },
@@ -1277,9 +989,7 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -1288,9 +998,7 @@
     },
     "/accounts/{account_id}/shares/{tenant_id}": {
       "patch": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "summary": "Update Account Share",
         "description": "Update properties of an account share identified by tenant_id. Only account owner can modify.",
         "operationId": "update_account_share_accounts__account_id__shares__tenant_id__patch",
@@ -1320,14 +1028,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -1336,9 +1037,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/AccountShareUpdate"
-              }
+              "schema": { "$ref": "#/components/schemas/AccountShareUpdate" }
             }
           }
         },
@@ -1347,9 +1046,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/AccountShareRead"
-                }
+                "schema": { "$ref": "#/components/schemas/AccountShareRead" }
               }
             }
           },
@@ -1357,18 +1054,14 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "delete": {
-        "tags": [
-          "accounts"
-        ],
+        "tags": ["accounts"],
         "summary": "Delete Account Share",
         "description": "Delete an account share identified by tenant_id. Only the account owner may delete.",
         "operationId": "delete_account_share_accounts__account_id__shares__tenant_id__delete",
@@ -1398,29 +1091,18 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
         ],
         "responses": {
-          "204": {
-            "description": "Successful Response"
-          },
+          "204": { "description": "Successful Response" },
           "422": {
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -1429,9 +1111,7 @@
     },
     "/categories": {
       "post": {
-        "tags": [
-          "categories"
-        ],
+        "tags": ["categories"],
         "summary": "Create Category",
         "description": "Create a new category within the active tenant.\n\nTenant and membership are derived from the access token via\n`get_active_context`. Mutation operations require the requester to be\nan OWNER of the tenant (enforced via the active membership role).",
         "operationId": "create_category_categories_post",
@@ -1441,14 +1121,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -1457,9 +1130,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CategoryCreate"
-              }
+              "schema": { "$ref": "#/components/schemas/CategoryCreate" }
             }
           }
         },
@@ -1468,9 +1139,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CategoryRead"
-                }
+                "schema": { "$ref": "#/components/schemas/CategoryRead" }
               }
             }
           },
@@ -1478,18 +1147,14 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "get": {
-        "tags": [
-          "categories"
-        ],
+        "tags": ["categories"],
         "summary": "List Categories",
         "description": "List categories for the active tenant.\n\nNo additional membership lookup is required because `get_active_context`\nalready validated the membership and returned the active tenant.",
         "operationId": "list_categories_categories_get",
@@ -1499,14 +1164,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -1518,9 +1176,7 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/CategoryRead"
-                  },
+                  "items": { "$ref": "#/components/schemas/CategoryRead" },
                   "title": "Response List Categories Categories Get"
                 }
               }
@@ -1530,9 +1186,7 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -1541,9 +1195,7 @@
     },
     "/categories/{category_id}": {
       "get": {
-        "tags": [
-          "categories"
-        ],
+        "tags": ["categories"],
         "summary": "Get Category",
         "description": "Retrieve a category by id if it belongs to the active tenant.",
         "operationId": "get_category_categories__category_id__get",
@@ -1563,14 +1215,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -1580,9 +1225,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CategoryRead"
-                }
+                "schema": { "$ref": "#/components/schemas/CategoryRead" }
               }
             }
           },
@@ -1590,18 +1233,14 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "patch": {
-        "tags": [
-          "categories"
-        ],
+        "tags": ["categories"],
         "summary": "Update Category",
         "description": "Update an existing category within the active tenant.\n\nOnly OWNERs may perform mutations.",
         "operationId": "update_category_categories__category_id__patch",
@@ -1621,14 +1260,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -1637,9 +1269,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/CategoryUpdate"
-              }
+              "schema": { "$ref": "#/components/schemas/CategoryUpdate" }
             }
           }
         },
@@ -1648,9 +1278,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/CategoryRead"
-                }
+                "schema": { "$ref": "#/components/schemas/CategoryRead" }
               }
             }
           },
@@ -1658,21 +1286,69 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "delete": {
-        "tags": [
-          "categories"
-        ],
+        "tags": ["categories"],
         "summary": "Delete Category",
-        "description": "Delete a category if it belongs to the active tenant and the user is an OWNER.",
+        "description": "Delete a category if it belongs to the active tenant and the user is an OWNER.\n\nBefore deletion, validates:\n- Category has no child categories (returns 409 if it does)\n- If category has transactions, reassign_to must be provided\n\nIf reassign_to is provided, all transactions using this category will be\nreassigned to the specified category before deletion.",
         "operationId": "delete_category_categories__category_id__delete",
+        "parameters": [
+          {
+            "name": "category_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Category Id"
+            }
+          },
+          {
+            "name": "reassign_to",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "string", "format": "uuid" },
+                { "type": "null" }
+              ],
+              "title": "Reassign To"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/categories/{category_id}/transaction-count": {
+      "get": {
+        "tags": ["categories"],
+        "summary": "Get Category Transaction Count",
+        "description": "Get the count of transactions using this category.\n\nReturns the number of transactions that reference this category.\nUsed by the frontend to determine if a category can be safely deleted\nor if transaction reassignment is required.",
+        "operationId": "get_category_transaction_count_categories__category_id__transaction_count_get",
         "parameters": [
           {
             "name": "category_id",
@@ -1689,29 +1365,28 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
         ],
         "responses": {
-          "204": {
-            "description": "Successful Response"
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "integer",
+                  "title": "Response Get Category Transaction Count Categories  Category Id  Transaction Count Get"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -1720,9 +1395,7 @@
     },
     "/transactions": {
       "post": {
-        "tags": [
-          "transactions"
-        ],
+        "tags": ["transactions"],
         "summary": "Create Transaction",
         "description": "Create a transaction within a tenant and update the associated account balance.\n\nThe account balance is updated based on the transaction_type:\n- INCOME: increases the account balance\n- EXPENSE: decreases the account balance\n\nArgs:\n    payload: TransactionCreate schema containing tenant and account context and amounts.\n    db: Async DB session.\n    user: Current authenticated user creating the transaction.\n\nReturns:\n    The created Transaction record.\n\nRaises:\n    HTTPException 404 when the account does not exist.\n    HTTPException 403 when the user is not an active member of the tenant.",
         "operationId": "create_transaction_transactions_post",
@@ -1732,14 +1405,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -1748,9 +1414,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TransactionCreate"
-              }
+              "schema": { "$ref": "#/components/schemas/TransactionCreate" }
             }
           }
         },
@@ -1759,9 +1423,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TransactionRead"
-                }
+                "schema": { "$ref": "#/components/schemas/TransactionRead" }
               }
             }
           },
@@ -1769,20 +1431,16 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "get": {
-        "tags": [
-          "transactions"
-        ],
+        "tags": ["transactions"],
         "summary": "List Transactions",
-        "description": "List transactions for a tenant with optional filtering.\n\nArgs:\n    start: Optional start date to filter transactions (inclusive).\n    end: Optional end date to filter transactions (inclusive).\n    category_id: Optional category id to filter by.\n    account_id: Optional account id to filter by.\n    search: Optional search term for case-insensitive full-text search across description field.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    List of Transaction records matching the filters and tenant context.\n\nRaises:\n    HTTPException 403 when the user is not a member of the requested tenant.",
+        "description": "List transactions for a tenant or globally across all user's tenants with optional filtering.\n\nArgs:\n    start: Optional start date to filter transactions (inclusive).\n    end: Optional end date to filter transactions (inclusive).\n    category_id: Optional category id to filter by.\n    account_id: Optional account id to filter by.\n    search: Optional search term for case-insensitive full-text search across description field.\n    scope: \"tenant\" (default) to filter by active tenant, \"global\" to query all user's tenants.\n    db: Async DB session.\n    active_context: Current authenticated user and tenant context.\n\nReturns:\n    List of Transaction records matching the filters and scope.\n\nRaises:\n    HTTPException 403 when the user is not a member of the requested tenant.",
         "operationId": "list_transactions_transactions_get",
         "parameters": [
           {
@@ -1791,13 +1449,8 @@
             "required": false,
             "schema": {
               "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
+                { "type": "string", "format": "uuid" },
+                { "type": "null" }
               ],
               "title": "Tenant Id"
             }
@@ -1808,13 +1461,8 @@
             "required": false,
             "schema": {
               "anyOf": [
-                {
-                  "type": "string",
-                  "format": "date"
-                },
-                {
-                  "type": "null"
-                }
+                { "type": "string", "format": "date" },
+                { "type": "null" }
               ],
               "title": "Start"
             }
@@ -1825,13 +1473,8 @@
             "required": false,
             "schema": {
               "anyOf": [
-                {
-                  "type": "string",
-                  "format": "date"
-                },
-                {
-                  "type": "null"
-                }
+                { "type": "string", "format": "date" },
+                { "type": "null" }
               ],
               "title": "End"
             }
@@ -1842,13 +1485,8 @@
             "required": false,
             "schema": {
               "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
+                { "type": "string", "format": "uuid" },
+                { "type": "null" }
               ],
               "title": "Category Id"
             }
@@ -1859,13 +1497,8 @@
             "required": false,
             "schema": {
               "anyOf": [
-                {
-                  "type": "string",
-                  "format": "uuid"
-                },
-                {
-                  "type": "null"
-                }
+                { "type": "string", "format": "uuid" },
+                { "type": "null" }
               ],
               "title": "Account Id"
             }
@@ -1875,15 +1508,19 @@
             "in": "query",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Search"
+            }
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "pattern": "^(tenant|global)$",
+              "default": "tenant",
+              "title": "Scope"
             }
           },
           {
@@ -1891,14 +1528,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -1910,9 +1540,7 @@
               "application/json": {
                 "schema": {
                   "type": "array",
-                  "items": {
-                    "$ref": "#/components/schemas/TransactionRead"
-                  },
+                  "items": { "$ref": "#/components/schemas/TransactionRead" },
                   "title": "Response List Transactions Transactions Get"
                 }
               }
@@ -1922,9 +1550,7 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -1933,9 +1559,7 @@
     },
     "/transactions/{transaction_id}": {
       "get": {
-        "tags": [
-          "transactions"
-        ],
+        "tags": ["transactions"],
         "summary": "Get Transaction",
         "description": "Retrieve a single transaction if the requester belongs to the same tenant.\n\nArgs:\n    transaction_id: UUID of the transaction.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    The Transaction record when permitted.\n\nRaises:\n    HTTPException 404 when transaction not found.\n    HTTPException 403 when user is not a member of the transaction's tenant.",
         "operationId": "get_transaction_transactions__transaction_id__get",
@@ -1955,14 +1579,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -1972,9 +1589,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TransactionRead"
-                }
+                "schema": { "$ref": "#/components/schemas/TransactionRead" }
               }
             }
           },
@@ -1982,18 +1597,14 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "patch": {
-        "tags": [
-          "transactions"
-        ],
+        "tags": ["transactions"],
         "summary": "Update Transaction",
         "description": "Update a transaction. Only the creator may modify their transaction.\n\nArgs:\n    transaction_id: UUID of the transaction to update.\n    payload: TransactionUpdate schema with optional fields.\n    db: Async DB session.\n    user: Current authenticated user.\n\nReturns:\n    The updated Transaction record.\n\nRaises:\n    HTTPException 404 when transaction not found.\n    HTTPException 403 when requester is not the creator.",
         "operationId": "update_transaction_transactions__transaction_id__patch",
@@ -2013,14 +1624,7 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
@@ -2029,9 +1633,7 @@
           "required": true,
           "content": {
             "application/json": {
-              "schema": {
-                "$ref": "#/components/schemas/TransactionUpdate"
-              }
+              "schema": { "$ref": "#/components/schemas/TransactionUpdate" }
             }
           }
         },
@@ -2040,9 +1642,7 @@
             "description": "Successful Response",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/TransactionRead"
-                }
+                "schema": { "$ref": "#/components/schemas/TransactionRead" }
               }
             }
           },
@@ -2050,18 +1650,14 @@
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
         }
       },
       "delete": {
-        "tags": [
-          "transactions"
-        ],
+        "tags": ["transactions"],
         "summary": "Delete Transaction",
         "description": "Delete a transaction. Only the creator may delete their transaction.\n\nArgs:\n    transaction_id: UUID of the transaction to delete.\n    db: Async DB session.\n    user: Current authenticated user.\n\nRaises:\n    HTTPException 404 when transaction not found.\n    HTTPException 403 when requester is not the creator.",
         "operationId": "delete_transaction_transactions__transaction_id__delete",
@@ -2081,29 +1677,288 @@
             "in": "header",
             "required": false,
             "schema": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "null"
-                }
-              ],
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
               "title": "Authorization"
             }
           }
         ],
         "responses": {
-          "204": {
-            "description": "Successful Response"
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/budgets": {
+      "get": {
+        "tags": ["budgets"],
+        "summary": "List Budgets",
+        "description": "List all budgets for the active tenant with spent calculations.\n\nReturns every budget belonging to the tenant. For each budget the\nspent amount is computed by aggregating expense transactions that\nmatch the budget's currency in the specified calendar month.\n\nQuery parameters month and year default to the current month when\nnot provided, allowing the client to view historical data.\n\nArgs:\n    database_session: Async database session dependency.\n    active_context: Authenticated user/tenant context from JWT.\n    month: Calendar month for spent calculation (1-12, default current).\n    year: Calendar year for spent calculation (default current).\n\nReturns:\n    List of BudgetRead dicts with populated spent and categories.",
+        "operationId": "list_budgets_budgets_get",
+        "parameters": [
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "integer", "maximum": 12, "minimum": 1 },
+                { "type": "null" }
+              ],
+              "title": "Month"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "integer", "maximum": 2100, "minimum": 2000 },
+                { "type": "null" }
+              ],
+              "title": "Year"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": { "$ref": "#/components/schemas/BudgetRead" },
+                  "title": "Response List Budgets Budgets Get"
+                }
+              }
+            }
           },
           "422": {
             "description": "Validation Error",
             "content": {
               "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/HTTPValidationError"
-                }
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": ["budgets"],
+        "summary": "Create Budget",
+        "description": "Create a new budget for the active tenant.\n\nOnly users with the OWNER role can create budgets. If category_ids\nare provided they are validated to belong to the same tenant before\nlinking. The response includes spent calculation for the current month.\n\nArgs:\n    payload: BudgetCreate schema with name, amount, currency, and\n             optional category_ids.\n    database_session: Async database session dependency.\n    active_context: Authenticated user/tenant context from JWT.\n\nReturns:\n    BudgetRead dict for the newly created budget.\n\nRaises:\n    HTTPException 403 when the user is not an OWNER.\n    HTTPException 400 when category IDs are invalid.",
+        "operationId": "create_budget_budgets_post",
+        "parameters": [
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BudgetCreate" }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BudgetRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/budgets/{budget_id}": {
+      "get": {
+        "tags": ["budgets"],
+        "summary": "Get Budget",
+        "description": "Retrieve a single budget by ID with spent calculation.\n\nVerifies the budget exists and belongs to the active tenant before\nreturning it. The spent amount is computed for the requested month.\n\nArgs:\n    budget_id: UUID of the budget to retrieve.\n    database_session: Async database session dependency.\n    active_context: Authenticated user/tenant context from JWT.\n    month: Calendar month for spent calculation (default current).\n    year: Calendar year for spent calculation (default current).\n\nReturns:\n    BudgetRead dict with populated spent and categories.\n\nRaises:\n    HTTPException 404 when budget not found or wrong tenant.",
+        "operationId": "get_budget_budgets__budget_id__get",
+        "parameters": [
+          {
+            "name": "budget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Budget Id"
+            }
+          },
+          {
+            "name": "month",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "integer", "maximum": 12, "minimum": 1 },
+                { "type": "null" }
+              ],
+              "title": "Month"
+            }
+          },
+          {
+            "name": "year",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                { "type": "integer", "maximum": 2100, "minimum": 2000 },
+                { "type": "null" }
+              ],
+              "title": "Year"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BudgetRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "patch": {
+        "tags": ["budgets"],
+        "summary": "Update Budget",
+        "description": "Update an existing budget.\n\nOnly users with the OWNER role can update budgets. When category_ids\nis provided in the payload, the entire category set is replaced (not\nmerged). When category_ids is omitted, existing categories remain.\n\nArgs:\n    budget_id: UUID of the budget to update.\n    payload: BudgetUpdate schema with optional fields.\n    database_session: Async database session dependency.\n    active_context: Authenticated user/tenant context from JWT.\n\nReturns:\n    Updated BudgetRead dict with recalculated spent.\n\nRaises:\n    HTTPException 403 when the user is not an OWNER.\n    HTTPException 404 when budget not found.\n    HTTPException 400 when category IDs are invalid.",
+        "operationId": "update_budget_budgets__budget_id__patch",
+        "parameters": [
+          {
+            "name": "budget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Budget Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": { "$ref": "#/components/schemas/BudgetUpdate" }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/BudgetRead" }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": ["budgets"],
+        "summary": "Delete Budget",
+        "description": "Delete a budget and its category associations.\n\nOnly users with the OWNER role can delete budgets. The CASCADE\nforeign key on BudgetCategory automatically removes join rows\nwhen the budget is deleted.\n\nArgs:\n    budget_id: UUID of the budget to delete.\n    database_session: Async database session dependency.\n    active_context: Authenticated user/tenant context from JWT.\n\nRaises:\n    HTTPException 403 when the user is not an OWNER.\n    HTTPException 404 when budget not found.",
+        "operationId": "delete_budget_budgets__budget_id__delete",
+        "parameters": [
+          {
+            "name": "budget_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid",
+              "title": "Budget Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [{ "type": "string" }, { "type": "null" }],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "responses": {
+          "204": { "description": "Successful Response" },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": { "$ref": "#/components/schemas/HTTPValidationError" }
               }
             }
           }
@@ -2115,94 +1970,54 @@
     "schemas": {
       "AccountCreate": {
         "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "type": {
-            "$ref": "#/components/schemas/AccountType"
-          },
+          "name": { "type": "string", "title": "Name" },
+          "type": { "$ref": "#/components/schemas/AccountType" },
           "currency": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/Currency" },
+              { "type": "null" }
             ],
             "default": "BRL"
           },
           "balance": {
             "anyOf": [
-              {
-                "type": "number"
-              },
+              { "type": "number" },
               {
                 "type": "string",
                 "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
               },
-              {
-                "type": "null"
-              }
+              { "type": "null" }
             ],
             "title": "Balance",
             "default": "0.00"
           },
           "share_with": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/AccountShareWith"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/AccountShareWith" },
+              { "type": "null" }
             ]
           }
         },
         "type": "object",
-        "required": [
-          "name",
-          "type"
-        ],
+        "required": ["name", "type"],
         "title": "AccountCreate",
         "description": "Input schema to create an account.\n\nArgs:\n    name: Account name.\n    type: Account type.\n    currency: Optional currency (defaults to BRL).\n    balance: Optional starting balance.\n    share_with: Optional tenant to share account with atomically during creation."
       },
       "AccountRead": {
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "user_id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "User Id"
-          },
-          "user_name": {
-            "type": "string",
-            "title": "User Name"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "type": {
-            "$ref": "#/components/schemas/AccountType"
-          },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "user_id": { "type": "string", "format": "uuid", "title": "User Id" },
+          "user_name": { "type": "string", "title": "User Name" },
+          "name": { "type": "string", "title": "Name" },
+          "type": { "$ref": "#/components/schemas/AccountType" },
+          "currency": { "$ref": "#/components/schemas/Currency" },
           "balance": {
             "anyOf": [
               {
                 "type": "string",
                 "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
               },
-              {
-                "type": "null"
-              }
+              { "type": "null" }
             ],
             "title": "Balance"
           },
@@ -2241,30 +2056,20 @@
           },
           "visibility": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/ShareVisibility"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/ShareVisibility" },
+              { "type": "null" }
             ],
             "default": "hidden"
           }
         },
         "type": "object",
-        "required": [
-          "tenant_id"
-        ],
+        "required": ["tenant_id"],
         "title": "AccountShareCreate",
         "description": "Input schema to create an account share granting access to a tenant.\n\nWhen creating via the account-scoped endpoint (/accounts/{account_id}/shares)\nthe account_id may be omitted from the body and will be derived from the\npath parameter. For the deprecated global /account_shares endpoint the\naccount_id may be supplied in the payload.\n\nArgs:\n    account_id: Optional account to share (may be provided or omitted).\n    tenant_id: Tenant receiving the share.\n    visibility: Visibility of the shared balance."
       },
       "AccountShareRead": {
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
           "account_id": {
             "type": "string",
             "format": "uuid",
@@ -2275,9 +2080,8 @@
             "format": "uuid",
             "title": "Tenant Id"
           },
-          "visibility": {
-            "$ref": "#/components/schemas/ShareVisibility"
-          },
+          "tenant_name": { "type": "string", "title": "Tenant Name" },
+          "visibility": { "$ref": "#/components/schemas/ShareVisibility" },
           "granted_by": {
             "type": "string",
             "format": "uuid",
@@ -2294,23 +2098,20 @@
           "id",
           "account_id",
           "tenant_id",
+          "tenant_name",
           "visibility",
           "granted_by",
           "granted_at"
         ],
         "title": "AccountShareRead",
-        "description": "Read schema for account share data returned by the API.\n\nAttributes:\n    id: Share id.\n    account_id: Shared account id.\n    tenant_id: Tenant receiving the share.\n    visibility: Visibility setting for the share.\n    granted_by: User that granted the share.\n    granted_at: Timestamp when the share was granted."
+        "description": "Read schema for account share data returned by the API.\n\nAttributes:\n    id: Share id.\n    account_id: Shared account id.\n    tenant_id: Tenant receiving the share.\n    tenant_name: Name of the tenant (family) receiving the share.\n    visibility: Visibility setting for the share.\n    granted_by: User that granted the share.\n    granted_at: Timestamp when the share was granted."
       },
       "AccountShareUpdate": {
         "properties": {
           "visibility": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/ShareVisibility"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/ShareVisibility" },
+              { "type": "null" }
             ]
           }
         },
@@ -2327,78 +2128,49 @@
           },
           "visibility": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/ShareVisibility"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/ShareVisibility" },
+              { "type": "null" }
             ],
             "default": "hidden"
           }
         },
         "type": "object",
-        "required": [
-          "tenant_id"
-        ],
+        "required": ["tenant_id"],
         "title": "AccountShareWith",
         "description": "Input schema for sharing an account with a tenant during account creation.\n\nUsed in AccountCreate.share_with to atomically create an account and share\nit with another tenant in a single operation.\n\nArgs:\n    tenant_id: Tenant to share the account with.\n    visibility: Visibility setting for the shared balance."
       },
       "AccountType": {
         "type": "string",
-        "enum": [
-          "cash",
-          "debit",
-          "credit"
-        ],
+        "enum": ["cash", "debit", "credit"],
         "title": "AccountType",
         "description": "Type of a financial account, affecting expected behavior and balance handling.\n\nCASH: cash-like accounts, DEBIT: bank/debit accounts, CREDIT: credit card accounts."
       },
       "AccountUpdate": {
         "properties": {
           "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Name"
           },
           "type": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/AccountType"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/AccountType" },
+              { "type": "null" }
             ]
           },
           "currency": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/Currency" },
+              { "type": "null" }
             ]
           },
           "balance": {
             "anyOf": [
-              {
-                "type": "number"
-              },
+              { "type": "number" },
               {
                 "type": "string",
                 "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
               },
-              {
-                "type": "null"
-              }
+              { "type": "null" }
             ],
             "title": "Balance"
           }
@@ -2407,85 +2179,177 @@
         "title": "AccountUpdate",
         "description": "Input schema for updating an account.\n\nArgs:\n    name: New account name.\n    type: New account type.\n    currency: New currency code.\n    balance: New balance value."
       },
-      "CategoryCreate": {
+      "BudgetCreate": {
         "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
-          "kind": {
-            "$ref": "#/components/schemas/CategoryKind"
-          },
-          "parent_id": {
+          "name": { "type": "string", "title": "Name" },
+          "amount": {
             "anyOf": [
+              { "type": "number", "exclusiveMinimum": 0.0 },
               {
                 "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
               }
             ],
-            "title": "Parent Id"
+            "title": "Amount"
+          },
+          "currency": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/Currency" },
+              { "type": "null" }
+            ],
+            "default": "BRL"
+          },
+          "category_ids": {
+            "anyOf": [
+              {
+                "items": { "type": "string", "format": "uuid" },
+                "type": "array"
+              },
+              { "type": "null" }
+            ],
+            "title": "Category Ids"
           }
         },
         "type": "object",
-        "required": [
-          "name",
-          "kind"
-        ],
-        "title": "CategoryCreate",
-        "description": "Input schema to create a category.\n\nArgs:\n    name: Category name.\n    kind: Category kind (expense/income).\n    parent_id: Optional parent category id."
+        "required": ["name", "amount"],
+        "title": "BudgetCreate",
+        "description": "Input schema to create a budget.\n\nThe tenant_id is derived from the active context (access token).\nCategory IDs are optional; when omitted the budget becomes a universal\nbudget that tracks ALL tenant expense transactions.\n\nArgs:\n    name: Human-readable budget name.\n    amount: Spending limit (must be > 0).\n    currency: Currency code for the budget (defaults to BRL).\n    category_ids: Optional list of category UUIDs to associate."
       },
-      "CategoryKind": {
-        "type": "string",
-        "enum": [
-          "expense",
-          "income"
-        ],
-        "title": "CategoryKind",
-        "description": "Kind of category indicating whether it represents an expense or income.\n\nUsed to classify categories and transactions as either costs (expense)\nor earnings (income)."
-      },
-      "CategoryRead": {
+      "BudgetRead": {
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
           "tenant_id": {
             "type": "string",
             "format": "uuid",
             "title": "Tenant Id"
           },
-          "name": {
+          "name": { "type": "string", "title": "Name" },
+          "amount": {
             "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Amount"
+          },
+          "currency": { "$ref": "#/components/schemas/Currency" },
+          "categories": {
+            "items": { "$ref": "#/components/schemas/CategoryRead" },
+            "type": "array",
+            "title": "Categories",
+            "default": []
+          },
+          "spent": {
+            "type": "string",
+            "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
+            "title": "Spent",
+            "default": "0.00"
+          },
+          "month": { "type": "integer", "title": "Month" },
+          "year": { "type": "integer", "title": "Year" },
+          "created_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Created At"
+          },
+          "updated_at": {
+            "type": "string",
+            "format": "date-time",
+            "title": "Updated At"
+          }
+        },
+        "type": "object",
+        "required": [
+          "id",
+          "tenant_id",
+          "name",
+          "amount",
+          "currency",
+          "month",
+          "year",
+          "created_at",
+          "updated_at"
+        ],
+        "title": "BudgetRead",
+        "description": "Read schema for budget data returned by the API.\n\nIncludes computed fields (spent, month, year) that are calculated\non-read by aggregating expense transactions for the requested month.\n\nAttributes:\n    id: Budget identifier.\n    tenant_id: Tenant the budget belongs to.\n    name: Budget name.\n    amount: Budget spending limit.\n    currency: Currency code.\n    categories: List of associated categories.\n    spent: Total expenses in the budget's categories for the month.\n    month: Calendar month the spent calculation covers.\n    year: Calendar year the spent calculation covers.\n    created_at: Creation timestamp.\n    updated_at: Last update timestamp."
+      },
+      "BudgetUpdate": {
+        "properties": {
+          "name": {
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Name"
           },
-          "kind": {
-            "$ref": "#/components/schemas/CategoryKind"
-          },
-          "parent_id": {
+          "amount": {
             "anyOf": [
+              { "type": "number", "exclusiveMinimum": 0.0 },
               {
                 "type": "string",
-                "format": "uuid"
+                "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
               },
+              { "type": "null" }
+            ],
+            "title": "Amount"
+          },
+          "currency": {
+            "anyOf": [
+              { "$ref": "#/components/schemas/Currency" },
+              { "type": "null" }
+            ]
+          },
+          "category_ids": {
+            "anyOf": [
               {
-                "type": "null"
-              }
+                "items": { "type": "string", "format": "uuid" },
+                "type": "array"
+              },
+              { "type": "null" }
+            ],
+            "title": "Category Ids"
+          }
+        },
+        "type": "object",
+        "title": "BudgetUpdate",
+        "description": "Input schema for updating a budget.\n\nWhen category_ids is provided it fully replaces the existing category\nset. When omitted, categories remain unchanged.\n\nArgs:\n    name: New budget name (optional).\n    amount: New spending limit (optional, must be > 0).\n    currency: New currency code (optional).\n    category_ids: Optional list replacing the entire category set."
+      },
+      "CategoryCreate": {
+        "properties": {
+          "name": { "type": "string", "title": "Name" },
+          "kind": { "$ref": "#/components/schemas/CategoryKind" },
+          "parent_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Parent Id"
+          }
+        },
+        "type": "object",
+        "required": ["name", "kind"],
+        "title": "CategoryCreate",
+        "description": "Input schema to create a category.\n\nArgs:\n    name: Category name.\n    kind: Category kind (expense/income).\n    parent_id: Optional parent category id."
+      },
+      "CategoryKind": {
+        "type": "string",
+        "enum": ["expense", "income"],
+        "title": "CategoryKind",
+        "description": "Kind of category indicating whether it represents an expense or income.\n\nUsed to classify categories and transactions as either costs (expense)\nor earnings (income)."
+      },
+      "CategoryRead": {
+        "properties": {
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "tenant_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Tenant Id"
+          },
+          "name": { "type": "string", "title": "Name" },
+          "kind": { "$ref": "#/components/schemas/CategoryKind" },
+          "parent_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
             ],
             "title": "Parent Id"
           },
           "parent_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Parent Name"
           },
           "created_at": {
@@ -2514,35 +2378,19 @@
       "CategoryUpdate": {
         "properties": {
           "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Name"
           },
           "kind": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/CategoryKind"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/CategoryKind" },
+              { "type": "null" }
             ]
           },
           "parent_id": {
             "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
             ],
             "title": "Parent Id"
           }
@@ -2553,20 +2401,14 @@
       },
       "Currency": {
         "type": "string",
-        "enum": [
-          "BRL",
-          "USD",
-          "EUR"
-        ],
+        "enum": ["BRL", "USD", "EUR"],
         "title": "Currency",
         "description": "Supported currency codes used for monetary fields across the models."
       },
       "HTTPValidationError": {
         "properties": {
           "detail": {
-            "items": {
-              "$ref": "#/components/schemas/ValidationError"
-            },
+            "items": { "$ref": "#/components/schemas/ValidationError" },
             "type": "array",
             "title": "Detail"
           }
@@ -2576,92 +2418,56 @@
       },
       "InviteCreate": {
         "properties": {
-          "email": {
-            "type": "string",
-            "title": "Email"
-          },
+          "email": { "type": "string", "title": "Email" },
           "role": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/MembershipRole"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/MembershipRole" },
+              { "type": "null" }
             ],
             "default": "member"
           }
         },
         "type": "object",
-        "required": [
-          "email"
-        ],
+        "required": ["email"],
         "title": "InviteCreate",
         "description": "Input schema to create an invite for a tenant.\n\nArgs:\n    email: Email address to invite.\n    role: Role to assign when the invite is accepted."
       },
       "LoginIn": {
         "properties": {
-          "email": {
-            "type": "string",
-            "title": "Email"
-          },
-          "password": {
-            "type": "string",
-            "title": "Password"
-          },
+          "email": { "type": "string", "title": "Email" },
+          "password": { "type": "string", "title": "Password" },
           "tenant_uuid": {
             "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
             ],
             "title": "Tenant Uuid"
           }
         },
         "type": "object",
-        "required": [
-          "email",
-          "password"
-        ],
+        "required": ["email", "password"],
         "title": "LoginIn",
         "description": "Input schema for user login.\n\nArgs:\n    email: User email address.\n    password: Plaintext password.\n    tenant_uuid (Option): specify a tenant to login"
       },
       "MembershipCreate": {
         "properties": {
-          "user_email": {
-            "type": "string",
-            "title": "User Email"
-          },
+          "user_email": { "type": "string", "title": "User Email" },
           "role": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/MembershipRole"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/MembershipRole" },
+              { "type": "null" }
             ],
             "default": "member"
           }
         },
         "type": "object",
-        "required": [
-          "user_email"
-        ],
+        "required": ["user_email"],
         "title": "MembershipCreate",
         "description": "Input schema to create a membership or invite within a tenant.\nTenant ID is derived from the active context within the access_token\n\nArgs:\n    user_email: Email of the user to invite or add.\n    role: Role to assign to the membership."
       },
       "MembershipRead": {
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
           "tenant_id": {
             "type": "string",
             "format": "uuid",
@@ -2669,33 +2475,17 @@
           },
           "user_id": {
             "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
             ],
             "title": "User Id"
           },
           "user_email": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "User Email"
           },
-          "role": {
-            "$ref": "#/components/schemas/MembershipRole"
-          },
-          "status": {
-            "$ref": "#/components/schemas/MembershipStatus"
-          },
+          "role": { "$ref": "#/components/schemas/MembershipRole" },
+          "status": { "$ref": "#/components/schemas/MembershipStatus" },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -2717,21 +2507,13 @@
       },
       "MembershipRole": {
         "type": "string",
-        "enum": [
-          "owner",
-          "member",
-          "viewer"
-        ],
+        "enum": ["owner", "member", "viewer"],
         "title": "MembershipRole",
         "description": "Role assigned to a membership within a tenant.\n\nOWNER has full control, MEMBER has standard access, VIEWER has read-only access."
       },
       "MembershipStatus": {
         "type": "string",
-        "enum": [
-          "active",
-          "pending",
-          "revoked"
-        ],
+        "enum": ["active", "pending", "revoked"],
         "title": "MembershipStatus",
         "description": "Lifecycle status for a membership or invite.\n\nACTIVE: membership is active and usable.\nPENDING: invite sent or awaiting acceptance.\nREVOKED: membership or invite has been revoked."
       },
@@ -2739,22 +2521,14 @@
         "properties": {
           "role": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/MembershipRole"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/MembershipRole" },
+              { "type": "null" }
             ]
           },
           "status": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/MembershipStatus"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/MembershipStatus" },
+              { "type": "null" }
             ]
           }
         },
@@ -2764,68 +2538,35 @@
       },
       "ShareVisibility": {
         "type": "string",
-        "enum": [
-          "hidden",
-          "visible"
-        ],
+        "enum": ["hidden", "visible"],
         "title": "ShareVisibility",
         "description": "Controls whether an account's balance is visible to a membership."
       },
       "SignupIn": {
         "properties": {
-          "email": {
-            "type": "string",
-            "title": "Email"
-          },
-          "password": {
-            "type": "string",
-            "title": "Password"
-          },
+          "email": { "type": "string", "title": "Email" },
+          "password": { "type": "string", "title": "Password" },
           "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Name"
           }
         },
         "type": "object",
-        "required": [
-          "email",
-          "password"
-        ],
+        "required": ["email", "password"],
         "title": "SignupIn",
         "description": "Input schema for user signup.\n\nArgs:\n    email: User email address used for login.\n    password: Plaintext password provided by the user (will be hashed).\n    name: Optional display name."
       },
       "TenantCreate": {
-        "properties": {
-          "name": {
-            "type": "string",
-            "title": "Name"
-          }
-        },
+        "properties": { "name": { "type": "string", "title": "Name" } },
         "type": "object",
-        "required": [
-          "name"
-        ],
+        "required": ["name"],
         "title": "TenantCreate",
         "description": "Input schema to create a new tenant.\n\nArgs:\n    name: Human-readable name for the tenant."
       },
       "TenantRead": {
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
-          "name": {
-            "type": "string",
-            "title": "Name"
-          },
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
+          "name": { "type": "string", "title": "Name" },
           "created_at": {
             "type": "string",
             "format": "date-time",
@@ -2833,25 +2574,14 @@
           }
         },
         "type": "object",
-        "required": [
-          "id",
-          "name",
-          "created_at"
-        ],
+        "required": ["id", "name", "created_at"],
         "title": "TenantRead",
         "description": "Read schema for tenant information returned by the API.\n\nAttributes:\n    id: Tenant identifier.\n    name: Tenant name.\n    created_at: Creation timestamp."
       },
       "TenantUpdate": {
         "properties": {
           "name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Name"
           }
         },
@@ -2861,31 +2591,19 @@
       },
       "TokenOut": {
         "properties": {
-          "access_token": {
-            "type": "string",
-            "title": "Access Token"
-          },
+          "access_token": { "type": "string", "title": "Access Token" },
           "token_type": {
             "type": "string",
             "title": "Token Type",
             "default": "bearer"
           },
           "refresh_token": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Refresh Token"
           }
         },
         "type": "object",
-        "required": [
-          "access_token"
-        ],
+        "required": ["access_token"],
         "title": "TokenOut",
         "description": "Output schema for authentication tokens.\n\nAttributes:\n    access_token: JWT access token string.\n    token_type: Type of token (default: 'bearer').\n    refresh_token: Optional opaque refresh token (only present in tests)."
       },
@@ -2898,21 +2616,14 @@
           },
           "category_id": {
             "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
             ],
             "title": "Category Id"
           },
           "amount": {
             "anyOf": [
-              {
-                "type": "number"
-              },
+              { "type": "number" },
               {
                 "type": "string",
                 "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
@@ -2922,12 +2633,8 @@
           },
           "currency": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/Currency" },
+              { "type": "null" }
             ],
             "default": "BRL"
           },
@@ -2936,28 +2643,15 @@
             "format": "date",
             "title": "Transaction Date"
           },
-          "transaction_type": {
-            "$ref": "#/components/schemas/CategoryKind"
-          },
+          "transaction_type": { "$ref": "#/components/schemas/CategoryKind" },
           "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Description"
           },
           "source": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/TransactionSource"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/TransactionSource" },
+              { "type": "null" }
             ],
             "default": "manual"
           }
@@ -2974,46 +2668,32 @@
       },
       "TransactionRead": {
         "properties": {
-          "id": {
-            "type": "string",
-            "format": "uuid",
-            "title": "Id"
-          },
+          "id": { "type": "string", "format": "uuid", "title": "Id" },
           "tenant_id": {
             "type": "string",
             "format": "uuid",
             "title": "Tenant Id"
           },
           "account_id": {
-            "type": "string",
-            "format": "uuid",
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
             "title": "Account Id"
           },
           "account_name": {
-            "type": "string",
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Account Name"
           },
           "category_id": {
             "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
             ],
             "title": "Category Id"
           },
           "category_name": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Category Name"
           },
           "amount": {
@@ -3021,26 +2701,15 @@
             "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$",
             "title": "Amount"
           },
-          "currency": {
-            "$ref": "#/components/schemas/Currency"
-          },
+          "currency": { "$ref": "#/components/schemas/Currency" },
           "transaction_date": {
             "type": "string",
             "format": "date",
             "title": "Transaction Date"
           },
-          "transaction_type": {
-            "$ref": "#/components/schemas/CategoryKind"
-          },
+          "transaction_type": { "$ref": "#/components/schemas/CategoryKind" },
           "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Description"
           },
           "created_by": {
@@ -3058,13 +2727,8 @@
             "format": "date-time",
             "title": "Updated At"
           },
-          "reconciled": {
-            "type": "boolean",
-            "title": "Reconciled"
-          },
-          "source": {
-            "$ref": "#/components/schemas/TransactionSource"
-          }
+          "reconciled": { "type": "boolean", "title": "Reconciled" },
+          "source": { "$ref": "#/components/schemas/TransactionSource" }
         },
         "type": "object",
         "required": [
@@ -3090,132 +2754,81 @@
       },
       "TransactionSource": {
         "type": "string",
-        "enum": [
-          "manual",
-          "recurring"
-        ],
+        "enum": ["manual", "recurring"],
         "title": "TransactionSource",
         "description": "Source of a transaction describing how it was created.\n\nMANUAL: created by a user interaction.\nRECURRING: generated by a scheduled/recurring process."
       },
       "TransactionUpdate": {
         "properties": {
+          "account_id": {
+            "anyOf": [
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
+            ],
+            "title": "Account Id"
+          },
           "category_id": {
             "anyOf": [
-              {
-                "type": "string",
-                "format": "uuid"
-              },
-              {
-                "type": "null"
-              }
+              { "type": "string", "format": "uuid" },
+              { "type": "null" }
             ],
             "title": "Category Id"
           },
           "amount": {
             "anyOf": [
-              {
-                "type": "number"
-              },
+              { "type": "number" },
               {
                 "type": "string",
                 "pattern": "^(?!^[-+.]*$)[+-]?0*\\d*\\.?\\d*$"
               },
-              {
-                "type": "null"
-              }
+              { "type": "null" }
             ],
             "title": "Amount"
           },
           "currency": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/Currency"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/Currency" },
+              { "type": "null" }
             ]
           },
           "transaction_date": {
             "anyOf": [
-              {
-                "type": "string",
-                "format": "date"
-              },
-              {
-                "type": "null"
-              }
+              { "type": "string", "format": "date" },
+              { "type": "null" }
             ],
             "title": "Transaction Date"
           },
           "transaction_type": {
             "anyOf": [
-              {
-                "$ref": "#/components/schemas/CategoryKind"
-              },
-              {
-                "type": "null"
-              }
+              { "$ref": "#/components/schemas/CategoryKind" },
+              { "type": "null" }
             ]
           },
           "description": {
-            "anyOf": [
-              {
-                "type": "string"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "anyOf": [{ "type": "string" }, { "type": "null" }],
             "title": "Description"
           },
           "reconciled": {
-            "anyOf": [
-              {
-                "type": "boolean"
-              },
-              {
-                "type": "null"
-              }
-            ],
+            "anyOf": [{ "type": "boolean" }, { "type": "null" }],
             "title": "Reconciled"
           }
         },
         "type": "object",
         "title": "TransactionUpdate",
-        "description": "Input schema for updating transactions.\n\nArgs:\n    category_id: New category id (optional).\n    amount: New amount (optional).\n    currency: New currency (optional).\n    transaction_date: New date (optional).\n    transaction_type: New type (optional).\n    description: New description (optional).\n    reconciled: Updated reconciliation flag (optional)."
+        "description": "Input schema for updating transactions.\n\nArgs:\n    account_id: New account id (optional).\n    category_id: New category id (optional).\n    amount: New amount (optional).\n    currency: New currency (optional).\n    transaction_date: New date (optional).\n    transaction_type: New type (optional).\n    description: New description (optional).\n    reconciled: Updated reconciliation flag (optional)."
       },
       "ValidationError": {
         "properties": {
           "loc": {
-            "items": {
-              "anyOf": [
-                {
-                  "type": "string"
-                },
-                {
-                  "type": "integer"
-                }
-              ]
-            },
+            "items": { "anyOf": [{ "type": "string" }, { "type": "integer" }] },
             "type": "array",
             "title": "Location"
           },
-          "msg": {
-            "type": "string",
-            "title": "Message"
-          },
-          "type": {
-            "type": "string",
-            "title": "Error Type"
-          }
+          "msg": { "type": "string", "title": "Message" },
+          "type": { "type": "string", "title": "Error Type" }
         },
         "type": "object",
-        "required": [
-          "loc",
-          "msg",
-          "type"
-        ],
+        "required": ["loc", "msg", "type"],
         "title": "ValidationError"
       }
     }
