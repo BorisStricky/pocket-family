@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { Edit as EditIcon } from '@mui/icons-material';
 import type { AccountRead, AccountType } from '@/types/account';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 /**
  * Props for AccountSummary component
@@ -107,18 +108,8 @@ export function AccountSummary({
     return balance < 0 ? 'error.main' : 'success.main';
   };
 
-  // Format date for display (DD/MM/YYYY)
-  const formatDate = (dateString: string): string => {
-    try {
-      const date = new Date(dateString);
-      const day = String(date.getUTCDate()).padStart(2, '0');
-      const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-      const year = date.getUTCFullYear();
-      return `${day}/${month}/${year}`;
-    } catch {
-      return dateString;
-    }
-  };
+  // Format date for display using shared utility (dd-MMM-yyyy)
+  const formatDate = (dateString: string): string => formatDisplayDate(dateString);
 
   return (
     <Card>

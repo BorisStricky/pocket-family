@@ -8,6 +8,7 @@ import Typography from '@mui/material/Typography';
 import Avatar from '../atoms/Avatar';
 import Chip from '../atoms/Chip';
 import Icon from '../atoms/Icon';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 /**
  * Frontend Transaction shape aligned with backend Transaction model.
@@ -64,7 +65,7 @@ export const TransactionListItem: React.FC<TransactionListItemProps> = ({ tx, on
   // Map backend transaction_type to a color: income -> credit (green), expense -> debit (red)
   const isCredit = tx.transaction_type === 'income';
   const amountColor = isCredit ? 'success.main' : 'error.main';
-  const dateLabel = tx.transaction_date ? new Date(tx.transaction_date).toLocaleDateString() : '';
+  const dateLabel = tx.transaction_date ? formatDisplayDate(tx.transaction_date) : '';
 
   return (
     <ListItem disablePadding>
