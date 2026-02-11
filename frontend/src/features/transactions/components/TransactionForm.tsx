@@ -17,6 +17,10 @@ import {
   Stack,
   CircularProgress,
 } from "@mui/material";
+import { DatePicker } from "@mui/x-date-pickers/DatePicker";
+import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
+import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
+import { enUS } from "date-fns/locale";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import { useCategories } from "@/features/category/hooks/useCategories";
 import { CategorySelect } from "@/components/domain/CategorySelect";
@@ -321,19 +325,44 @@ export function TransactionForm({
         </FormControl>
 
         {/* Transaction Date Input - Required Field */}
-        <TextField
-          label="Date"
-          type="date"
-          required
-          fullWidth
-          InputLabelProps={{ shrink: true }}
-          error={!!errors.transaction_date}
-          helperText={errors.transaction_date?.message}
-          disabled={isLoading}
-          {...register("transaction_date", {
-            required: "Date is required",
-          })}
-        />
+        {/* Uses MUI DatePicker for consistent dd-MMM-yyyy format across the app */}
+        <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enUS}>
+          <Controller
+            name="transaction_date"
+            control={control}
+            rules={{ required: "Date is required" }}
+            render={({ field }) => (
+              <DatePicker
+                label="Date *"
+                format="dd-MMM-yyyy"
+                value={field.value ? (() => {
+                  // Parse YYYY-MM-DD string into local Date to avoid timezone shifts
+                  const [year, month, day] = field.value.split("-").map(Number);
+                  return new Date(year, month - 1, day);
+                })() : null}
+                onChange={(newDate: Date | null) => {
+                  if (newDate) {
+                    // Convert Date back to YYYY-MM-DD for the API
+                    const year = newDate.getFullYear();
+                    const month = String(newDate.getMonth() + 1).padStart(2, "0");
+                    const day = String(newDate.getDate()).padStart(2, "0");
+                    field.onChange(`${year}-${month}-${day}`);
+                  } else {
+                    field.onChange("");
+                  }
+                }}
+                disabled={isLoading}
+                slotProps={{
+                  textField: {
+                    fullWidth: true,
+                    error: !!errors.transaction_date,
+                    helperText: errors.transaction_date?.message,
+                  },
+                }}
+              />
+            )}
+          />
+        </LocalizationProvider>
 
         {/* Description Input - Optional Field */}
         <TextField
