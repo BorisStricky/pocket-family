@@ -24,39 +24,30 @@ interface IncomeVsExpensesProps {
 
 /**
  * Custom X-axis tick that shows day numbers on the first row and
- * month abbreviations on the second row only when the month changes.
- * This keeps the axis compact while providing month context at boundaries.
+ * month abbreviations (Jan, Feb, ...) on the second row for every tick.
+ * This provides clear context for each data point.
  */
 interface CustomDateTickProps {
   x?: number;
   y?: number;
   payload?: { value: string; index: number };
-  chartData?: Array<{ date: string }>;
 }
 
-function CustomDateTick({ x = 0, y = 0, payload, chartData = [] }: CustomDateTickProps) {
+function CustomDateTick({ x = 0, y = 0, payload }: CustomDateTickProps) {
   if (!payload) return null;
 
   const dateString = payload.value;
   const dayNumber = getDayFromDate(dateString);
-  const currentMonth = getMonthFromDate(dateString);
-
-  // Show month label when this is the first data point or when the month changes
-  const previousIndex = payload.index - 1;
-  const previousDate = previousIndex >= 0 ? chartData[previousIndex]?.date : null;
-  const previousMonth = previousDate ? getMonthFromDate(previousDate) : null;
-  const showMonthLabel = !previousMonth || currentMonth !== previousMonth;
+  const monthName = getMonthFromDate(dateString);
 
   return (
     <g transform={`translate(${x},${y})`}>
       <text x={0} y={0} dy={14} textAnchor="middle" fill="#666" fontSize={12}>
         {dayNumber}
       </text>
-      {showMonthLabel && (
-        <text x={0} y={0} dy={30} textAnchor="middle" fill="#333" fontSize={11} fontWeight="bold">
-          {currentMonth}
-        </text>
-      )}
+      <text x={0} y={0} dy={30} textAnchor="middle" fill="#333" fontSize={11} fontWeight="bold">
+        {monthName}
+      </text>
     </g>
   );
 }
@@ -105,11 +96,11 @@ export default function IncomeVsExpenses({ dailyTrends }: IncomeVsExpensesProps)
             <XAxis
               dataKey="date"
               height={50}
-              tick={<CustomDateTick chartData={dailyTrends} />}
+              tick={<CustomDateTick />}
             />
             <YAxis />
             <Tooltip
-              formatter={(value: unknown) => `$${Number(value).toFixed(2)}`}
+              formatter={(value: unknown) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value))}
               labelFormatter={(label: string) => {
                 // Show full formatted date in tooltip hover
                 return `Date: ${formatDisplayDate(label)}`;

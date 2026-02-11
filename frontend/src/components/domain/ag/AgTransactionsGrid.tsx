@@ -110,8 +110,8 @@ export function AgTransactionsGrid({
         if (!params.value || !params.data) return '';
         try {
           const amount = Number(params.value);
-          const currency = params.data.currency || 'USD';
-          return new Intl.NumberFormat('en-US', {
+          const currency = params.data.currency || 'BRL';
+          return new Intl.NumberFormat('pt-BR', {
             style: 'currency',
             currency: currency,
             minimumFractionDigits: 2,
