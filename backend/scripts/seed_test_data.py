@@ -4,7 +4,7 @@ Seed script that drops all data and populates the database with a structured
 test dataset for manual QA.
 
 Usage (inside the backend container):
-  FORCE_SEED=1 python scripts/seed_test_data.py
+  cd /workspace/backend && FORCE_SEED=1 python scripts/seed_test_data.py
 
 Or via docker compose from host:
   docker compose -f docker-compose.dev.yml exec backend sh -c \
