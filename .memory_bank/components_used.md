@@ -54,20 +54,20 @@ Sprint 0 established the core authentication system and foundation components. F
 
 ---
 
-### Organisms (2 implemented - Pre-built for Future)
+### Organisms (3 implemented)
 
-| Component | File Path | Status | Used In Sprint 0 | Storybook |
+| Component | File Path | Status | Used In | Storybook |
 |-----------|-----------|--------|------------------|-----------|
 | **TransactionsList** | `src/components/organisms/TransactionsList.tsx` | ✅ Sprint 0 (Pre-built) | Not used yet | ✅ Yes |
 | **TransactionsGrid** | `src/components/organisms/TransactionsGrid.tsx` | ✅ Sprint 0 (Pre-built) | Not used yet | ✅ Yes |
+| **OverviewCard** | `src/components/ui/organisms/OverviewCard.tsx` | ✅ Sprint 5 | DashboardPage | ❌ No |
 
-**Note**: AG Grid-based components pre-built for Sprint 1+ transaction features.
+**Note**: OverviewCard displays KPI metrics with optional delta indicator and icon. 8 tests passing.
 
 **Missing Organisms** (Future sprints):
 - ❌ TopNav
 - ❌ SideNav
-- ❌ OverviewCard
-- ❌ MiniChart
+- ❌ MiniChart (not needed - charts embedded directly in dashboard components)
 - ❌ CategoryTree
 - ❌ AgAccountsGrid
 - ❌ ImportPreviewGrid
@@ -216,6 +216,54 @@ Based on typical feature development needs:
 - **categories.ts (handlers)**: MSW HTTP handlers for all category endpoints - list, get, create, update, delete with multi-tenant validation
 
 **Milestone 1 Achievement**: All 55 tests passing, zero TypeScript errors, code review approved, full JSDoc documentation, strict no-abbreviation compliance.
+
+---
+
+## Sprint 5: Dashboard (Complete)
+
+### Dashboard Hooks (`/workspace/frontend/src/features/dashboard/hooks/`)
+- **useDashboardSummary(familyId, dateRange)**: Client-side aggregation hook that computes KPI metrics, spending by category, and income vs expenses trend from transactions, accounts, and categories data. Returns summary object with totalExpenses, totalIncome, accountsBalance, spendingByCategory array, and incomeVsExpensesData array for charts.
+
+### Dashboard Components (`/workspace/frontend/src/features/dashboard/components/`)
+- **SpendingByCategory.tsx**: Pie chart component displaying expense breakdown by category using Recharts PieChart. Props: familyId, dateRange. Shows category name and amount in tooltip.
+- **IncomeVsExpenses.tsx**: Line chart component comparing income vs expenses over time using Recharts LineChart. Props: familyId, dateRange. Displays daily trends with dual y-axis lines.
+- **RecentTransactionsWidget.tsx**: AG Grid-based widget showing recent transactions from specified date range. Props: familyId, dateRange. Includes "View All" link to transactions page.
+- **QuickActions.tsx**: Button grid with navigation shortcuts to Add Transaction, View Accounts, and Settings pages. No props.
+
+### Dashboard Pages (`/workspace/frontend/src/features/dashboard/pages/`)
+- **DashboardPage.tsx**: Main dashboard page at route `/app/:familyId/dashboard`. Displays 3 OverviewCard KPIs (Total Expenses, Total Income, Accounts Balance), 2 charts (SpendingByCategory, IncomeVsExpenses), RecentTransactionsWidget, and QuickActions. Includes date range selector (7d, 30d, This Month, This Year).
+
+### Dashboard Tests
+- **DashboardPage.test.tsx**: 8 tests passing - renders overview cards, charts, recent transactions, quick actions, loading states, error states, empty states.
+- **OverviewCard.test.tsx**: 8 tests passing - renders title/value, delta indicators, icons, formatting, accessibility.
+
+**Sprint 5 Achievement**: Full dashboard implementation with client-side aggregation, responsive charts, 16 tests passing, route wired at /app/:familyId/dashboard, SideNav updated with Dashboard link.
+
+---
+
+## Sprint 7: Budgets (Complete)
+
+### Budget API Functions (`/workspace/frontend/src/features/budgets/api/budgetsApi.ts`)
+- **getBudgets(familyId, month?, year?)**: Fetch list of all budgets for a family with calculated spent amounts using GET /app/{tenant_id}/budgets with optional month/year query parameters
+- **createBudget(familyId, data)**: Create new budget using POST /app/{tenant_id}/budgets with name, amount, currency (default "BRL"), and optional category_ids array
+- **updateBudget(familyId, budgetId, data)**: Update existing budget using PATCH /app/{tenant_id}/budgets/{id} with partial data including category_ids (full replacement)
+- **deleteBudget(familyId, budgetId)**: Delete budget using DELETE /app/{tenant_id}/budgets/{id} with CASCADE removal of budget_category associations
+
+### Budget React Query Hooks (`/workspace/frontend/src/features/budgets/hooks/`)
+- **useBudgets(familyId, month?, year?)**: Query hook for fetching budget list with query key ['budgets', familyId, month, year]. Returns budgets with calculated spent amounts and category associations.
+- **useCreateBudget(familyId)**: Mutation hook for creating budgets with multi-category support. Invalidates ['budgets', familyId] on success.
+- **useUpdateBudget(familyId)**: Mutation hook for updating budgets including full category replacement. Invalidates budget list on success.
+- **useDeleteBudget(familyId)**: Mutation hook for deleting budgets. Invalidates budget list on success.
+
+### Budget Components (`/workspace/frontend/src/features/budgets/components/`)
+- **BudgetsList.tsx**: AG Grid displaying budgets with columns for name, amount, currency, spent, progress bars, and category chips. Color-coded progress bars: green (< 80%), yellow (80-99%), red (>= 100%). Includes action column with edit/delete buttons.
+- **BudgetForm.tsx**: Modal form for creating and editing budgets. Fields: name (text), amount (number), currency (dropdown, default "BRL"), categories (MUI Autocomplete multi-select). Pre-populates existing data on edit mode.
+- **DeleteBudgetConfirm.tsx**: Confirmation dialog component for budget deletion. Displays budget name and confirms user intent before calling delete mutation.
+
+### Budget Pages (`/workspace/frontend/src/features/budgets/pages/`)
+- **BudgetsPage.tsx**: Main budgets page at route `/app/:familyId/budgets`. Displays BudgetsList, create button, and manages modal states for BudgetForm and DeleteBudgetConfirm. Includes month selector for viewing historical budget performance.
+
+**Sprint 7 Achievement**: Full budget CRUD with many-to-many category relationships, on-read spent calculation with currency filtering, multi-tenant isolation, backend and frontend tests passing, route wired at /app/:familyId/budgets.
 
 ---
 

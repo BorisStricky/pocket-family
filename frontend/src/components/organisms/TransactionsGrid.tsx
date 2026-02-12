@@ -12,6 +12,7 @@ import Chip from '../atoms/Chip';
 
 // import shared Transaction type
 import { Transaction } from '../molecules/TransactionListItem';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 export interface TransactionsGridProps {
   data: Transaction[];
@@ -41,7 +42,7 @@ const currencyFormatter = (params: any) => {
 const dateFormatter = (params: any) => {
   const v = params.value;
   if (!v) return '';
-  return new Date(v).toLocaleDateString();
+  return formatDisplayDate(v);
 };
 
 export const TransactionsGrid: React.FC<TransactionsGridProps> = ({

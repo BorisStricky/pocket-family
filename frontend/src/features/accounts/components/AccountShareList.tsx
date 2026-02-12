@@ -2,6 +2,7 @@
 // Component for displaying and managing account shares
 
 import React, { useState } from 'react';
+import { formatDisplayDate } from '@/lib/dateUtils';
 import {
   Box,
   Card,
@@ -221,7 +222,7 @@ export function AccountShareList({
                         />
                       </Stack>
                     }
-                    secondary={`Shared on ${new Date(share.granted_at).toLocaleDateString()}`}
+                    secondary={`Shared on ${formatDisplayDate(share.granted_at)}`}
                   />
                 </ListItem>
               ))}

@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .db import init_db
-from .routers import auth, tenants, accounts, categories, transactions
+from .routers import auth, tenants, accounts, categories, transactions, budgets
 
 app = FastAPI(title="Expense SaaS API")
 
@@ -41,3 +41,4 @@ app.include_router(tenants.router)
 app.include_router(accounts.router)
 app.include_router(categories.router)
 app.include_router(transactions.router)
+app.include_router(budgets.router)

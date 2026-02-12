@@ -7,6 +7,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Box, Typography } from '@mui/material';
 import type { TransactionRead, TransactionFilters } from '@/features/transactions/types';
+import { formatDisplayDate } from '@/lib/dateUtils';
 
 /**
  * Props for AgTransactionsGrid component
@@ -60,19 +61,9 @@ export function AgTransactionsGrid({
       sort: 'desc', // Default sort by date descending (most recent first)
       width: 120,
       valueFormatter: (params) => {
-        // Format ISO date string to DD/MM/YYYY format using UTC methods
-        // Manual formatting ensures DD/MM/YYYY instead of US format (MM/DD/YYYY)
-        // UTC methods prevent timezone shifts since backend stores dates as ISO strings
+        // Format ISO date string to dd-MMM-yyyy using shared utility
         if (!params.value) return '';
-        try {
-          const date = new Date(params.value);
-          const day = String(date.getUTCDate()).padStart(2, '0');
-          const month = String(date.getUTCMonth() + 1).padStart(2, '0');
-          const year = date.getUTCFullYear();
-          return `${day}/${month}/${year}`;
-        } catch {
-          return params.value;
-        }
+        return formatDisplayDate(params.value);
       },
     },
     {
@@ -119,8 +110,8 @@ export function AgTransactionsGrid({
         if (!params.value || !params.data) return '';
         try {
           const amount = Number(params.value);
-          const currency = params.data.currency || 'USD';
-          return new Intl.NumberFormat('en-US', {
+          const currency = params.data.currency || 'BRL';
+          return new Intl.NumberFormat('pt-BR', {
             style: 'currency',
             currency: currency,
             minimumFractionDigits: 2,

@@ -1,5 +1,5 @@
 // src/features/app/pages/AppRoot.tsx
-// Root redirect component for /app route
+// Root redirect component for /app route — sends user to their family's dashboard
 
 import React, { useEffect } from 'react';
 import { Navigate } from 'react-router-dom';
@@ -9,13 +9,13 @@ import { useAuth } from '@/features/auth/hooks/useAuth';
 /**
  * AppRoot Component
  *
- * Handles redirect from /app to /app/:familyId/welcome
+ * Handles redirect from /app to /app/:familyId/dashboard
  * Extracts tenant_id from JWT token to determine default family
  * Falls back to /app/families if no tenant_id in token
  *
  * Flow:
  * 1. Check user's tenant_id from JWT token
- * 2. Redirect to /app/:tenant_id/welcome if tenant_id exists
+ * 2. Redirect to /app/:tenant_id/dashboard if tenant_id exists
  * 3. Redirect to /app/families if no tenant_id (let user choose)
  */
 export default function AppRoot() {
@@ -44,7 +44,7 @@ export default function AppRoot() {
 
   // Redirect to user's current family from JWT token
   if (user?.tenant_id) {
-    return <Navigate to={`/app/${user.tenant_id}/welcome`} replace />;
+    return <Navigate to={`/app/${user.tenant_id}/dashboard`} replace />;
   }
 
   // No tenant_id in token - redirect to family selector

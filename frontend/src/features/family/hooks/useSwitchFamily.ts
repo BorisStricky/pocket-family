@@ -15,7 +15,7 @@ import type { TokenResponse } from '@/types';
  * - Stores new access token in localStorage
  * - Updates auth context with new user from token
  * - Invalidates family queries to refresh data
- * - Navigates to /app/:familyId/welcome
+ * - Navigates to /app/:familyId/dashboard
  */
 export function useSwitchFamily() {
   const queryClient = useQueryClient();
@@ -36,8 +36,8 @@ export function useSwitchFamily() {
       queryClient.invalidateQueries({ queryKey: ['families'] });
       queryClient.invalidateQueries({ queryKey: ['family'] });
 
-      // Navigate to welcome page of the new family
-      navigate(`/app/${familyId}/welcome`);
+      // Navigate to dashboard of the new family
+      navigate(`/app/${familyId}/dashboard`);
     },
   });
 }

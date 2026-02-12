@@ -1,0 +1,118 @@
+// src/features/dashboard/components/SpendingByCategory.tsx
+// Pie chart showing expense breakdown by category.
+// Uses Recharts PieChart with responsive container for automatic sizing.
+// Data comes from useDashboardSummary's spendingByCategory aggregation.
+
+import React from 'react';
+import { Card, CardContent, Typography, Box } from '@mui/material';
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from 'recharts';
+import type { CategorySpending } from '../hooks/useDashboardSummary';
+
+// Color palette for pie chart segments - distinct hues for up to 8 categories
+const CHART_COLORS = [
+  '#2196F3', // Blue
+  '#FF9800', // Orange
+  '#4CAF50', // Green
+  '#F44336', // Red
+  '#9C27B0', // Purple
+  '#00BCD4', // Cyan
+  '#FF5722', // Deep Orange
+  '#607D8B', // Blue Grey
+];
+
+interface SpendingByCategoryProps {
+  spendingByCategory: CategorySpending[];
+}
+
+/**
+ * SpendingByCategory - pie chart showing how expenses are distributed across categories.
+ *
+ * When no data is available (no expenses in the period), shows an empty state message.
+ * Limits display to top 7 categories and groups the rest into "Other" for readability.
+ */
+export default function SpendingByCategory({ spendingByCategory }: SpendingByCategoryProps) {
+  // Group smaller categories into "Other" to keep the chart readable
+  const maxCategories = 7;
+  let chartData = spendingByCategory;
+
+  if (spendingByCategory.length > maxCategories) {
+    const topCategories = spendingByCategory.slice(0, maxCategories);
+    const otherTotal = spendingByCategory
+      .slice(maxCategories)
+      .reduce((sum, category) => sum + category.total, 0);
+    chartData = [
+      ...topCategories,
+      { categoryName: 'Other', total: Math.round(otherTotal * 100) / 100 },
+    ];
+  }
+
+  // Empty state when no expense data exists
+  if (chartData.length === 0) {
+    return (
+      <Card sx={{ height: '100%' }}>
+        <CardContent>
+          <Typography variant="h6" gutterBottom>
+            Spending by Category
+          </Typography>
+          <Box
+            sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              height: 250,
+              color: 'text.secondary',
+            }}
+          >
+            <Typography>No expense data for this period</Typography>
+          </Box>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card sx={{ height: '100%' }}>
+      <CardContent>
+        <Typography variant="h6" gutterBottom>
+          Spending by Category
+        </Typography>
+        <ResponsiveContainer width="100%" height={300}>
+          <PieChart>
+            <Pie
+              data={chartData}
+              dataKey="total"
+              nameKey="categoryName"
+              cx="50%"
+              cy="50%"
+              outerRadius={100}
+              label={(props: Record<string, unknown>) => {
+                const name = props.categoryName as string;
+                const pct = (props.percent as number) ?? 0;
+                return `${name} (${(pct * 100).toFixed(0)}%)`;
+              }}
+              labelLine
+            >
+              {chartData.map((_entry, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={CHART_COLORS[index % CHART_COLORS.length]}
+                />
+              ))}
+            </Pie>
+            <Tooltip
+              formatter={(value: unknown) => `$${Number(value).toFixed(2)}`}
+            />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}

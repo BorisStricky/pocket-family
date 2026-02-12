@@ -41,11 +41,19 @@ export function TransactionsPage() {
   const { familyId } = useParams<{ familyId: string }>();
   const navigate = useNavigate();
 
+  // Default date range to current month (1st to last day) for faster loading on large datasets
+  const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    .toISOString()
+    .split('T')[0];
+  const currentMonthEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
+    .toISOString()
+    .split('T')[0];
+
   // Separate local state for immediate UI updates from debounced state for API calls
   // This prevents API call on every keystroke while keeping UI responsive
   const [localSearchQuery, setLocalSearchQuery] = useState('');
-  const [localStartDate, setLocalStartDate] = useState<string | null>(null);
-  const [localEndDate, setLocalEndDate] = useState<string | null>(null);
+  const [localStartDate, setLocalStartDate] = useState<string | null>(currentMonthStart);
+  const [localEndDate, setLocalEndDate] = useState<string | null>(currentMonthEnd);
 
   // Debounce search and date inputs to reduce API calls
   // Only triggers API call 500ms after user stops typing/selecting

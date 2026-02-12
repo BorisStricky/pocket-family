@@ -280,6 +280,91 @@ class AccountShare(SQLModel, table=True):
     )
     granted_by: UUID = Field(foreign_key="user.id", nullable=False, index=True)
     granted_at: datetime = Field(default_factory=datetime.utcnow)
+class Budget(SQLModel, table=True):
+    """Represents a monthly spending budget scoped to a tenant.
+
+    A budget defines a spending limit (amount) for a given set of categories.
+    When no categories are linked, the budget tracks ALL tenant expense
+    transactions (universal budget). Categories are linked via the
+    BudgetCategory join table.
+
+    Attributes:
+        id: Unique budget identifier.
+        tenant_id: Tenant this budget belongs to (multi-tenant isolation).
+        name: Human-readable budget name (e.g. "Monthly Entertainment").
+        amount: Maximum spending limit for the budget period.
+        currency: Currency code for the budget amount, must match transaction
+                  currencies to correctly calculate spent totals.
+        created_at: Timestamp when the budget was created.
+        updated_at: Timestamp when the budget was last modified.
+    """
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("tenant.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
+    name: str
+    amount: Decimal = Field(sa_column=Column(Numeric(18, 2), nullable=False))
+    currency: Currency = Field(
+        sa_column=Column(SAEnum(Currency, name="account_currency", create_constraint=False), nullable=False),
+        default=Currency.BRL,
+    )
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class BudgetCategory(SQLModel, table=True):
+    """Join table linking budgets to categories (many-to-many).
+
+    Each row associates one budget with one category. The unique constraint
+    on (budget_id, category_id) prevents duplicate associations. The tenant_id
+    column is required per the north_star invariant that every domain record
+    must include a valid tenant_id for multi-tenant isolation.
+
+    Attributes:
+        id: Unique row identifier.
+        tenant_id: Tenant this association belongs to.
+        budget_id: The budget being linked.
+        category_id: The category being linked.
+        added_at: Timestamp when the association was created.
+    """
+    __tablename__ = "budgetcategory"
+    __table_args__ = (
+        UniqueConstraint("budget_id", "category_id", name="uq_budget_category_budget_category"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("tenant.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
+    budget_id: UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("budget.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
+    category_id: UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("category.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
+    added_at: datetime = Field(default_factory=datetime.utcnow)
+
+
 class RefreshToken(SQLModel, table=True):
     """Opaque refresh token stored hashed for long-lived session management.
 

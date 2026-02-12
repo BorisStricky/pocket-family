@@ -3,7 +3,7 @@ import { Box, IconButton, Typography } from '@mui/material';
 import { DatePicker } from '@mui/x-date-pickers/DatePicker';
 import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
-import { ptBR } from 'date-fns/locale';
+import { enUS } from 'date-fns/locale';
 import { Close as CloseIcon } from '@mui/icons-material';
 
 /**
@@ -112,9 +112,9 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
   const hasValues = startDate || endDate;
 
-  // Use Brazilian Portuguese locale for DD/MM/YYYY format and proper keyboard input
+  // Use English locale with dd-MMM-yyyy format for consistent app-wide date display
   return (
-    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={ptBR}>
+    <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enUS}>
       <Box>
         {/* Label with clear button */}
         {label && (
@@ -144,14 +144,14 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
         {/* Date inputs */}
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
-          {/* Start Date - format prop ensures keyboard input follows DD/MM/YYYY pattern */}
+          {/* Start Date - format prop ensures keyboard input follows dd-MMM-yyyy pattern */}
           <DatePicker
             label="Start Date"
             value={startDateValue}
             onChange={handleStartDateChange}
             minDate={minDateValue}
             maxDate={maxDateValue}
-            format="dd/MM/yyyy"
+            format="dd-MMM-yyyy"
             slotProps={{
               textField: {
                 size: 'small',
@@ -165,14 +165,14 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             to
           </Typography>
 
-          {/* End Date - format prop ensures keyboard input follows DD/MM/YYYY pattern */}
+          {/* End Date - format prop ensures keyboard input follows dd-MMM-yyyy pattern */}
           <DatePicker
             label="End Date"
             value={endDateValue}
             onChange={handleEndDateChange}
             minDate={startDateValue || minDateValue} // End date cannot be before start date
             maxDate={maxDateValue}
-            format="dd/MM/yyyy"
+            format="dd-MMM-yyyy"
             slotProps={{
               textField: {
                 size: 'small',

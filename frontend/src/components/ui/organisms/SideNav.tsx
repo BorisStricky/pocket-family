@@ -14,7 +14,7 @@ import {
   Box,
 } from '@mui/material';
 import {
-  Home,
+  Dashboard,
   Receipt,
   AccountBalance,
   Assessment,
@@ -33,7 +33,7 @@ const DRAWER_WIDTH = 240;
  * Highlights the active route based on current location
  *
  * Menu items:
- * - Welcome
+ * - Dashboard
  * - Transactions
  * - Accounts
  * - Budgets
@@ -44,9 +44,9 @@ export default function SideNav() {
   const location = useLocation();
   const { familyId } = useParams<{ familyId: string }>();
 
-  // Menu items with family-scoped paths and icons
+  // Menu items with family-scoped paths and icons - Dashboard is the primary landing page
   const menuItems = [
-    { label: 'Welcome', path: `/app/${familyId}/welcome`, icon: Home },
+    { label: 'Dashboard', path: `/app/${familyId}/dashboard`, icon: Dashboard },
     { label: 'Transactions', path: `/app/${familyId}/transactions`, icon: Receipt },
     { label: 'Accounts', path: `/app/${familyId}/accounts`, icon: AccountBalance },
     { label: 'Budgets', path: `/app/${familyId}/budgets`, icon: Assessment },

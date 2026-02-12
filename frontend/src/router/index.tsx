@@ -12,7 +12,7 @@ import { ProtectedRoute } from "../components/ProtectedRoute";
 import FamilyGuard from "../components/FamilyGuard";
 import { FamilyProvider } from "@/features/family/context/FamilyContext";
 import AppRoot from "@/features/app/pages/AppRoot";
-import WelcomePage from "@/features/app/pages/WelcomePage";
+
 import FamiliesPage from "@/features/family/pages/FamiliesPage";
 import AuthTest from "../features/auth/__test-auth__";
 import {
@@ -31,14 +31,10 @@ import {
   GlobalAddAccountPage,
 } from '@/features/accounts/pages';
 import { SettingsPage } from '@/features/settings/pages';
+import DashboardPage from '@/features/dashboard/pages/DashboardPage';
+import { BudgetsPage } from '@/features/budgets/pages';
 
 // Simple nested page placeholders (will be replaced with family-scoped versions)
-function Dashboard() {
-  return <div className="text-slate-700">Dashboard</div>;
-}
-function Budgets() {
-  return <div className="text-slate-700">Budgets</div>;
-}
 function Reports() {
   return <div className="text-slate-700">Reports</div>;
 }
@@ -106,9 +102,9 @@ export default function AppRouter() {
             </ProtectedRoute>
           }
         >
-          {/* Family-scoped nested routes */}
-          <Route index element={<Navigate to="welcome" replace />} />
-          <Route path="welcome" element={<WelcomePage />} />
+          {/* Family-scoped nested routes - default to dashboard */}
+          <Route index element={<Navigate to="dashboard" replace />} />
+          <Route path="dashboard" element={<DashboardPage />} />
 
           {/* Transactions routes */}
           <Route path="transactions">
@@ -125,7 +121,7 @@ export default function AppRouter() {
             <Route path=":accountId/edit" element={<EditAccountPage />} />
           </Route>
           <Route path="family" element={<Navigate to="../settings" replace />} />
-          <Route path="budgets" element={<Budgets />} />
+          <Route path="budgets" element={<BudgetsPage />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>

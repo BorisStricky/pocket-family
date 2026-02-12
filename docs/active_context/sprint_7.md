@@ -1,160 +1,231 @@
-# Sprint 7: Reports, Budgets & Settings (1 week)
+# Sprint 7: Budgets — Full-Stack CRUD (1 week)
 
 ## Goal
-Add remaining MVP pages: Reports (generate/export), Budgets (spending limits), and Settings (user profile, integrations). Completes core feature set.
+
+Implement full budget management: backend model, API endpoints, and frontend UI. Users can create, view, edit, and delete monthly budgets that can track one or more categories, and see how much they've spent against each budget.
+
+**Budgets are always monthly** — no period selection needed. Each budget tracks a spending limit for the current month. A budget can hold **multiple categories** (many-to-many), and a category can belong to multiple budgets. A budget with no categories tracks ALL tenant spending (universal budget).
 
 ## Success Criteria
-- [ ] Users can generate reports with date range and filters
-- [ ] Reports can be exported to CSV/PDF
-- [ ] Users can create and manage budgets per category
-- [ ] Settings page allows updating profile
-- [ ] All core MVP features complete
+
+- [x] Budget and BudgetCategory models exist in the database with Alembic migration
+- [x] Full CRUD API endpoints for budgets (create, list, get, update, delete)
+- [x] Multi-tenant isolation enforced on all budget operations
+- [x] Frontend page to view budgets with progress bars (spent vs limit)
+- [x] Users can create, edit, and delete budgets via modal forms
+- [x] Multi-category selection works in budget create/edit forms
+- [x] Backend tests cover CRUD + tenant isolation + multi-category spent calculation
+- [x] Frontend tests cover budget page workflows
+
+---
+
+## Data Model: Many-to-Many (Budget ↔ Category)
+
+Two tables implement the relationship using a join table pattern (same pattern as `AccountShare`):
+
+**`budget` table:**
+- `id` (UUID PK)
+- `tenant_id` (UUID FK → tenant, CASCADE)
+- `name` (VARCHAR 255, required) — e.g., "Monthly Entertainment"
+- `amount` (Numeric(18,2), required, must be > 0)
+- `currency` (VARCHAR 3, required) — ISO 4217 code (e.g., "BRL", "USD"). Must match transaction currencies for accurate spent calculation.
+- `created_at`, `updated_at` (timestamps)
+
+**`budget_category` join table:**
+- `id` (UUID PK)
+- `tenant_id` (UUID FK → tenant, CASCADE) — Required per north_star.md invariant: every domain record must include tenant_id
+- `budget_id` (UUID FK → budget, CASCADE)
+- `category_id` (UUID FK → category, CASCADE)
+- `added_at` (timestamp)
+- Unique constraint on `(budget_id, category_id)` — prevents duplicates
+- **Tenant validation**: Backend must verify budget.tenant_id == category.tenant_id == budget_category.tenant_id on create/update
+
+**Key behaviors:**
+- One budget can have many categories (e.g., "Entertainment" covers Movies, Games, Streaming)
+- One category can belong to many budgets (e.g., "Groceries" in "Food Budget" and "Weekly Essentials")
+- Budget with zero categories = universal budget (tracks ALL tenant spending)
+- CASCADE delete on budget → removes all associations
+- CASCADE delete on category → removes all associations (budget remains valid)
+
+---
+
+## How to Calculate "Spent" Amounts
+
+### Phase 1 - On-Read (query when budget is loaded)
+
+- When fetching budgets, aggregate expense transactions across **all categories in the budget** for the requested month
+- If budget has **no categories**, sum **ALL** tenant expense transactions for that month
+- GET endpoints accept optional `?month=N&year=YYYY` query params (defaults to current month)
+- **Pros:** Always accurate, no sync issues, simpler model (no `spent` column)
+- **Cons:** Heavier read queries, may be slow with many transactions
+
+### Phase 2 - Background jobs to check status
+
+A Celery worker runs on a schedule and checks all active budgets across all families. When it finds budgets crossing thresholds, it creates alert records that appear as badges or notifications in the UI.
+
+**Important** only phase 1 is part of sprint 7, background jobs will be implemented later
 
 ---
 
 ## Components Checklist
 
-### Reports Hooks
+### Backend — Model & Migration
 
-| Done | Hook | File Path | Purpose | Implementation Notes |
-|------|------|-----------|---------|---------------------|
-| [ ] | useGenerateReport | `src/features/reports/hooks/useGenerateReport.ts` | Generate report mutation | • Call `POST /reports`<br>• Returns report data or file URL |
+| Done | Item                     | File Path                       | Notes                                                                                                                                                         |
+| ---- | ------------------------ | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [x]  | Budget model             | `backend/api/app/models.py`     | Fields: `id`, `tenant_id`, `name`, `amount` (Numeric(18,2)), `created_at`, `updated_at`. No `category_id` — categories linked via join table.                 |
+| [x]  | BudgetCategory model     | `backend/api/app/models.py`     | Join table: `id`, `budget_id` (FK CASCADE), `category_id` (FK CASCADE), `added_at`. Unique constraint on `(budget_id, category_id)`.                         |
+| [x]  | Alembic migration        | `backend/api/alembic/versions/` | Create `budget` table and `budget_category` join table with CASCADE FKs, unique constraint, and indexes                                                       |
+| [x]  | BudgetCreate schema      | `backend/api/app/schemas.py`    | Fields: `name` (str), `amount` (Decimal > 0), `currency` (str, default "BRL"), `category_ids` (optional List[UUID])                                           |
+| [x]  | BudgetRead schema        | `backend/api/app/schemas.py`    | Fields: `id`, `tenant_id`, `name`, `amount`, `currency`, `categories` (List[CategoryRead]), `spent` (calculated Decimal), `month`, `year`, `created_at`, `updated_at` |
+| [x]  | BudgetUpdate schema      | `backend/api/app/schemas.py`    | Fields: `name` (optional str), `amount` (optional Decimal > 0), `currency` (optional str), `category_ids` (optional List[UUID] — full replacement of category set when provided) |
 
-### Budgets Hooks
+### Backend — Router & Endpoints
 
-| Done | Hook | File Path | Purpose | Implementation Notes |
-|------|------|-----------|---------|---------------------|
-| [ ] | useBudgets | `src/features/budgets/hooks/useBudgets.ts` | Fetch budgets list | • Query key: `['budgets', familyId]`<br>• Call `GET /budgets` |
-| [ ] | useCreateBudget | `src/features/budgets/hooks/useCreateBudget.ts` | Create budget mutation | • Call `POST /budgets` |
-| [ ] | useUpdateBudget | `src/features/budgets/hooks/useUpdateBudget.ts` | Update budget mutation | • Call `PUT /budgets/{id}` |
-| [ ] | useDeleteBudget | `src/features/budgets/hooks/useDeleteBudget.ts` | Delete budget mutation | • Call `DELETE /budgets/{id}` |
+| Done | Endpoint                                      | Method | File Path                            | Notes                                                                                                   |
+| ---- | --------------------------------------------- | ------ | ------------------------------------ | ------------------------------------------------------------------------------------------------------- |
+| [x]  | `/app/{tenant_id}/budgets?month=N&year=YYYY`  | GET    | `backend/api/app/routers/budgets.py` | List all budgets for tenant. Spent = sum of transactions (matching budget.currency) across budget's categories for specified month. |
+| [x]  | `/app/{tenant_id}/budgets/{id}?month=N&year=YYYY` | GET    | `backend/api/app/routers/budgets.py` | Single budget with categories and spent amount for specified month (currency-filtered)                   |
+| [x]  | `/app/{tenant_id}/budgets`                    | POST   | `backend/api/app/routers/budgets.py` | Create budget with optional categories. **Validate**: categories belong to tenant, budget.tenant_id matches context. OWNER-only. |
+| [x]  | `/app/{tenant_id}/budgets/{id}`               | PATCH  | `backend/api/app/routers/budgets.py` | Update name, amount, currency, and/or category list (full replacement). **Validate**: new categories belong to tenant. OWNER-only. |
+| [x]  | `/app/{tenant_id}/budgets/{id}`               | DELETE | `backend/api/app/routers/budgets.py` | Delete budget. CASCADE removes budget_category rows. OWNER-only.                                        |
+| [x]  | Register router                               | -      | `backend/api/app/main.py`            | Add budgets router to app with `/app/{tenant_id}` prefix                                                |
 
-### Settings Hooks
+### Backend — Tests
 
-| Done | Hook | File Path | Purpose | Implementation Notes |
-|------|------|-----------|---------|---------------------|
-| [ ] | useUpdateProfile | `src/features/settings/hooks/useUpdateProfile.ts` | Update user profile mutation | • Call `PUT /me`<br>• Update name, email, etc. |
+| Done | Test                          | File Path                                    | Notes                                                                          |
+| ---- | ----------------------------- | -------------------------------------------- | ------------------------------------------------------------------------------ |
+| [x]  | Budget CRUD tests             | `backend/api/tests/test_budget_endpoints.py` | Create, read, update, delete with multi-category and currency field            |
+| [x]  | Multi-category spent tests    | `backend/api/tests/test_budget_endpoints.py` | Spent sums across all categories; no categories = all transactions; **currency-filtered** (only sum transactions matching budget.currency) |
+| [x]  | Category update via PATCH     | `backend/api/tests/test_budget_endpoints.py` | PATCH with category_ids replaces entire set; omitting leaves unchanged         |
+| [x]  | Historical month query tests  | `backend/api/tests/test_budget_endpoints.py` | GET with ?month=1&year=2025 returns correct spent                              |
+| [x]  | Tenant isolation tests        | `backend/api/tests/test_budget_endpoints.py` | Cannot access other tenant's budgets; cannot add other tenant's categories; **budget_category.tenant_id validated** |
+| [x]  | Authorization tests           | `backend/api/tests/test_budget_endpoints.py` | Only OWNER can create/update/delete; all roles can read                        |
+| [x]  | Validation tests              | `backend/api/tests/test_budget_endpoints.py` | Invalid category, negative amount, empty name, non-existent category, **invalid currency**, **tenant mismatch** |
+| [x]  | CASCADE delete tests          | `backend/api/tests/test_budget_endpoints.py` | Deleting category removes budget_category rows; budget remains valid           |
+| [x]  | Currency filtering tests      | `backend/api/tests/test_budget_endpoints.py` | Spent calculation only includes transactions matching budget.currency; mixed-currency transactions ignored |
 
-### API Functions
+### Frontend — API & Hooks
 
-| Done | Function | File Path | Method | Endpoint | Request | Response | Notes |
-|------|----------|-----------|--------|----------|---------|----------|-------|
-| [ ] | generateReport | `src/features/reports/api/reportsApi.ts` | POST | `/reports` | Filters | Report data | Check OpenAPI for exact endpoint |
-| [ ] | getBudgets | `src/features/budgets/api/budgetsApi.ts` | GET | `/budgets` | - | `BudgetRead[]` | Check OpenAPI |
-| [ ] | createBudget | `src/features/budgets/api/budgetsApi.ts` | POST | `/budgets` | `BudgetCreate` | `BudgetRead` | Check OpenAPI |
-| [ ] | updateBudget | `src/features/budgets/api/budgetsApi.ts` | PUT | `/budgets/{id}` | `BudgetUpdate` | `BudgetRead` | Check OpenAPI |
-| [ ] | deleteBudget | `src/features/budgets/api/budgetsApi.ts` | DELETE | `/budgets/{id}` | - | `{ok: true}` | Check OpenAPI |
-| [ ] | updateProfile | `src/features/settings/api/settingsApi.ts` | PUT | `/me` | Profile update | User object | Check OpenAPI |
+| Done | Item            | File Path                                       | Notes                                                          |
+| ---- | --------------- | ----------------------------------------------- | -------------------------------------------------------------- |
+| [x]  | getBudgets      | `src/features/budgets/api/budgetsApi.ts`        | GET `/app/{tenant_id}/budgets?month=N&year=YYYY` (defaults to current month) |
+| [x]  | createBudget    | `src/features/budgets/api/budgetsApi.ts`        | POST `/app/{tenant_id}/budgets` with name, amount, **currency (default "BRL")**, category_ids |
+| [x]  | updateBudget    | `src/features/budgets/api/budgetsApi.ts`        | PATCH `/app/{tenant_id}/budgets/{id}` with name, amount, **currency**, category_ids |
+| [x]  | deleteBudget    | `src/features/budgets/api/budgetsApi.ts`        | DELETE `/app/{tenant_id}/budgets/{id}`                         |
+| [x]  | useBudgets      | `src/features/budgets/hooks/useBudgets.ts`      | Query key: `['budgets', familyId, month, year]`                |
+| [x]  | useCreateBudget | `src/features/budgets/hooks/useCreateBudget.ts` | Invalidates `['budgets', familyId]` on success                 |
+| [x]  | useUpdateBudget | `src/features/budgets/hooks/useUpdateBudget.ts` | Invalidates `['budgets', familyId]` on success                 |
+| [x]  | useDeleteBudget | `src/features/budgets/hooks/useDeleteBudget.ts` | Invalidates `['budgets', familyId]` on success                 |
 
-### Feature Components (Reports)
+### Frontend — Components
 
-| Done | Component | File Path | Props | Used In | Notes |
-|------|-----------|-----------|-------|---------|-------|
-| [ ] | ReportsFilters | `src/features/reports/components/ReportsFilters.tsx` | `filters, onChange` | Reports page | • Date range, category, account filters<br>• Report type select |
-| [ ] | ReportViewer | `src/features/reports/components/ReportViewer.tsx` | `reportData` | Reports page | • Display generated report<br>• Table or chart<br>• Export button |
+| Done | Component           | File Path                                                 | Notes                                                                                                                                                                |
+| ---- | ------------------- | --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| [x]  | BudgetsList         | `src/features/budgets/components/BudgetsList.tsx`         | AG Grid with columns: name, amount, **currency**, spent, progress bar, categories (chips). Color-coded: green (< 80%), yellow (80-99%), red (>= 100%).              |
+| [x]  | BudgetForm          | `src/features/budgets/components/BudgetForm.tsx`          | Modal form for create/edit. Fields: name (text), amount (number), **currency (dropdown, default "BRL", BRL-only for now)**, categories (MUI Autocomplete multi-select). On edit, pre-populates from BudgetRead. |
+| [x]  | DeleteBudgetConfirm | `src/features/budgets/components/DeleteBudgetConfirm.tsx` | Confirmation dialog before deleting a budget                                                                                                                          |
 
-### Feature Components (Budgets)
+### Frontend — Pages & Routes
 
-| Done | Component | File Path | Props | Used In | Notes |
-|------|-----------|-----------|-------|---------|-------|
-| [ ] | BudgetsList | `src/features/budgets/components/BudgetsList.tsx` | `budgets` | Budgets page | • List of budgets with progress bars<br>• Show spent / limit |
-| [ ] | BudgetForm | `src/features/budgets/components/BudgetForm.tsx` | `mode, initialData?, onSubmit` | Budgets page | • Fields: category, amount, period<br>• Validation |
+| Done | Page         | File Path                                    | Route                    | Notes                                                              |
+| ---- | ------------ | -------------------------------------------- | ------------------------ | ------------------------------------------------------------------ |
+| [x]  | BudgetsPage  | `src/features/budgets/pages/BudgetsPage.tsx` | `/app/:familyId/budgets` | Main budgets page with list + add/edit/delete modals + month selector |
+| [x]  | Add route    | `src/router/index.tsx`                       | -                        | Add budgets route under familyId layout                            |
+| [x]  | Add nav link | SideNav component                            | -                        | Add "Budgets" link to sidebar navigation                           |
 
-### Feature Components (Settings)
+### Frontend — Tests
 
-| Done | Component | File Path | Props | Used In | Notes |
-|------|-----------|-----------|-------|---------|-------|
-| [ ] | ProfileForm | `src/features/settings/components/ProfileForm.tsx` | `user, onSubmit` | Settings page | • Fields: name, email<br>• Password change (optional) |
-| [ ] | IntegrationsList | `src/features/settings/components/IntegrationsList.tsx` | `integrations` | Settings page | • List of connected integrations<br>• Placeholder for future |
-
-### Pages
-
-| Done | Page | File Path | Route | Protected | Dependencies | Notes |
-|------|------|-----------|-------|-----------|--------------|-------|
-| [ ] | ReportsPage | `src/features/reports/pages/ReportsPage.tsx` | `/app/:familyId/reports` | Yes | ReportsFilters, ReportViewer | Generate and view reports |
-| [ ] | BudgetsPage | `src/features/budgets/pages/BudgetsPage.tsx` | `/app/:familyId/budgets` | Yes | BudgetsList, BudgetForm | Manage budgets |
-| [ ] | SettingsPage | `src/features/settings/pages/SettingsPage.tsx` | `/app/:familyId/settings` | Yes | ProfileForm, IntegrationsList | User settings |
-
-### Testing
-
-| Done | Test | File Path | Purpose | Notes |
-|------|------|-----------|---------|-------|
-| [ ] | ReportsPage tests | `src/features/reports/__tests__/ReportsPage.test.tsx` | Test report generation | Mock API |
-| [ ] | BudgetForm tests | `src/features/budgets/__tests__/BudgetForm.test.tsx` | Test form validation | Required fields |
-
----
-
-## Implementation Steps (Sprint 7)
-
-### Step 1: Reports API & Hooks
-- [ ] Check OpenAPI for reports endpoint
-- [ ] Implement `reportsApi.ts`
-- [ ] Create `useGenerateReport` hook
-
-### Step 2: Reports Page
-- [ ] Build `ReportsFilters` component
-- [ ] Build `ReportViewer` component
-- [ ] Create `ReportsPage` with generate flow
-- [ ] Add export to CSV/PDF (client-side or backend)
-
-### Step 3: Budgets API & Hooks
-- [ ] Check OpenAPI for budgets endpoints
-- [ ] Implement `budgetsApi.ts` (CRUD)
-- [ ] Create hooks: `useBudgets`, `useCreateBudget`, etc.
-
-### Step 4: Budgets Page
-- [ ] Build `BudgetsList` component with progress bars
-- [ ] Build `BudgetForm` component
-- [ ] Create `BudgetsPage` with CRUD flow
-- [ ] Show budget alerts (over budget warning)
-
-### Step 5: Settings API & Hooks
-- [ ] Implement `settingsApi.ts` (update profile)
-- [ ] Create `useUpdateProfile` hook
-
-### Step 6: Settings Page
-- [ ] Build `ProfileForm` component
-- [ ] Build `IntegrationsList` (placeholder)
-- [ ] Create `SettingsPage`
-- [ ] Add logout button
-
-### Step 7: Testing & Polish
-- [ ] Test report generation with filters
-- [ ] Test budget CRUD flow
-- [ ] Test profile update
-- [ ] Add loading states
-- [ ] Add success/error toasts
+| Done | Test              | File Path                                             | Notes                                                        |
+| ---- | ----------------- | ----------------------------------------------------- | ------------------------------------------------------------ |
+| [x]  | BudgetsPage tests | `src/features/budgets/__tests__/BudgetsPage.test.tsx` | Test list, create, edit, delete flows with multi-category    |
+| [x]  | BudgetForm tests  | `src/features/budgets/__tests__/BudgetForm.test.tsx`  | Test multi-select category, validation, submit               |
 
 ---
 
-## API Endpoints Reference (Sprint 7)
+## Implementation Steps
 
-**Note:** Check OpenAPI spec for exact endpoints.
+### Step 1: Backend — Model & Migration
 
-**Reports:**
-| Endpoint | Method | Request | Response | Notes |
-|----------|--------|---------|----------|-------|
-| `/reports` | POST | Filters | Report data | Generate report |
+- [x] Add `Budget` model to `models.py` (id, tenant_id, name, amount, **currency**, created_at, updated_at)
+- [x] Add `BudgetCategory` join model to `models.py` (id, **tenant_id**, budget_id, category_id, added_at + unique constraint)
+- [x] Create Alembic migration for both tables with currency and tenant_id fields
+- [x] Add schemas to `schemas.py` (BudgetCreate with currency default "BRL", BudgetRead, BudgetUpdate)
 
-**Budgets:**
-| Endpoint | Method | Request | Response | Notes |
-|----------|--------|---------|----------|-------|
-| `/budgets` | GET | - | `BudgetRead[]` | List budgets |
-| `/budgets` | POST | `BudgetCreate` | `BudgetRead` | Create budget |
-| `/budgets/{id}` | PUT | `BudgetUpdate` | `BudgetRead` | Update budget |
-| `/budgets/{id}` | DELETE | - | `{ok: true}` | Delete budget |
+### Step 2: Backend — Router & Endpoints
 
-**Settings:**
-| Endpoint | Method | Request | Response | Notes |
-|----------|--------|---------|----------|-------|
-| `/me` | PUT | Profile update | User object | Update profile |
+- [x] Create `routers/budgets.py` with 5 endpoints (GET list, GET single, POST, PATCH, DELETE)
+- [x] Implement spent calculation: aggregate transactions across all budget categories for specified month, **filtered by budget.currency** (only sum transactions where transaction.currency == budget.currency)
+- [x] Handle no-category case: sum ALL tenant expense transactions **matching budget.currency**
+- [x] PATCH replaces category list when `category_ids` provided, leaves unchanged when omitted
+- [x] **Add tenant validation**: On create/update, verify all category_ids belong to the same tenant as the budget; set budget_category.tenant_id = context.tenant.id
+- [x] Follow existing patterns: `get_active_context` dependency, tenant filtering, OWNER-only mutations
+- [x] Register router in `main.py`
+
+### Step 3: Backend — Tests
+
+- [x] Write tests for all CRUD operations with multi-category budgets (including currency field)
+- [x] Test spent calculation across multiple categories **with currency filtering** (only transactions matching budget.currency)
+- [x] Test universal budget (no categories = all transactions **matching budget.currency**)
+- [x] Test historical month queries (?month=1&year=2025)
+- [x] Test tenant isolation (cannot access other tenant's budgets or categories; **budget_category.tenant_id enforced**)
+- [x] Test authorization (only OWNER can create/update/delete)
+- [x] Test CASCADE delete (category deletion removes budget_category rows)
+- [x] Test category replacement via PATCH (full replacement, not additive)
+- [x] **Test currency validation** (invalid currency codes rejected)
+- [x] **Test tenant_id validation** (cannot add categories from different tenant; budget_category.tenant_id matches budget and category)
+- [x] **Test mixed-currency spent** (BRL budget ignores USD transactions even in same categories)
+
+### Step 4: Frontend — API & Hooks
+
+- [x] Implement `budgetsApi.ts` with all CRUD functions (month/year params on GET)
+- [x] Create React Query hooks with proper query key invalidation
+
+### Step 5: Frontend — Components & Page
+
+- [x] Build BudgetsList with AG Grid, progress bars, **currency column**, and category chips
+- [x] Build BudgetForm modal with multi-select category (MUI Autocomplete) + name + amount + **currency dropdown (default "BRL", BRL-only for now)**
+- [x] Build DeleteBudgetConfirm dialog
+- [x] Create BudgetsPage composing all components + optional month selector
+- [x] Add route and nav link
+
+### Step 6: Frontend — Tests
+
+- [x] Test budget list rendering with progress bars and category chips
+- [x] Test create/edit/delete workflows with multi-category selection
+- [x] Test empty state
+- [x] Test universal budget display (no categories)
+
+### Step 7: Polish
+
+- [x] Loading states and skeletons
+- [x] Success/error toasts
+- [x] Over-budget visual warnings
+
+---
+
+## API Endpoints Reference
+
+| Endpoint                                      | Method | Request                                          | Response                            | Notes                                                                     |
+| --------------------------------------------- | ------ | ------------------------------------------------ | ----------------------------------- | ------------------------------------------------------------------------- |
+| `/app/{tenant_id}/budgets?month=N&year=YYYY`  | GET    | -                                                | `BudgetRead[]` (with `spent` field) | List all budgets for tenant. Month/year default to current. Spent filtered by budget.currency. |
+| `/app/{tenant_id}/budgets/{id}?month=N&year=YYYY` | GET    | -                                            | `BudgetRead` (with `spent` field)   | Single budget with categories and spent (currency-filtered)               |
+| `/app/{tenant_id}/budgets`                    | POST   | `{ name, amount, currency?, category_ids? }`     | `BudgetRead`                        | Create budget. Optional category list. currency defaults to "BRL".        |
+| `/app/{tenant_id}/budgets/{id}`               | PATCH  | `{ name?, amount?, currency?, category_ids? }`   | `BudgetRead`                        | Update budget. category_ids replaces entire set when provided.            |
+| `/app/{tenant_id}/budgets/{id}`               | DELETE | -                                                | 204 No Content                      | Delete budget. CASCADE removes budget_category rows.                      |
 
 ---
 
 ## Notes & Assumptions
 
-- **Reports:** Export client-side using libraries (csv-export, jsPDF)
-- **Budgets:** Period options: monthly, quarterly, yearly
-- **Budget alerts:** Backend can send notifications (optional)
-- **Settings:** Password change via separate endpoint (optional)
-- **Integrations:** Placeholder for future (Plaid, bank sync)
+- **Monthly only:** All budgets are monthly. No period selection. Spent is calculated for a specific calendar month (1st to last day), defaulting to current month.
+- **Many-to-many:** One budget can have one or more categories and one category can be in more than one budget. Implemented via `budget_category` join table.
+- **Universal budget:** A budget with no categories tracks ALL tenant expense transactions for the month (filtered by currency).
+- **Category update via PATCH:** Sending `category_ids` in PATCH replaces the entire category set. Omitting the field leaves categories unchanged.
+- **Spent calculation:** Calculated on-read by aggregating expense transactions across all budget categories for the requested month, **filtered by budget.currency** (only transactions where transaction.currency == budget.currency are summed).
+- **Currency safety:** Each budget has a `currency` field (ISO 4217 code). Frontend defaults to "BRL" and only offers BRL option for now. Backend accepts any valid currency code, but spent calculation only counts matching transactions. This prevents mixing BRL and USD amounts.
+- **Tenant_id on join table:** The `budget_category` join table includes `tenant_id` per north_star.md invariant (every domain record must include valid tenant_id). Backend validates budget.tenant_id == category.tenant_id == budget_category.tenant_id on create/update.
+- **BudgetRead includes categories:** The response returns full `CategoryRead` objects so the frontend can display whatever fields it needs.
+- **BudgetRead includes month/year:** So the client knows which month the spent calculation covers.
+- **Authorization:** Only OWNER role can create/update/delete budgets. All members can view.
+- **No alerts yet:** Budget alerts/notifications are a future enhancement (Celery background jobs).

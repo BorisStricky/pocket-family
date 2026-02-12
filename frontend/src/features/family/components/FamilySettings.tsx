@@ -3,6 +3,7 @@
 // Shows contextual actions based on the current user's role
 
 import { useState } from 'react';
+import { formatDisplayDate } from '@/lib/dateUtils';
 import {
   Paper,
   Typography,
@@ -105,7 +106,7 @@ export function FamilySettings({
         </Typography>
         <Typography variant="body1">{family.name}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ marginTop: 1 }}>
-          Created: {new Date(family.created_at).toLocaleDateString()}
+          Created: {formatDisplayDate(family.created_at)}
         </Typography>
       </Box>
 
