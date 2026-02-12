@@ -13,6 +13,7 @@ import {
 } from '@mui/material';
 import { Group } from '@mui/icons-material';
 import type { TenantRead } from '@/types/family';
+import { formatDisplayDate } from '@/lib/dateUtils';
 import { useSwitchFamily } from '../hooks/useSwitchFamily';
 
 interface FamilyListProps {
@@ -82,7 +83,7 @@ export default function FamilyList({ families, onSelect }: FamilyListProps) {
                 </Box>
 
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Created: {new Date(family.created_at).toLocaleDateString()}
+                  Created: {formatDisplayDate(family.created_at)}
                 </Typography>
 
                 <Box sx={{ mt: 2 }}>

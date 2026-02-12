@@ -48,7 +48,8 @@
       "Bash(python -m pytest:*)",
       "Bash(grep:*)",
       "Bash(npx vitest:*)",
-      "Bash(npx vite build:*)"
+      "Bash(npx vite build:*)",
+      "Bash(TEST_MODE=1 python -m pytest:*)"
     ],
     "deny": [],
     "ask": []

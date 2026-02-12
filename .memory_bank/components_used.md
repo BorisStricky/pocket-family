@@ -241,6 +241,32 @@ Based on typical feature development needs:
 
 ---
 
+## Sprint 7: Budgets (Complete)
+
+### Budget API Functions (`/workspace/frontend/src/features/budgets/api/budgetsApi.ts`)
+- **getBudgets(familyId, month?, year?)**: Fetch list of all budgets for a family with calculated spent amounts using GET /app/{tenant_id}/budgets with optional month/year query parameters
+- **createBudget(familyId, data)**: Create new budget using POST /app/{tenant_id}/budgets with name, amount, currency (default "BRL"), and optional category_ids array
+- **updateBudget(familyId, budgetId, data)**: Update existing budget using PATCH /app/{tenant_id}/budgets/{id} with partial data including category_ids (full replacement)
+- **deleteBudget(familyId, budgetId)**: Delete budget using DELETE /app/{tenant_id}/budgets/{id} with CASCADE removal of budget_category associations
+
+### Budget React Query Hooks (`/workspace/frontend/src/features/budgets/hooks/`)
+- **useBudgets(familyId, month?, year?)**: Query hook for fetching budget list with query key ['budgets', familyId, month, year]. Returns budgets with calculated spent amounts and category associations.
+- **useCreateBudget(familyId)**: Mutation hook for creating budgets with multi-category support. Invalidates ['budgets', familyId] on success.
+- **useUpdateBudget(familyId)**: Mutation hook for updating budgets including full category replacement. Invalidates budget list on success.
+- **useDeleteBudget(familyId)**: Mutation hook for deleting budgets. Invalidates budget list on success.
+
+### Budget Components (`/workspace/frontend/src/features/budgets/components/`)
+- **BudgetsList.tsx**: AG Grid displaying budgets with columns for name, amount, currency, spent, progress bars, and category chips. Color-coded progress bars: green (< 80%), yellow (80-99%), red (>= 100%). Includes action column with edit/delete buttons.
+- **BudgetForm.tsx**: Modal form for creating and editing budgets. Fields: name (text), amount (number), currency (dropdown, default "BRL"), categories (MUI Autocomplete multi-select). Pre-populates existing data on edit mode.
+- **DeleteBudgetConfirm.tsx**: Confirmation dialog component for budget deletion. Displays budget name and confirms user intent before calling delete mutation.
+
+### Budget Pages (`/workspace/frontend/src/features/budgets/pages/`)
+- **BudgetsPage.tsx**: Main budgets page at route `/app/:familyId/budgets`. Displays BudgetsList, create button, and manages modal states for BudgetForm and DeleteBudgetConfirm. Includes month selector for viewing historical budget performance.
+
+**Sprint 7 Achievement**: Full budget CRUD with many-to-many category relationships, on-read spent calculation with currency filtering, multi-tenant isolation, backend and frontend tests passing, route wired at /app/:familyId/budgets.
+
+---
+
 ## 📝 IMPLEMENTATION NOTES
 
 ### Deviations from Spec:

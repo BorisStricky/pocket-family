@@ -16,18 +16,40 @@ import {
   Legend,
 } from 'recharts';
 import type { DailyTrend } from '../hooks/useDashboardSummary';
+import { getDayFromDate, getMonthFromDate, formatDisplayDate } from '@/lib/dateUtils';
 
 interface IncomeVsExpensesProps {
   dailyTrends: DailyTrend[];
 }
 
 /**
- * Format a date string (YYYY-MM-DD) into a shorter display format (MM/DD).
- * This keeps the X-axis labels compact on the bar chart.
+ * Custom X-axis tick that shows day numbers on the first row and
+ * month abbreviations (Jan, Feb, ...) on the second row for every tick.
+ * This provides clear context for each data point.
  */
-function formatDateLabel(dateString: string): string {
-  const [, month, day] = dateString.split('-');
-  return `${month}/${day}`;
+interface CustomDateTickProps {
+  x?: number;
+  y?: number;
+  payload?: { value: string; index: number };
+}
+
+function CustomDateTick({ x = 0, y = 0, payload }: CustomDateTickProps) {
+  if (!payload) return null;
+
+  const dateString = payload.value;
+  const dayNumber = getDayFromDate(dateString);
+  const monthName = getMonthFromDate(dateString);
+
+  return (
+    <g transform={`translate(${x},${y})`}>
+      <text x={0} y={0} dy={14} textAnchor="middle" fill="#666" fontSize={12}>
+        {dayNumber}
+      </text>
+      <text x={0} y={0} dy={30} textAnchor="middle" fill="#333" fontSize={11} fontWeight="bold">
+        {monthName}
+      </text>
+    </g>
+  );
 }
 
 /**
@@ -61,12 +83,6 @@ export default function IncomeVsExpenses({ dailyTrends }: IncomeVsExpensesProps)
     );
   }
 
-  // Transform dates into shorter labels for the X-axis
-  const chartData = dailyTrends.map((trend) => ({
-    ...trend,
-    dateLabel: formatDateLabel(trend.date),
-  }));
-
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent>
@@ -74,18 +90,20 @@ export default function IncomeVsExpenses({ dailyTrends }: IncomeVsExpensesProps)
           Income vs Expenses
         </Typography>
         <ResponsiveContainer width="100%" height={300}>
-          <BarChart data={chartData}>
+          <BarChart data={dailyTrends}>
             <CartesianGrid strokeDasharray="3 3" />
-            <XAxis dataKey="dateLabel" />
+            {/* Custom tick renders day numbers with month labels at month boundaries */}
+            <XAxis
+              dataKey="date"
+              height={50}
+              tick={<CustomDateTick />}
+            />
             <YAxis />
             <Tooltip
-              formatter={(value: unknown) => `$${Number(value).toFixed(2)}`}
-              labelFormatter={(_label, payload) => {
-                // Show full date in tooltip hover
-                if (payload && payload.length > 0) {
-                  return `Date: ${(payload[0].payload as Record<string, unknown>).date}`;
-                }
-                return '';
+              formatter={(value: unknown) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value))}
+              labelFormatter={(label: string) => {
+                // Show full formatted date in tooltip hover
+                return `Date: ${formatDisplayDate(label)}`;
               }}
             />
             <Legend />

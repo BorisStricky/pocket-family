@@ -28,14 +28,16 @@ import QuickActions from '../components/QuickActions';
 import { useDashboardSummary, type DateRangePreset } from '../hooks/useDashboardSummary';
 
 /**
- * Format a number as currency with dollar sign and two decimal places.
- * Uses toLocaleString for proper thousands separators.
+ * Format a number as BRL currency (e.g., "R$ 1.234,56").
+ * Uses Intl.NumberFormat for proper locale-aware formatting.
  */
 function formatCurrency(amount: number): string {
-  return `$${Math.abs(amount).toLocaleString('en-US', {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
-  })}`;
+  }).format(Math.abs(amount));
 }
 
 /**
@@ -128,7 +130,7 @@ export default function DashboardPage() {
         <Grid size={{ xs: 12, md: 4 }}>
           <OverviewCard
             title="Total Expenses"
-            value={summary ? formatCurrency(summary.totalExpenses) : '$0.00'}
+            value={summary ? formatCurrency(summary.totalExpenses) : 'R$ 0,00'}
             icon={TrendingDown}
             color="error"
           />
@@ -136,7 +138,7 @@ export default function DashboardPage() {
         <Grid size={{ xs: 12, md: 4 }}>
           <OverviewCard
             title="Total Income"
-            value={summary ? formatCurrency(summary.totalIncome) : '$0.00'}
+            value={summary ? formatCurrency(summary.totalIncome) : 'R$ 0,00'}
             icon={TrendingUp}
             color="success"
           />
@@ -144,7 +146,7 @@ export default function DashboardPage() {
         <Grid size={{ xs: 12, md: 4 }}>
           <OverviewCard
             title="Net Balance"
-            value={summary ? formatCurrency(summary.netBalance) : '$0.00'}
+            value={summary ? formatCurrency(summary.netBalance) : 'R$ 0,00'}
             icon={AccountBalanceWallet}
             color={summary && summary.netBalance >= 0 ? 'success' : 'error'}
           />

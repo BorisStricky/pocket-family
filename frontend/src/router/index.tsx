@@ -32,11 +32,9 @@ import {
 } from '@/features/accounts/pages';
 import { SettingsPage } from '@/features/settings/pages';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
+import { BudgetsPage } from '@/features/budgets/pages';
 
 // Simple nested page placeholders (will be replaced with family-scoped versions)
-function Budgets() {
-  return <div className="text-slate-700">Budgets</div>;
-}
 function Reports() {
   return <div className="text-slate-700">Reports</div>;
 }
@@ -123,7 +121,7 @@ export default function AppRouter() {
             <Route path=":accountId/edit" element={<EditAccountPage />} />
           </Route>
           <Route path="family" element={<Navigate to="../settings" replace />} />
-          <Route path="budgets" element={<Budgets />} />
+          <Route path="budgets" element={<BudgetsPage />} />
           <Route path="reports" element={<Reports />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
