@@ -179,7 +179,7 @@ describe('DashboardPage Integration', () => {
     expect(screen.getByText('No transactions in this month')).toBeInTheDocument();
   });
 
-  it('displays $0.00 values on all overview cards when there are no transactions', async () => {
+  it('displays R$ 0,00 values on all overview cards when there are no transactions', async () => {
     // Return empty transaction list to verify that KPI cards show zeroed values
     server.use(
       http.get(`${API_BASE}/transactions`, () => {
@@ -189,10 +189,12 @@ describe('DashboardPage Integration', () => {
 
     renderDashboardPage();
 
-    // All three overview cards (Expenses, Income, Net Balance) should display $0.00
-    // when there are no transactions in the selected period
+    // All three overview cards (Expenses, Income, Net Balance) should display R$ 0,00
+    // when there are no transactions in the selected period (currency is BRL).
+    // Intl.NumberFormat outputs a non-breaking space between R$ and the number,
+    // but Testing Library's default normalizer collapses it to a regular space.
     await waitFor(() => {
-      const zeroValues = screen.getAllByText('$0.00');
+      const zeroValues = screen.getAllByText('R$ 0,00');
       expect(zeroValues.length).toBe(3);
     });
   });

@@ -17,12 +17,12 @@ services:
     networks:
       - pfin-net
     ports:
-      - "5173:5173"   # Vite dev server
-      - "8000:8000"   # FastAPI dev server
+      - "5173:5173" # Vite dev server
+      - "8000:8000" # FastAPI dev server
     environment:
       - CHOKIDAR_USEPOLLING=true
       - NODE_ENV=development
-      - VITE_API_URL=http://localhost:8000
+      - VITE_API_URL=http://192.168.1.101:8000
     env_file:
       - .env
     stdin_open: true

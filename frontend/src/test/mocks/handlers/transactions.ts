@@ -32,8 +32,9 @@ export const transactionHandlers = [
     const account_id = url.searchParams.get('account_id');
     const category_id = url.searchParams.get('category_id');
     const transaction_type = url.searchParams.get('transaction_type');
-    const start_date = url.searchParams.get('start_date');
-    const end_date = url.searchParams.get('end_date');
+    // API client sends 'start' and 'end' (not 'start_date' / 'end_date')
+    const start_date = url.searchParams.get('start');
+    const end_date = url.searchParams.get('end');
 
     // Simulate 401 for unauthenticated requests (no Authorization header)
     const authHeader = request.headers.get('Authorization');

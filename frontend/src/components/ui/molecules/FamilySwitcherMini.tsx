@@ -87,6 +87,11 @@ export default function FamilySwitcherMini({
           textTransform: 'none',
           borderColor: 'divider',
           color: 'text.primary',
+          // Truncate long family names so the button doesn't overflow the toolbar
+          maxWidth: { xs: 200, sm: 280 },
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap',
           '&:hover': {
             borderColor: 'primary.main',
             bgcolor: 'action.hover',

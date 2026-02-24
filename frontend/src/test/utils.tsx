@@ -1,7 +1,7 @@
 // src/test/utils.tsx
 // Test utilities, render wrappers, and helper functions
 
-import { ReactElement } from 'react';
+import { ReactElement, useState } from 'react';
 import { render, RenderOptions } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { BrowserRouter, MemoryRouter } from 'react-router-dom';
@@ -42,7 +42,9 @@ interface AllProvidersProps {
  * Used by renderWithProviders to wrap components under test
  */
 export function AllProviders({ children, initialEntries }: AllProvidersProps) {
-  const queryClient = createTestQueryClient();
+  // Wrap in useState so the same QueryClient persists across re-renders —
+  // creating a new client on every render cancels in-flight queries
+  const [queryClient] = useState(() => createTestQueryClient());
 
   // Use MemoryRouter if initialEntries provided, otherwise BrowserRouter
   const Router = initialEntries ? MemoryRouter : BrowserRouter;
