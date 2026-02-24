@@ -15,6 +15,12 @@ RUN if [ -f package-lock.json ]; then npm ci --silent || npm install --silent; e
 # Copy all frontend sources (must be in ./frontend)
 COPY . .
 
+# Accept the API base URL as a build-time argument.
+# Vite bakes VITE_* env vars into the JS bundle during `npm run build`, so
+# this value cannot be injected at runtime — it must be provided here.
+# docker-compose.yaml passes this via the build.args section.
+ARG VITE_API_URL=http://192.168.1.101:8000
+ENV VITE_API_URL=$VITE_API_URL
 
 # Build the app (produces /app/dist)
 RUN npm run build
