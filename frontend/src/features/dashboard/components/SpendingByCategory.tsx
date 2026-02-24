@@ -4,7 +4,7 @@
 // Data comes from useDashboardSummary's spendingByCategory aggregation.
 
 import React from 'react';
-import { Card, CardContent, Typography, Box } from '@mui/material';
+import { Card, CardContent, Typography, Box, useMediaQuery, useTheme } from '@mui/material';
 import {
   PieChart,
   Pie,
@@ -38,6 +38,10 @@ interface SpendingByCategoryProps {
  * Limits display to top 7 categories and groups the rest into "Other" for readability.
  */
 export default function SpendingByCategory({ spendingByCategory }: SpendingByCategoryProps) {
+  const theme = useTheme();
+  // Hide legend on mobile to prevent overcrowding the small chart area
+  const isMobileViewport = useMediaQuery(theme.breakpoints.down('md'));
+
   // Group smaller categories into "Other" to keep the chart readable
   const maxCategories = 7;
   let chartData = spendingByCategory;
@@ -109,7 +113,7 @@ export default function SpendingByCategory({ spendingByCategory }: SpendingByCat
             <Tooltip
               formatter={(value: unknown) => `$${Number(value).toFixed(2)}`}
             />
-            <Legend />
+            {!isMobileViewport && <Legend />}
           </PieChart>
         </ResponsiveContainer>
       </CardContent>

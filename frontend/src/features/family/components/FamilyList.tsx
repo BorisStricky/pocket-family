@@ -8,7 +8,6 @@ import {
   CardContent,
   CardActionArea,
   Typography,
-  Grid,
   Chip,
 } from '@mui/material';
 import { Group } from '@mui/icons-material';
@@ -57,9 +56,24 @@ export default function FamilyList({ families, onSelect }: FamilyListProps) {
   }
 
   return (
-    <Grid container spacing={3}>
+    <Box
+      sx={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        justifyContent: 'center',
+        gap: 3,
+      }}
+    >
       {families.map((family) => (
-        <Grid item xs={12} sm={6} md={4} key={family.id}>
+        <Box
+          key={family.id}
+          sx={{
+            // All cards get exactly the same width regardless of screen size
+            // On very small screens, maxWidth ensures the card shrinks to fit
+            width: 340,
+            maxWidth: '100%',
+          }}
+        >
           <Card
             sx={{
               height: '100%',
@@ -97,8 +111,8 @@ export default function FamilyList({ families, onSelect }: FamilyListProps) {
               </CardContent>
             </CardActionArea>
           </Card>
-        </Grid>
+        </Box>
       ))}
-    </Grid>
+    </Box>
   );
 }

@@ -41,6 +41,14 @@ export const API_ENDPOINTS = {
 } as const;
 
 /**
+ * Layout dimension constants used across AppShell, SideNav, and TopNav
+ * to maintain consistent spacing when the side navigation is open or closed
+ */
+export const LAYOUT = {
+  DRAWER_WIDTH: 240,
+} as const;
+
+/**
  * Route paths for navigation
  */
 export const ROUTES = {

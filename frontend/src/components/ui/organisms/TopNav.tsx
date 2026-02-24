@@ -13,7 +13,7 @@ import {
   Avatar,
   Chip,
 } from '@mui/material';
-import { AccountCircle, ArrowBack } from '@mui/icons-material';
+import { AccountCircle, ArrowBack, Menu as MenuIcon } from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
 import { useLogout } from '@/features/auth/hooks/useLogout';
 import { FamilyContext } from '@/features/family/context/FamilyContext';
@@ -27,6 +27,8 @@ interface TopNavProps {
    * Used for global account views at /app/accounts/*
    */
   globalMode?: boolean;
+  /** Callback to toggle the side navigation drawer open/closed */
+  onMenuClick?: () => void;
 }
 
 /**
@@ -42,7 +44,7 @@ interface TopNavProps {
  * - user: Current authenticated user
  * - globalMode: If true, shows global badge instead of family switcher
  */
-export default function TopNav({ user, globalMode = false }: TopNavProps) {
+export default function TopNav({ user, globalMode = false, onMenuClick }: TopNavProps) {
   const navigate = useNavigate();
   const logoutMutation = useLogout();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
@@ -83,11 +85,23 @@ export default function TopNav({ user, globalMode = false }: TopNavProps) {
       }}
       role="banner"
     >
-      <Toolbar>
+      <Toolbar sx={{ flexWrap: 'nowrap' }}>
+        {/* Hamburger menu button to toggle SideNav */}
+        {onMenuClick && (
+          <IconButton
+            edge="start"
+            color="inherit"
+            aria-label="toggle navigation menu"
+            onClick={onMenuClick}
+            sx={{ mr: 1 }}
+          >
+            <MenuIcon />
+          </IconButton>
+        )}
+
         {/* Back button (global mode only) */}
         {globalMode && (
           <IconButton
-            edge="start"
             color="inherit"
             aria-label="back to family picker"
             onClick={() => navigate('/app/families')}
@@ -97,8 +111,15 @@ export default function TopNav({ user, globalMode = false }: TopNavProps) {
           </IconButton>
         )}
 
-        {/* App Logo/Name */}
-        <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
+        {/* App Logo/Name — hidden on mobile to save horizontal space */}
+        <Typography
+          variant="h6"
+          sx={{
+            fontWeight: 'bold',
+            color: '#1976d2',
+            display: { xs: 'none', md: 'block' },
+          }}
+        >
           Personal Finance
         </Typography>
 
@@ -106,7 +127,7 @@ export default function TopNav({ user, globalMode = false }: TopNavProps) {
         <Box sx={{ flexGrow: 1 }} />
 
         {/* Family Switcher (family mode) OR Global badge (global mode) */}
-        <Box sx={{ mr: 2 }}>
+        <Box sx={{ mr: 2, minWidth: 0 }}>
           {globalMode ? (
             <Chip
               label="Global"

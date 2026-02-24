@@ -12,6 +12,8 @@ import {
   Alert,
   ToggleButtonGroup,
   ToggleButton,
+  useMediaQuery,
+  useTheme,
 } from '@mui/material';
 import {
   TrendingDown,
@@ -57,6 +59,10 @@ export default function DashboardPage() {
   const { familyId } = useParams<{ familyId: string }>();
   const { currentFamily } = useFamily();
   const [dateRange, setDateRange] = useState<DateRangePreset>('month');
+
+  const theme = useTheme();
+  // Hide family name from title on mobile to save horizontal space
+  const isMobileViewport = useMediaQuery(theme.breakpoints.down('md'));
 
   const { summary, isLoading, error } = useDashboardSummary(familyId!, dateRange);
 
@@ -104,7 +110,7 @@ export default function DashboardPage() {
       {/* Page header with title and date range selector */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          Dashboard{currentFamily ? ` - ${currentFamily.name}` : ''}
+          Dashboard{!isMobileViewport && currentFamily ? ` - ${currentFamily.name}` : ''}
         </Typography>
 
         {/* Date range toggle - controls which period's data is shown */}

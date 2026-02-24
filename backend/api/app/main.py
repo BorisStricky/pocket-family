@@ -12,6 +12,7 @@ app.add_middleware(
         "http://localhost:5173",  # Vite dev server (default)
         "http://localhost:5174",  # Vite dev server (alternative port)
         "http://localhost:3000",  # Alternative frontend port
+        "http://192.168.1.101:5173" # Local network address
     ],
     allow_credentials=True,
     # Restrict to only necessary HTTP methods for security
