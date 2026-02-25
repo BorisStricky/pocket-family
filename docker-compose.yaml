@@ -1,50 +1,82 @@
-# docker-compose.yml (v3.8)
+# docker-compose.yml (v3.8) — Production configuration
+#
+# Builds and runs all three services (database, backend, frontend) as
+# self-contained Docker images suitable for a local-network deployment.
+#
+# Required secrets (copy .env.production.example → .env.production and fill in):
+#   DB_PASSWORD  — Postgres password
+#   JWT_SECRET   — Secret key for signing JWT tokens
+#
+# Usage:
+#   docker-compose --env-file .env.production up --build
 version: "3.8"
 
 services:
+
+  # ── PostgreSQL database ─────────────────────────────────────────────────────
   db:
     image: postgres:15
     restart: unless-stopped
     environment:
       POSTGRES_DB: pfinancedb
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
     networks:
       - pfin-net
+    # Healthcheck so the backend waits until Postgres is actually
+    # accepting connections (not just the container started).
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
 
+  # ── FastAPI backend ─────────────────────────────────────────────────────────
   backend:
     build:
       context: ./backend
       dockerfile: api/Dockerfile
     image: pocket-family-backend:latest
     restart: unless-stopped
-    env_file:
-      - .env   # optional: keep your env vars here
-    # environment:
-    #   # fallback defaults (override in env_file or CI)
-    #   DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/pfinancedb
-    #   # Add any other env vars your backend needs, e.g. SECRET_KEY, REDIS_URL, etc.
+    environment:
+      # Database connection — uses the DB_PASSWORD secret
+      DATABASE_URL: postgresql+asyncpg://postgres:${DB_PASSWORD}@db:5432/pfinancedb
+      # JWT signing secret — must be a long random string in production
+      JWT_SECRET: ${JWT_SECRET}
+      # Disable test mode so refresh tokens are stored as HttpOnly cookies
+      TEST_MODE: "0"
+      # Comma-separated list of origins the browser is allowed to call from.
+      # Points to the frontend on the local network.
+      CORS_ORIGINS: "http://192.168.1.101:3000"
     depends_on:
-      - db
+      db:
+        # Use the healthcheck condition so the backend only starts
+        # once Postgres is ready to accept connections.
+        condition: service_healthy
     ports:
       - "8000:8000"
     networks:
       - pfin-net
-    volumes:
-      - ./backend/api/:/app
+    # NOTE: No source-code volume mount here. In production the image must be
+    # self-contained. The dev setup used ./backend/api/:/app for hot-reload,
+    # which would overwrite the built image contents at runtime.
 
+  # ── React frontend (served by nginx) ───────────────────────────────────────
   frontend:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        # VITE_API_URL is baked into the JS bundle at build time by Vite.
+        # It cannot be injected at runtime via environment: because nginx
+        # only serves static files — it does not run Node.
+        VITE_API_URL: "http://192.168.1.101:8000"
     image: pocket-family-frontend:latest
     restart: unless-stopped
     ports:
       - "3000:80"   # host:container (nginx serves on 80)
-    environment:
-      - VITE_API_BASE=http://localhost:8000   # if your frontend reads this at build/runtime
     depends_on:
       - backend
     networks:
