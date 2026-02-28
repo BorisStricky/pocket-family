@@ -20,6 +20,7 @@ import { useDeleteBudget } from '../hooks/useDeleteBudget';
 import { BudgetsList } from '../components/BudgetsList';
 import { BudgetForm } from '../components/BudgetForm';
 import { DeleteBudgetConfirm } from '../components/DeleteBudgetConfirm';
+import { useCurrentRole } from '@/features/family/hooks/useCurrentRole';
 import type { BudgetRead, BudgetCreatePayload, BudgetUpdatePayload } from '../types';
 
 /**
@@ -53,6 +54,9 @@ type FormMode = null | 'create' | 'edit';
 export function BudgetsPage() {
   // Extract familyId from URL params (set by React Router's :familyId segment)
   const { familyId } = useParams<{ familyId: string }>();
+  // Viewers have read-only access — hide budget creation and editing
+  const currentRole = useCurrentRole();
+  const isViewer = currentRole === 'viewer';
 
   // Modal state: which form dialog is open and which budget is being operated on
   const [formMode, setFormMode] = useState<FormMode>(null);
@@ -138,15 +142,25 @@ export function BudgetsPage() {
           Budgets
         </Typography>
 
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={handleOpenCreateForm}
-        >
-          Add Budget
-        </Button>
+        {/* Owners only can create budgets — hide the button for viewers and members */}
+        {currentRole === 'owner' && (
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleOpenCreateForm}
+          >
+            Add Budget
+          </Button>
+        )}
       </Box>
+
+      {/* Viewer notice — budget creation is restricted to owners */}
+      {isViewer && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          You have viewer access. Only family owners can create or modify budgets.
+        </Alert>
+      )}
 
       {/* Loading State - shown while budgets are being fetched */}
       {isLoading && (

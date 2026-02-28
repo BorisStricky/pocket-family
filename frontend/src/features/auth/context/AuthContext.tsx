@@ -31,30 +31,48 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Check for existing token on mount and decode user info
+  // On mount, restore the session from localStorage or silently refresh the access token.
+  // The access token is short-lived (15 min), but the HttpOnly refresh token cookie is valid
+  // for 30 days. Without the silent refresh, returning users are redirected to /login every
+  // time their access token has expired — even when they never explicitly logged out.
   useEffect(() => {
     const token = localStorage.getItem(STORAGE_KEYS.ACCESS_TOKEN);
-    if (token) {
-      // Check if token is expired
-      if (isTokenExpired(token)) {
-        // Token expired, clear it
-        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-        localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
-        setUser(null);
+    const isValid = token && !isTokenExpired(token);
+
+    if (isValid) {
+      // Token is present and still fresh — decode it directly to avoid an unnecessary network call
+      const userFromToken = getUserFromToken(token!);
+      if (userFromToken) {
+        setUser(userFromToken);
       } else {
-        // Decode JWT to extract user info
-        const userFromToken = getUserFromToken(token);
-        if (userFromToken) {
-          setUser(userFromToken);
-        } else {
-          // Failed to decode, clear invalid token
-          localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
-          localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
-          setUser(null);
-        }
+        localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
       }
+      setIsLoading(false);
+    } else {
+      // Access token is missing or expired — try a silent refresh using the HttpOnly cookie.
+      // If the cookie is still valid the user stays logged in without any visible interruption.
+      const base = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+      fetch(`${base}/auth/refresh`, {
+        method: 'POST',
+        credentials: 'include', // Send the HttpOnly refresh token cookie
+        headers: { 'Content-Type': 'application/json' },
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error('Refresh failed');
+          return response.json() as Promise<{ access_token: string }>;
+        })
+        .then((data) => {
+          localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, data.access_token);
+          const userFromToken = getUserFromToken(data.access_token);
+          if (userFromToken) setUser(userFromToken);
+        })
+        .catch(() => {
+          // Both tokens are gone/expired — user must log in manually
+          localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
+          setUser(null);
+        })
+        .finally(() => setIsLoading(false));
     }
-    setIsLoading(false);
   }, []);
 
   /**
@@ -81,10 +99,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Without this, users would see API errors instead of being redirected to login
   useEffect(() => {
     setAuthFailureCallback(() => {
-      // Clear auth state and redirect to login page
+      // Clear auth state — ProtectedRoute will automatically redirect to /login
+      // when isAuthenticated becomes false. Avoid window.location.href which
+      // hard-reloads the page and prevents showing any user feedback.
       clearAuth();
-      // Force navigation to login page when refresh token is invalid/expired
-      window.location.href = '/login';
     });
   }, [clearAuth]);
 

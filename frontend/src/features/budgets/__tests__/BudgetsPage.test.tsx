@@ -48,8 +48,8 @@ function renderBudgetsPage() {
 
 describe('BudgetsPage Integration', () => {
   beforeEach(() => {
-    // Set up authenticated user so API calls include Authorization header
-    setupAuthenticatedUser(TENANT_ID);
+    // Set up authenticated user as owner so the role-gated "Add Budget" button renders
+    setupAuthenticatedUser(TENANT_ID, 'owner');
 
     // Reset in-memory stores to known state for test isolation
     resetBudgetStore();
@@ -179,7 +179,7 @@ describe('BudgetsPage Integration', () => {
   });
 
   it('opens create budget modal when clicking Add Budget', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     renderBudgetsPage();
 
@@ -208,7 +208,7 @@ describe('BudgetsPage Integration', () => {
   });
 
   it('creates a new budget via the form and shows it in the list', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     renderBudgetsPage();
 
@@ -249,7 +249,7 @@ describe('BudgetsPage Integration', () => {
   });
 
   it('opens edit budget modal with pre-populated data when clicking edit', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     renderBudgetsPage();
 
@@ -284,7 +284,7 @@ describe('BudgetsPage Integration', () => {
   });
 
   it('edits a budget and shows updated data in the list', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     renderBudgetsPage();
 
@@ -323,7 +323,7 @@ describe('BudgetsPage Integration', () => {
   });
 
   it('opens delete confirmation when clicking delete button', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     renderBudgetsPage();
 
@@ -353,7 +353,7 @@ describe('BudgetsPage Integration', () => {
   });
 
   it('deletes a budget after confirming and removes it from the list', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     renderBudgetsPage();
 
@@ -392,7 +392,7 @@ describe('BudgetsPage Integration', () => {
   });
 
   it('cancels delete confirmation without removing the budget', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     renderBudgetsPage();
 
@@ -423,7 +423,7 @@ describe('BudgetsPage Integration', () => {
   });
 
   it('closes create modal when clicking Cancel', async () => {
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
     renderBudgetsPage();
 

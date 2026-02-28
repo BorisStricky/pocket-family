@@ -6,7 +6,7 @@ from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import User, Account, AccountShare, Membership, MembershipStatus, ShareVisibility, Tenant
+from ..models import User, Account, AccountShare, Membership, MembershipRole, MembershipStatus, ShareVisibility, Tenant
 from ..schemas import AccountCreate, AccountRead, AccountUpdate, AccountShareRead, AccountShareCreate, AccountShareUpdate, AccountShareWith
 from ..deps import get_db, get_current_user
 
@@ -132,6 +132,13 @@ async def create_account(payload: AccountCreate, db: AsyncSession = Depends(get_
                 detail="User is not an active member of the target tenant"
             )
 
+        # Viewers have read-only access and may not share accounts into the family.
+        if target_membership.role == MembershipRole.VIEWER:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Viewers cannot share accounts with a family",
+            )
+
     # Begin atomic transaction: create account and optionally create share
     try:
         # Create account
@@ -220,36 +227,15 @@ async def list_accounts(
         # Serialize and return
         return [await _serialize_account(db, account_record, user) for account_record in shared_account_records]
 
-    # Default behavior: return user's own accounts plus all shared accounts
+    # When no tenant_id filter is given, return ONLY accounts owned by this user.
+    # Accounts shared with families (via AccountShare) are intentionally excluded here —
+    # they are visible in the family-scoped view (?tenant_id=...) where they belong.
+    # This prevents users from seeing other members' accounts in the global "All Accounts" view.
     my_accounts_query_result = await db.execute(select(Account).where(Account.user_id == user.id))
     my_account_records = my_accounts_query_result.scalars().all()
 
-    # Get accounts shared with user's families
-    membership_query_result = await db.execute(
-        select(Membership).where(
-            Membership.user_id == user.id,
-            Membership.status == MembershipStatus.ACTIVE
-        )
-    )
-    membership_records = membership_query_result.scalars().all()
-    shared_account_records = []
-
-    if membership_records:
-        tenant_ids = [m.tenant_id for m in membership_records]
-        accounts_by_tenant_query = select(Account).join(
-            AccountShare, AccountShare.account_id == Account.id
-        ).where(AccountShare.tenant_id.in_(tenant_ids))
-        shared_accounts_query_result = await db.execute(accounts_by_tenant_query)
-        shared_account_records = shared_accounts_query_result.scalars().all()
-
-    # Combine and deduplicate accounts by ID
-    accounts_map = {
-        account_record.id: account_record
-        for account_record in (my_account_records + shared_account_records)
-    }
-
     # Serialize and return
-    return [await _serialize_account(db, account_record, user) for account_record in accounts_map.values()]
+    return [await _serialize_account(db, account_record, user) for account_record in my_account_records]
 
 
 @router.get("/{account_id}", response_model=AccountRead)

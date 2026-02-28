@@ -26,6 +26,8 @@ interface AccountFormProps {
   onSubmit: (data: AccountCreate) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  /** Hide the form title when rendered inside a Dialog with its own DialogTitle */
+  hideTitle?: boolean;
 }
 
 /**
@@ -69,6 +71,7 @@ export function AccountForm({
   onSubmit,
   onCancel,
   isLoading = false,
+  hideTitle = false,
 }: AccountFormProps) {
   // Determine if this is create or edit mode
   const isEditMode = mode === 'edit';
@@ -98,12 +101,14 @@ export function AccountForm({
 
   return (
     <Box component="form" onSubmit={handleSubmit(handleFormSubmit)} noValidate>
-      {/* Form Title */}
-      <Typography variant="h6" gutterBottom>
-        {isEditMode ? 'Edit Account' : 'Add Account'}
-      </Typography>
+      {/* Form Title — hidden when rendered inside a modal Dialog */}
+      {!hideTitle && (
+        <Typography variant="h6" gutterBottom>
+          {isEditMode ? 'Edit Account' : 'Add Account'}
+        </Typography>
+      )}
 
-      <Stack spacing={3} sx={{ mt: 2 }}>
+      <Stack spacing={3} sx={{ mt: hideTitle ? 0 : 2 }}>
         {/* Account Name - Required Field */}
         <TextField
           {...register('name', {

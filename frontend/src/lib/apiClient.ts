@@ -83,9 +83,11 @@ async function refreshAccessToken(): Promise<string> {
 
       return newAccessToken;
     } catch (error) {
-      // Trigger auth failure callback (logout) when refresh fails
-      // This handles expired refresh tokens or network errors gracefully
-      if (onAuthFailureCallback) {
+      // Only trigger logout when the server definitively rejected the refresh token
+      // (401/403). Transient network errors (TypeError, etc.) should NOT force a
+      // logout because the refresh token may still be valid — the request just
+      // could not reach the server.
+      if (onAuthFailureCallback && error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         onAuthFailureCallback();
       }
 
@@ -166,8 +168,12 @@ export async function apiFetch(path: string, init: ApiFetchInit = {}) {
   }
 
   // Handle 401 Unauthorized with automatic token refresh
-  // Only attempt refresh if this is not already a retry to prevent infinite loops
-  if (res.status === 401 && !init._isRetry) {
+  // Only attempt refresh if this is not already a retry to prevent infinite loops.
+  // Skip refresh for login/signup endpoints — their 401s mean invalid credentials,
+  // NOT an expired access token. Without this guard a failed login triggers a
+  // refresh attempt which itself fails and swallows the original error message.
+  const isCredentialEndpoint = path.includes(API_ENDPOINTS.LOGIN) || path.includes(API_ENDPOINTS.SIGNUP);
+  if (res.status === 401 && !init._isRetry && !isCredentialEndpoint) {
     try {
       // Attempt to refresh the access token using the HttpOnly refresh token cookie
       // This call returns the new token from localStorage after storing it

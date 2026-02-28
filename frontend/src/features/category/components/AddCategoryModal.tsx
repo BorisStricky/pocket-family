@@ -1,7 +1,7 @@
 // src/features/category/components/AddCategoryModal.tsx
 // Modal dialog for creating new categories with name, kind, and parent selection
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Dialog,
   DialogTitle,
@@ -67,6 +67,18 @@ export function AddCategoryModal({
 
   // Form validation
   const [nameError, setNameError] = useState<string | null>(null);
+
+  // Sync form state from props whenever the modal opens.
+  // useState only uses its initial value on first mount, so when the always-mounted
+  // modal reopens with different kind/parentId props, we must explicitly update state.
+  useEffect(() => {
+    if (open) {
+      setSelectedKind(kind);
+      setSelectedParentId(parentId);
+      setName('');
+      setNameError(null);
+    }
+  }, [open, kind, parentId]);
 
   /**
    * Validate category name input

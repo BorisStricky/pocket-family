@@ -3,7 +3,7 @@
 // Categories tab: hierarchical category CRUD
 // Family tab: members list, invite, leave/delete family settings
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import {
   Container,
   Typography,
@@ -73,6 +73,17 @@ export function SettingsPage() {
   const { data: members = [], isLoading: isLoadingMembers } = useListMembers(familyId!);
   const { mutate: inviteMember, isPending: isInviting, error: inviteError, isSuccess: isInviteSuccess, reset: resetInvite } = useInviteMember(familyId!);
   const { mutate: removeMember, isPending: isRemoving } = useRemoveMember(familyId!);
+
+  // Auto-close invite modal after success so the user sees the confirmation briefly
+  useEffect(() => {
+    if (isInviteSuccess) {
+      const timer = setTimeout(() => {
+        setInviteModalOpen(false);
+        resetInvite();
+      }, 1500);
+      return () => clearTimeout(timer);
+    }
+  }, [isInviteSuccess, resetInvite]);
   const { mutate: leaveFamily, isPending: isLeaving, error: leaveError } = useLeaveFamily(familyId!);
   const { mutate: deleteFamilyMutation, isPending: isDeletingFamily, error: deleteFamilyError } = useDeleteFamily();
 

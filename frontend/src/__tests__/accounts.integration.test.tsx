@@ -127,30 +127,19 @@ describe('Accounts Integration - Family Accounts Page', () => {
     expect(addButton).toBeInTheDocument();
   });
 
-  it('navigates to account creation page when Add Account is clicked', async () => {
+  it('opens Add Account modal when Add Account is clicked', async () => {
     const user = userEvent.setup();
 
-    // Render with an additional route to capture navigation
-    // We add a catch-all route for /app/:familyId/accounts/new so we can verify
-    // the navigation target without needing the actual form component
-    renderWithProviders(
-      <Routes>
-        <Route path="/app/:familyId/accounts" element={<AccountsPage />} />
-        <Route
-          path="/app/:familyId/accounts/new"
-          element={<div>Add Account Form</div>}
-        />
-      </Routes>,
-      { initialEntries: [`/app/${TENANT_ID}/accounts`] }
-    );
+    // The "Add Account" button now opens a modal dialog instead of navigating
+    renderFamilyAccountsPage();
 
     // Click the header "Add Account" button
     const addButton = screen.getByRole('button', { name: /add account/i });
     await user.click(addButton);
 
-    // Verify navigation occurred by checking for the target route content
+    // Verify the modal dialog opened
     await waitFor(() => {
-      expect(screen.getByText('Add Account Form')).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
   });
 
@@ -230,27 +219,19 @@ describe('Accounts Integration - All Accounts Page (Global View)', () => {
     });
   });
 
-  it('navigates to global add account page when Add Account is clicked', async () => {
+  it('opens Add Account modal when Add Account is clicked', async () => {
     const user = userEvent.setup();
 
-    renderWithProviders(
-      <Routes>
-        <Route path="/app/accounts" element={<AllAccountsPage />} />
-        <Route
-          path="/app/accounts/new"
-          element={<div>Global Add Account Form</div>}
-        />
-      </Routes>,
-      { initialEntries: ['/app/accounts'] }
-    );
+    // The "Add Account" button now opens a modal dialog instead of navigating
+    renderGlobalAccountsPage();
 
     // Click the Add Account button in the global view header
     const addButton = screen.getByRole('button', { name: /add account/i });
     await user.click(addButton);
 
-    // Verify navigation goes to global route (not family-scoped)
+    // Verify the modal dialog opened
     await waitFor(() => {
-      expect(screen.getByText('Global Add Account Form')).toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
   });
 });

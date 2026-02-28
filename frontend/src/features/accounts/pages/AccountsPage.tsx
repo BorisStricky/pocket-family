@@ -1,12 +1,14 @@
 // src/features/accounts/pages/AccountsPage.tsx
 // Main page for displaying list of accounts within a family context
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { Box, Button, Typography, Stack, Alert, Paper } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { AgAccountsGrid } from '@/components/domain/ag/AgAccountsGrid';
+import { AddAccountModal } from '../components/AddAccountModal';
 import { useAccounts } from '../hooks/useAccounts';
+import { useCurrentRole } from '@/features/family/hooks/useCurrentRole';
 import type { AccountRead } from '@/types/account';
 
 /**
@@ -33,6 +35,12 @@ import type { AccountRead } from '@/types/account';
 export function AccountsPage() {
   const { familyId } = useParams<{ familyId: string }>();
   const navigate = useNavigate();
+  // Viewers have read-only access — hide account creation within the family context
+  const currentRole = useCurrentRole();
+  const isViewer = currentRole === 'viewer';
+
+  // Modal state for inline account creation
+  const [addModalOpen, setAddModalOpen] = useState(false);
 
   // Fetch accounts for current family
   // Hook automatically includes tenant_id in API request
@@ -43,15 +51,15 @@ export function AccountsPage() {
     navigate(`/app/${familyId}/accounts/${account.id}`);
   };
 
-  // Handle add account button - navigate to creation page
+  // Open the add account modal instead of navigating to a separate page
   const handleAddAccount = () => {
-    navigate(`/app/${familyId}/accounts/new`);
+    setAddModalOpen(true);
   };
 
   // Show error state if API request failed
   if (error) {
     return (
-      <Box p={3}>
+      <Box>
         <Alert severity="error">
           Failed to load accounts: {(error as Error).message}
         </Alert>
@@ -60,7 +68,7 @@ export function AccountsPage() {
   }
 
   return (
-    <Box p={3}>
+    <Box>
       {/* Page Header with Title and Add Button */}
       <Stack
         direction="row"
@@ -71,13 +79,16 @@ export function AccountsPage() {
         <Typography variant="h4" component="h1">
           Accounts
         </Typography>
-        <Button
-          variant="contained"
-          startIcon={<AddIcon />}
-          onClick={handleAddAccount}
-        >
-          Add Account
-        </Button>
+        {/* Viewers are read-only — hide account creation */}
+        {!isViewer && (
+          <Button
+            variant="contained"
+            startIcon={<AddIcon />}
+            onClick={handleAddAccount}
+          >
+            Add Account
+          </Button>
+        )}
       </Stack>
 
       {/* Accounts Grid - only show when accounts exist */}
@@ -104,17 +115,30 @@ export function AccountsPage() {
             No accounts yet
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Add your first account to start tracking your finances.
+            {isViewer
+              ? 'No accounts have been shared with this family yet.'
+              : 'Add your first account to start tracking your finances.'}
           </Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={handleAddAccount}
-          >
-            Add your first account
-          </Button>
+          {!isViewer && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={handleAddAccount}
+            >
+              Add your first account
+            </Button>
+          )}
         </Paper>
+      )}
+
+      {/* Add Account Modal — conditionally rendered so the form remounts on each open */}
+      {addModalOpen && (
+        <AddAccountModal
+          open={addModalOpen}
+          familyId={familyId!}
+          onClose={() => setAddModalOpen(false)}
+        />
       )}
     </Box>
   );

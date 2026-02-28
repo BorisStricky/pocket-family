@@ -50,7 +50,7 @@ function renderBudgetsPage() {
  * Returns a userEvent instance for chaining further interactions.
  */
 async function openCreateBudgetForm() {
-  const user = userEvent.setup();
+  const user = userEvent.setup({ delay: null });
 
   renderBudgetsPage();
 
@@ -77,7 +77,7 @@ async function openCreateBudgetForm() {
  * Waits for the page to load, clicks the edit button, and waits for the dialog.
  */
 async function openEditBudgetForm(budgetName: string) {
-  const user = userEvent.setup();
+  const user = userEvent.setup({ delay: null });
 
   renderBudgetsPage();
 
@@ -102,7 +102,8 @@ async function openEditBudgetForm(budgetName: string) {
 
 describe('BudgetForm Integration', () => {
   beforeEach(() => {
-    setupAuthenticatedUser(TENANT_ID);
+    // Set up authenticated user as owner so the role-gated "Add Budget" button renders
+    setupAuthenticatedUser(TENANT_ID, 'owner');
     resetBudgetStore();
     resetCategoryStore();
   });

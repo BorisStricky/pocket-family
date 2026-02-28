@@ -1,12 +1,13 @@
 // src/features/accounts/pages/AllAccountsPage.tsx
 // Global accounts view showing all user accounts across all families
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Box, Button, Typography, Paper } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { useAccounts } from '../hooks/useAccounts';
 import { AgAccountsGrid } from '@/components/domain/ag/AgAccountsGrid';
+import { AddAccountModal } from '../components/AddAccountModal';
 import type { AccountRead } from '@/types/account';
 
 /**
@@ -29,6 +30,9 @@ import type { AccountRead } from '@/types/account';
 export default function AllAccountsPage() {
   const navigate = useNavigate();
 
+  // Modal state for inline account creation
+  const [addModalOpen, setAddModalOpen] = useState(false);
+
   // Fetch all user accounts across all families by omitting familyId parameter
   // The hook uses query key ['accounts', 'all'] for proper cache isolation
   const { data: accounts, isLoading, error } = useAccounts();
@@ -39,10 +43,9 @@ export default function AllAccountsPage() {
     navigate(`/app/accounts/${account.id}`);
   };
 
-  // Navigate to global add account page
-  // New accounts created here won't be automatically shared with any family
+  // Open the add account modal instead of navigating to a separate page
   const handleAddAccount = () => {
-    navigate('/app/accounts/new');
+    setAddModalOpen(true);
   };
 
   // Show error state if accounts fetch fails
@@ -86,6 +89,14 @@ export default function AllAccountsPage() {
           height={600}
         />
       </Paper>
+
+      {/* Add Account Modal — no familyId means global context (no auto-sharing) */}
+      {addModalOpen && (
+        <AddAccountModal
+          open={addModalOpen}
+          onClose={() => setAddModalOpen(false)}
+        />
+      )}
     </Box>
   );
 }

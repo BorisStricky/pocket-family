@@ -49,7 +49,11 @@
       "Bash(grep:*)",
       "Bash(npx vitest:*)",
       "Bash(npx vite build:*)",
-      "Bash(TEST_MODE=1 python -m pytest:*)"
+      "Bash(TEST_MODE=1 python -m pytest:*)",
+      "Bash(git -C /workspace diff --stat)",
+      "Bash(git -C /workspace diff HEAD frontend/src/features/transactions/pages/TransactionsPage.tsx)",
+      "Bash(git -C /workspace diff HEAD frontend/src/components/ui/organisms/AppShell.tsx)",
+      "Bash(git -C /workspace show HEAD:frontend/src/components/ui/organisms/AppShell.tsx)"
     ],
     "deny": [],
     "ask": []

@@ -122,8 +122,11 @@ export function renderWithProviders(
  * setupAuthenticatedUser(); // Default tenant
  * setupAuthenticatedUser('custom-tenant-id'); // Specific tenant
  */
-export function setupAuthenticatedUser(tenantId: string = 'tenant-uuid-456'): string {
-  const token = createMockJWT({ tenantId });
+export function setupAuthenticatedUser(
+  tenantId: string = 'tenant-uuid-456',
+  role: string = 'member'
+): string {
+  const token = createMockJWT({ tenant_id: tenantId, roles: [role] });
   localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, token);
   return token;
 }

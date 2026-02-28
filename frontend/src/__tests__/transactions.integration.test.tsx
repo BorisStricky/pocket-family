@@ -191,7 +191,7 @@ describe('TransactionsPage Integration', () => {
     });
   });
 
-  it('navigates to the add transaction page when clicking Add Transaction', async () => {
+  it('opens Add Transaction modal when clicking Add Transaction', async () => {
     const user = userEvent.setup();
 
     // Override handler to return empty array for simpler DOM
@@ -207,20 +207,18 @@ describe('TransactionsPage Integration', () => {
 
     renderTransactionsPage();
 
-    // Wait for page to finish loading before clicking
-    await waitFor(() => {
-      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
-    });
+    // Wait for the empty state to load (returns [] so empty state renders)
+    // Using findAllByRole waits for the buttons to appear without depending on
+    // the AG Grid progressbar which may not disappear in the test environment
+    const addButtons = await screen.findAllByRole('button', { name: /add transaction/i });
 
     // Click the header Add Transaction button (first one in the DOM)
-    const addButton = screen.getAllByRole('button', { name: /add transaction/i })[0];
+    const addButton = addButtons[0];
     await user.click(addButton);
 
-    // After clicking, the router should navigate to /app/{familyId}/transactions/new
-    // Since we're in MemoryRouter, the TransactionsPage will unmount and the route
-    // won't match our Route definition anymore, so the page content disappears
+    // The button now opens AddTransactionModal instead of navigating to a new page
     await waitFor(() => {
-      expect(screen.queryByRole('heading', { name: /transactions/i })).not.toBeInTheDocument();
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
   });
 
