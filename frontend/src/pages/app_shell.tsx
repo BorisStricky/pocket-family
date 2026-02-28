@@ -46,8 +46,8 @@ export default function AppShell() {
         }}
       >
         <Box sx={{ p: 2 }}>
-          <Typography variant="h6" sx={{ fontWeight: 'bold', color: '#1976d2' }}>
-            Personal Finance
+          <Typography variant="h6" sx={{ fontWeight: 'bold', color: 'primary.main' }}>
+            Pocket Family
           </Typography>
         </Box>
 
@@ -103,7 +103,7 @@ export default function AppShell() {
         sx={{
           flexGrow: 1,
           p: 3,
-          bgcolor: '#f5f5f5',
+          bgcolor: 'background.default',
           overflow: 'auto',
         }}
       >

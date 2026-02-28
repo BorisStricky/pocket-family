@@ -75,7 +75,7 @@ export default function AuthTest() {
               disabled={loginMutation.isPending}
               style={{
                 padding: '0.5rem 1rem',
-                background: '#1976d2',
+                background: '#044218',
                 color: 'white',
                 border: 'none',
                 borderRadius: '4px',

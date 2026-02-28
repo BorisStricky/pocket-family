@@ -151,7 +151,7 @@ export function AuthForm({ mode, onSubmit, isLoading = false, error = null }: Au
           {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
           <Link
             to={isSignup ? '/login' : '/signup'}
-            style={{ color: '#1976d2', textDecoration: 'none' }}
+            style={{ color: '#044218', textDecoration: 'none' }}
           >
             {isSignup ? 'Log in' : 'Sign up'}
           </Link>
