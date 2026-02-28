@@ -4,7 +4,7 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
 import { STORAGE_KEYS } from '@/lib/constants';
 import { getUserFromToken, isTokenExpired } from '@/lib/jwtUtils';
-import { setAuthFailureCallback } from '@/lib/apiClient';
+import { setAuthFailureCallback, refreshAccessToken } from '@/lib/apiClient';
 import type { User, TokenResponse } from '@/types';
 
 interface AuthContextValue {
@@ -50,24 +50,17 @@ export function AuthProvider({ children }: AuthProviderProps) {
       setIsLoading(false);
     } else {
       // Access token is missing or expired — try a silent refresh using the HttpOnly cookie.
-      // If the cookie is still valid the user stays logged in without any visible interruption.
-      const base = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      fetch(`${base}/auth/refresh`, {
-        method: 'POST',
-        credentials: 'include', // Send the HttpOnly refresh token cookie
-        headers: { 'Content-Type': 'application/json' },
-      })
-        .then((response) => {
-          if (!response.ok) throw new Error('Refresh failed');
-          return response.json() as Promise<{ access_token: string }>;
-        })
-        .then((data) => {
-          localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, data.access_token);
-          const userFromToken = getUserFromToken(data.access_token);
+      // Reuses the shared refreshAccessToken from apiClient which handles deduplication,
+      // localStorage storage, and auth failure callbacks in one place.
+      refreshAccessToken()
+        .then((newToken) => {
+          const userFromToken = getUserFromToken(newToken);
           if (userFromToken) setUser(userFromToken);
         })
         .catch(() => {
-          // Both tokens are gone/expired — user must log in manually
+          // Both tokens are gone/expired — user must log in manually.
+          // The auth failure callback in apiClient handles localStorage cleanup
+          // for server-rejected tokens (401/403). For network errors we clean up here.
           localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
           setUser(null);
         })
