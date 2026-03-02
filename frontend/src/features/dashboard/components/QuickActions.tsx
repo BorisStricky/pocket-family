@@ -23,7 +23,10 @@ export default function QuickActions() {
     {
       label: 'Add Transaction',
       icon: <Add />,
-      onClick: () => navigate(`/app/${familyId}/transactions/new`),
+      // Navigate to TransactionsPage with state flag to auto-open the add modal.
+      // This avoids a nonexistent /transactions/new route and reuses the existing
+      // AddTransactionModal that TransactionsPage already manages.
+      onClick: () => navigate(`/app/${familyId}/transactions`, { state: { openAddModal: true } }),
       color: 'primary' as const,
     },
     {

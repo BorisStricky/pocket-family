@@ -72,7 +72,7 @@ services:
         # VITE_API_URL is baked into the JS bundle at build time by Vite.
         # It cannot be injected at runtime via environment: because nginx
         # only serves static files — it does not run Node.
-        VITE_API_URL: "http://192.168.1.101:8000"
+        VITE_API_URL: "/api"
     image: pocket-family-frontend:latest
     restart: unless-stopped
     ports:

@@ -65,9 +65,8 @@ export default function SideNav({ open, onClose, isMobileViewport }: SideNavProp
       open={open}
       onClose={onClose}
       sx={{
-        // Only reserve space in document flow on desktop when the drawer is open
-        width: isMobileViewport ? 0 : (open ? LAYOUT.DRAWER_WIDTH : 0),
-        flexShrink: 0,
+        // Paper is position: fixed so the root does not need to reserve space.
+        // AppShell content area uses margin-left to accommodate the sidebar.
         '& .MuiDrawer-paper': {
           // Full viewport width on mobile for full-screen overlay effect
           // Fixed width on desktop for standard sidebar behavior

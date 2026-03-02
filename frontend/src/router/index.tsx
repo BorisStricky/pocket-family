@@ -17,18 +17,15 @@ import FamiliesPage from "@/features/family/pages/FamiliesPage";
 import AuthTest from "../features/auth/__test-auth__";
 import {
   TransactionsPage,
-  AddTransactionPage,
   TransactionDetailPage,
 } from '@/features/transactions/pages';
 import { AcceptInvitePage } from '@/features/family/pages/AcceptInvitePage';
 import {
   AccountsPage,
-  AddAccountPage,
   EditAccountPage,
   FamilyAccountDetailPage,
   AllAccountsPage,
   GlobalAccountDetailPage,
-  GlobalAddAccountPage,
 } from '@/features/accounts/pages';
 import { SettingsPage } from '@/features/settings/pages';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
@@ -85,7 +82,6 @@ export default function AppRouter() {
         >
           {/* Global account nested routes */}
           <Route index element={<AllAccountsPage />} />
-          <Route path="new" element={<GlobalAddAccountPage />} />
           <Route path=":accountId" element={<GlobalAccountDetailPage />} />
         </Route>
 
@@ -109,14 +105,12 @@ export default function AppRouter() {
           {/* Transactions routes */}
           <Route path="transactions">
             <Route index element={<TransactionsPage />} />
-            <Route path="new" element={<AddTransactionPage />} />
             <Route path=":transactionId" element={<TransactionDetailPage />} />
           </Route>
 
           {/* Accounts routes */}
           <Route path="accounts">
             <Route index element={<AccountsPage />} />
-            <Route path="new" element={<AddAccountPage />} />
             <Route path=":accountId" element={<FamilyAccountDetailPage />} />
             <Route path=":accountId/edit" element={<EditAccountPage />} />
           </Route>

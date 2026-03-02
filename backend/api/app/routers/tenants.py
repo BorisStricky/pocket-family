@@ -1,11 +1,11 @@
 # backend/api/app/routers/tenants.py
 from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import select
+from sqlmodel import select, delete
 from typing import List
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import User, Tenant, Membership, MembershipRole, MembershipStatus
+from ..models import User, Tenant, Membership, MembershipRole, MembershipStatus, Account, AccountShare
 from ..schemas import TenantCreate, TenantRead, TenantUpdate, MembershipCreate, MembershipRead, MembershipUpdate, ActiveContext
 from ..deps import get_db, get_active_context, get_current_user, get_authenticated_user
 from ..auth import create_access_token
@@ -405,6 +405,18 @@ async def delete_membership_for_tenant(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Cannot remove the last owner. Transfer ownership first or delete the family.",
             )
+
+    # When a user leaves (or is removed from) a family, unshare all of their accounts
+    # that were shared with this tenant. This prevents their private accounts from
+    # remaining visible to family members after they depart.
+    departing_user_id = membership_record_to_delete.user_id
+    owned_account_ids_subquery = select(Account.id).where(Account.user_id == departing_user_id)
+    await db.execute(
+        delete(AccountShare).where(
+            AccountShare.tenant_id == tenant_id,
+            AccountShare.account_id.in_(owned_account_ids_subquery),
+        )
+    )
 
     await db.delete(membership_record_to_delete)
     await db.commit()

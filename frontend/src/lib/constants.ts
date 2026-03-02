@@ -10,6 +10,13 @@ export const STORAGE_KEYS = {
 } as const;
 
 /**
+ * Base URL for all API requests.
+ * Reads from VITE_API_URL (set to "/api" in dev and production via same-origin proxy).
+ * Falls back to localhost:8000 for local development without Docker.
+ */
+export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+
+/**
  * API endpoint paths (relative to VITE_API_URL)
  */
 export const API_ENDPOINTS = {

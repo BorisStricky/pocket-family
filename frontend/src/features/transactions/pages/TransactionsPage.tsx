@@ -1,8 +1,8 @@
 // src/features/transactions/pages/TransactionsPage.tsx
 // Main transactions list page with filtering, search, and bulk actions
 
-import React, { useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { Box, Button, Typography, CircularProgress, Paper, Stack } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { useTransactions } from '../hooks/useTransactions';
@@ -11,7 +11,9 @@ import { AgTransactionsGrid } from '@/components/domain/ag/AgTransactionsGrid';
 import { DateRangePicker } from '@/components/molecules/DateRangePicker';
 import { SearchInput } from '@/components/molecules/SearchInput';
 import { BulkActions } from '../components/BulkActions';
+import { AddTransactionModal } from '../components/AddTransactionModal';
 import { useDebounce } from '@/hooks/useDebounce';
+import { useCurrentRole } from '@/features/family/hooks/useCurrentRole';
 import type { TransactionFilters, TransactionRead } from '../types';
 
 /**
@@ -40,6 +42,10 @@ import type { TransactionFilters, TransactionRead } from '../types';
 export function TransactionsPage() {
   const { familyId } = useParams<{ familyId: string }>();
   const navigate = useNavigate();
+  const location = useLocation();
+  // Viewers have read-only access — hide write actions so they don't hit 403s
+  const currentRole = useCurrentRole();
+  const isViewer = currentRole === 'viewer';
 
   // Default date range to current month (1st to last day) for faster loading on large datasets
   const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
@@ -69,6 +75,19 @@ export function TransactionsPage() {
     search: debouncedSearchQuery || undefined,
   };
 
+  // Modal state for inline transaction creation
+  const [addModalOpen, setAddModalOpen] = useState(false);
+
+  // Auto-open the Add Transaction modal when navigated here with a state flag
+  // (e.g., from Dashboard QuickActions). Clear the state after reading it so
+  // the modal does not reopen on browser back/forward navigation.
+  useEffect(() => {
+    if (location.state?.openAddModal) {
+      setAddModalOpen(true);
+      navigate(location.pathname, { replace: true, state: {} });
+    }
+  }, [location.state, navigate, location.pathname]);
+
   // Track selected transaction IDs for bulk operations
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
 
@@ -79,9 +98,9 @@ export function TransactionsPage() {
   // Delete mutation for bulk operations
   const { mutate: deleteTransaction } = useDeleteTransaction();
 
-  // Handle navigation to add transaction page
+  // Open the add transaction modal instead of navigating to a separate page
   const handleAddTransaction = () => {
-    navigate(`/app/${familyId}/transactions/new`);
+    setAddModalOpen(true);
   };
 
   // Handle row click - navigate to transaction detail page
@@ -123,14 +142,17 @@ export function TransactionsPage() {
           Transactions
         </Typography>
 
-        <Button
-          variant="contained"
-          color="primary"
-          startIcon={<AddIcon />}
-          onClick={handleAddTransaction}
-        >
-          Add Transaction
-        </Button>
+        {/* Viewers are read-only — hide the create button entirely */}
+        {!isViewer && (
+          <Button
+            variant="contained"
+            color="primary"
+            startIcon={<AddIcon />}
+            onClick={handleAddTransaction}
+          >
+            Add Transaction
+          </Button>
+        )}
       </Box>
 
       {/* Filters Section */}
@@ -206,17 +228,31 @@ export function TransactionsPage() {
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {localSearchQuery || localStartDate || localEndDate
               ? 'Try adjusting your filters to see more results.'
+              : isViewer
+              ? 'No transactions have been recorded yet.'
               : 'Get started by adding your first transaction.'}
           </Typography>
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={handleAddTransaction}
-          >
-            Add Transaction
-          </Button>
+          {!isViewer && (
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={handleAddTransaction}
+            >
+              Add Transaction
+            </Button>
+          )}
         </Paper>
+      )}
+
+      {/* Add Transaction Modal — conditionally rendered so the form remounts
+          on each open, picking up fresh session defaults */}
+      {addModalOpen && (
+        <AddTransactionModal
+          open={addModalOpen}
+          familyId={familyId!}
+          onClose={() => setAddModalOpen(false)}
+        />
       )}
     </Box>
   );

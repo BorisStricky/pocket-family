@@ -1,7 +1,7 @@
 // src/lib/apiClient.ts
 // Centralized API fetch wrapper with auth token injection
 
-import { STORAGE_KEYS, API_ENDPOINTS } from './constants';
+import { STORAGE_KEYS, API_ENDPOINTS, API_BASE_URL } from './constants';
 
 /**
  * Custom API error class with status code and response body
@@ -35,16 +35,16 @@ export function setAuthFailureCallback(callback: () => void) {
 }
 
 /**
- * Internal function to refresh the access token using the refresh token cookie
- * This function is called by apiFetch when a 401 response is received
+ * Refresh the access token using the HttpOnly refresh token cookie.
+ * Called by apiFetch on 401 and by AuthContext on mount for silent session restoration.
  *
- * Returns a shared promise if a refresh is already in progress to prevent race conditions
- * This ensures multiple concurrent 401 responses trigger only one refresh request
+ * Returns a shared promise if a refresh is already in progress to prevent race conditions.
+ * This ensures multiple concurrent callers trigger only one refresh request.
  *
  * @returns Promise that resolves to the new access token
  * @throws ApiError if refresh fails (invalid/expired refresh token)
  */
-async function refreshAccessToken(): Promise<string> {
+export async function refreshAccessToken(): Promise<string> {
   // If already refreshing, return the existing promise to queue this request
   // This prevents multiple simultaneous refresh calls when several requests fail at once
   if (isRefreshing && refreshPromise) {
@@ -59,8 +59,7 @@ async function refreshAccessToken(): Promise<string> {
       // Call refresh endpoint (uses HttpOnly cookie automatically)
       // IMPORTANT: We must NOT use apiFetch here to avoid infinite recursion
       // if the refresh endpoint itself returns 401
-      const base = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-      const response = await fetch(`${base}${API_ENDPOINTS.REFRESH}`, {
+      const response = await fetch(`${API_BASE_URL}${API_ENDPOINTS.REFRESH}`, {
         method: 'POST',
         credentials: 'include', // Send refresh token cookie
         headers: {
@@ -83,9 +82,11 @@ async function refreshAccessToken(): Promise<string> {
 
       return newAccessToken;
     } catch (error) {
-      // Trigger auth failure callback (logout) when refresh fails
-      // This handles expired refresh tokens or network errors gracefully
-      if (onAuthFailureCallback) {
+      // Only trigger logout when the server definitively rejected the refresh token
+      // (401/403). Transient network errors (TypeError, etc.) should NOT force a
+      // logout because the refresh token may still be valid — the request just
+      // could not reach the server.
+      if (onAuthFailureCallback && error instanceof ApiError && (error.status === 401 || error.status === 403)) {
         onAuthFailureCallback();
       }
 
@@ -117,8 +118,7 @@ interface ApiFetchInit extends RequestInit {
  * - Throws ApiError with status code on failure
  */
 export async function apiFetch(path: string, init: ApiFetchInit = {}) {
-  const base = import.meta.env.VITE_API_URL || 'http://localhost:8000';
-  const url = path.startsWith('http') ? path : `${base.replace(/\/$/, '')}${path}`;
+  const url = path.startsWith('http') ? path : `${API_BASE_URL.replace(/\/$/, '')}${path}`;
 
   const headers = new Headers(init.headers || {});
 
@@ -166,8 +166,12 @@ export async function apiFetch(path: string, init: ApiFetchInit = {}) {
   }
 
   // Handle 401 Unauthorized with automatic token refresh
-  // Only attempt refresh if this is not already a retry to prevent infinite loops
-  if (res.status === 401 && !init._isRetry) {
+  // Only attempt refresh if this is not already a retry to prevent infinite loops.
+  // Skip refresh for login/signup endpoints — their 401s mean invalid credentials,
+  // NOT an expired access token. Without this guard a failed login triggers a
+  // refresh attempt which itself fails and swallows the original error message.
+  const isCredentialEndpoint = path.includes(API_ENDPOINTS.LOGIN) || path.includes(API_ENDPOINTS.SIGNUP);
+  if (res.status === 401 && !init._isRetry && !isCredentialEndpoint) {
     try {
       // Attempt to refresh the access token using the HttpOnly refresh token cookie
       // This call returns the new token from localStorage after storing it

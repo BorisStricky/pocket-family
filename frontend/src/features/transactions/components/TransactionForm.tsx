@@ -33,9 +33,13 @@ import type { CategoryRead } from "@/types/category";
 interface TransactionFormProps {
   familyId: string;
   initialData?: TransactionRead;
+  /** Partial overrides for create-mode defaults (used for session memory) */
+  defaultOverrides?: Partial<TransactionCreate>;
   onSubmit: (data: TransactionCreate) => void;
   onCancel: () => void;
   isLoading?: boolean;
+  /** Hide the form title when rendered inside a Dialog with its own DialogTitle */
+  hideTitle?: boolean;
 }
 
 /**
@@ -78,9 +82,11 @@ interface TransactionFormProps {
 export function TransactionForm({
   familyId,
   initialData,
+  defaultOverrides,
   onSubmit,
   onCancel,
   isLoading = false,
+  hideTitle = false,
 }: TransactionFormProps) {
   // Determine if this is create or edit mode based on initialData presence
   const isEditMode = !!initialData;
@@ -122,13 +128,13 @@ export function TransactionForm({
         }
       : {
           tenant_id: familyId,
-          account_id: "",
-          category_id: "",
-          amount: "",
-          currency: "BRL", // Brazilian Real as default currency for MVP
-          transaction_date: new Date().toISOString().split("T")[0], // Today's date in YYYY-MM-DD
-          transaction_type: "expense",
-          description: "",
+          account_id: defaultOverrides?.account_id || "",
+          category_id: defaultOverrides?.category_id || "",
+          amount: "", // Always fresh — amount varies per transaction
+          currency: defaultOverrides?.currency || "BRL",
+          transaction_date: defaultOverrides?.transaction_date || new Date().toISOString().split("T")[0],
+          transaction_type: defaultOverrides?.transaction_type || "expense",
+          description: "", // Always fresh — description varies per transaction
         },
   });
 
@@ -158,12 +164,14 @@ export function TransactionForm({
 
   return (
     <Box component="form" onSubmit={handleSubmit(handleFormSubmit)} noValidate>
-      {/* Form Title */}
-      <Typography variant="h6" gutterBottom>
-        {isEditMode ? "Edit Transaction" : "Add Transaction"}
-      </Typography>
+      {/* Form Title — hidden when rendered inside a modal Dialog */}
+      {!hideTitle && (
+        <Typography variant="h6" gutterBottom>
+          {isEditMode ? "Edit Transaction" : "Add Transaction"}
+        </Typography>
+      )}
 
-      <Stack spacing={3} sx={{ mt: 2 }}>
+      <Stack spacing={3} sx={{ mt: hideTitle ? 0 : 2 }}>
         {/* Account Selection - Required Field */}
         {/* Dynamically loads accounts from API using React Query hook */}
         {/* Shows loading state while fetching, error message if fetch fails */}

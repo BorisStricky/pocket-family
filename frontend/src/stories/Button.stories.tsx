@@ -1,16 +1,9 @@
 import React from "react";
 import { ComponentMeta, ComponentStory } from "@storybook/react";
-import { ThemeProvider, createTheme } from "@mui/material/styles";
+import { ThemeProvider } from "@mui/material/styles";
 import Stack from "@mui/material/Stack";
 import { Button } from "../components/atoms";
-
-// Minimal theme wrapper for Storybook controls
-const theme = createTheme({
-  palette: {
-    primary: { main: "#0066FF" },
-    secondary: { main: "#6B7280" },
-  },
-});
+import theme from "../theme";
 
 export default {
   title: "Atoms/Button",

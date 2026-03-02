@@ -18,12 +18,12 @@
 /* Full-row hover highlight (applies to every cell in the hovered row) */
 .ag-theme-alpine .ag-row:hover .ag-cell {
   /* match Alpine subtle hover — tweak alpha/color if you want */
-  background-color: rgba(0, 112, 243, 0.06) !important;
+  background-color: rgba(4, 66, 24, 0.06) !important;
 }
 
 /* Row selection highlight (stronger than hover) */
 .ag-theme-alpine .ag-row-selected .ag-cell {
-  background-color: rgba(0, 112, 243, 0.12) !important;
+  background-color: rgba(4, 66, 24, 0.12) !important;
 }
 
 /* Make rows a bit taller (backup in case rowHeight prop doesn't apply) */

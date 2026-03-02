@@ -7,7 +7,7 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_
 
-from ..models import Transaction, Account, Category, Membership, MembershipStatus, TransactionSource, CategoryKind, AccountShare
+from ..models import Transaction, Account, Category, Membership, MembershipRole, MembershipStatus, TransactionSource, CategoryKind, AccountShare
 from ..schemas import TransactionCreate, TransactionRead, TransactionUpdate, ActiveContext
 from ..deps import get_db, get_current_user, get_active_context
 
@@ -102,6 +102,13 @@ async def create_transaction(payload: TransactionCreate, db: AsyncSession = Depe
     """
     user = active_context.active_user
     tenant = active_context.active_tenant
+
+    # Viewers have read-only access to the family's data; only members and owners may write.
+    if active_context.active_membership.role == MembershipRole.VIEWER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Viewers cannot create transactions",
+        )
 
     # Validate account exists
     account = await db.get(Account, payload.account_id)
@@ -285,6 +292,13 @@ async def update_transaction(transaction_id: UUID, payload: TransactionUpdate, d
     user = active_context.active_user
     tenant = active_context.active_tenant
 
+    # Viewers have read-only access to the family's data.
+    if active_context.active_membership.role == MembershipRole.VIEWER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Viewers cannot modify transactions",
+        )
+
     transaction_query = select(Transaction).where(
         Transaction.id == transaction_id,
         Transaction.tenant_id == tenant.id #tenant membership already verified in the active context
@@ -352,13 +366,20 @@ async def delete_transaction(transaction_id: UUID, db: AsyncSession = Depends(ge
     user = active_context.active_user
     tenant = active_context.active_tenant
 
+    # Viewers have read-only access to the family's data.
+    if active_context.active_membership.role == MembershipRole.VIEWER:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Viewers cannot delete transactions",
+        )
+
     transaction_query = select(Transaction).where(
         Transaction.id == transaction_id,
         Transaction.tenant_id == tenant.id #tenant membership already verified in the active context
     )
     transaction_query_result = await db.execute(transaction_query)
     transaction_record = transaction_query_result.scalars().first()
-    
+
     if not transaction_record:
         raise HTTPException(status_code=404)
     if transaction_record.created_by != user.id:

@@ -116,11 +116,11 @@ export default function TopNav({ user, globalMode = false, onMenuClick }: TopNav
           variant="h6"
           sx={{
             fontWeight: 'bold',
-            color: '#1976d2',
+            color: 'primary.main',
             display: { xs: 'none', md: 'block' },
           }}
         >
-          Personal Finance
+          Pocket Family
         </Typography>
 
         {/* Spacer */}

@@ -27,7 +27,7 @@ const variantColors = {
     color: '#424242',
   },
   primary: {
-    backgroundColor: '#1976d2',
+    backgroundColor: '#044218',
     color: '#ffffff',
   },
   secondary: {
