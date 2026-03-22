@@ -122,6 +122,12 @@ export function EditShareDialog({
     onClose();
   };
 
+  // Prevent closing on backdrop click to avoid accidental data loss on mobile
+  const handleDialogClose = (_event: object, reason: string) => {
+    if (reason === 'backdropClick') return;
+    handleClose();
+  };
+
   // Don't render if no share is selected
   if (!share) {
     return null;
@@ -130,7 +136,7 @@ export function EditShareDialog({
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={handleDialogClose}
       aria-labelledby="edit-share-dialog-title"
       maxWidth="sm"
       fullWidth

@@ -139,10 +139,16 @@ export function ShareAccountDialog({
     onClose();
   };
 
+  // Prevent closing on backdrop click to avoid accidental data loss on mobile
+  const handleDialogClose = (_event: object, reason: string) => {
+    if (reason === 'backdropClick') return;
+    handleClose();
+  };
+
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={handleDialogClose}
       aria-labelledby="share-account-dialog-title"
       maxWidth="sm"
       fullWidth

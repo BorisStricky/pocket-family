@@ -15,8 +15,14 @@ export interface ModalProps {
 }
 
 export const Modal: React.FC<ModalProps> = ({ open, title, onClose, children, fullWidth = true, maxWidth = 'sm' }) => {
+  // Prevent closing on backdrop click to avoid accidental data loss on mobile
+  const handleDialogClose = (_event: object, reason: string) => {
+    if (reason === 'backdropClick') return;
+    onClose();
+  };
+
   return (
-    <Dialog open={open} onClose={onClose} fullWidth={fullWidth} maxWidth={maxWidth}>
+    <Dialog open={open} onClose={handleDialogClose} fullWidth={fullWidth} maxWidth={maxWidth}>
       {title && (
         <DialogTitle sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           {title}

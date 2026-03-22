@@ -81,7 +81,16 @@ export function AddTransactionModal({ open, familyId, onClose }: AddTransactionM
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      // Prevent closing on backdrop click to avoid accidental data loss on mobile
+      onClose={(_event: object, reason: string) => {
+        if (reason === 'backdropClick') return;
+        onClose();
+      }}
+      maxWidth="sm"
+      fullWidth
+    >
       <DialogTitle>Add Transaction</DialogTitle>
       <DialogContent>
         {/* API error displayed above the form */}

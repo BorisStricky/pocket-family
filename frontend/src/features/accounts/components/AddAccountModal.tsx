@@ -25,6 +25,12 @@ interface AddAccountModalProps {
  * the user can share it with families later.
  */
 export function AddAccountModal({ open, onClose, familyId }: AddAccountModalProps) {
+  // Prevent closing on backdrop click to avoid accidental data loss on mobile
+  const handleDialogClose = (_event: object, reason: string) => {
+    if (reason === 'backdropClick') return;
+    onClose();
+  };
+
   const { mutate: createAccount, isPending, error } = useCreateAccount(familyId);
 
   const handleSubmit = (data: AccountCreate) => {
@@ -47,7 +53,7 @@ export function AddAccountModal({ open, onClose, familyId }: AddAccountModalProp
   };
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="sm" fullWidth>
+    <Dialog open={open} onClose={handleDialogClose} maxWidth="sm" fullWidth>
       <DialogTitle>Add Account</DialogTitle>
       <DialogContent>
         {/* API error displayed above the form */}

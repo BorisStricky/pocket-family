@@ -252,7 +252,11 @@ export function MembersList({
       {/* Confirmation dialog for removing a member */}
       <Dialog
         open={removeDialogOpen}
-        onClose={() => setRemoveDialogOpen(false)}
+        // Prevent closing on backdrop click to avoid accidental data loss on mobile
+        onClose={(_event: object, reason: string) => {
+          if (reason === 'backdropClick') return;
+          setRemoveDialogOpen(false);
+        }}
         aria-labelledby="remove-member-dialog-title"
       >
         <DialogTitle id="remove-member-dialog-title">Remove Member</DialogTitle>

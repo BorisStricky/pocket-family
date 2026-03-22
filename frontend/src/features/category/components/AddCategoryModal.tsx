@@ -131,6 +131,12 @@ export function AddCategoryModal({
     }
   };
 
+  // Prevent closing on backdrop click to avoid accidental data loss on mobile
+  const handleDialogClose = (_event: object, reason: string) => {
+    if (reason === 'backdropClick') return;
+    handleClose();
+  };
+
   /**
    * Filter categories for parent selection based on selected kind
    * Parent must have same kind as child
@@ -142,7 +148,7 @@ export function AddCategoryModal({
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={handleDialogClose}
       maxWidth="sm"
       fullWidth
       aria-labelledby="add-category-dialog-title"

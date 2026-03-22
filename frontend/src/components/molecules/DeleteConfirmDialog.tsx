@@ -56,13 +56,16 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
   onCancel,
   loading = false,
 }) => {
-  // Handle dialog close (via ESC key or backdrop click)
-  const handleClose = (event: object, reason: string) => {
+  // Handle dialog close (via ESC key only, not backdrop click)
+  const handleClose = (_event: object, reason: string) => {
     // Prevent closing during loading state
     if (loading) return;
 
-    // Allow closing via ESC key or backdrop click
-    if (reason === 'escapeKeyDown' || reason === 'backdropClick') {
+    // Prevent closing on backdrop click to avoid accidental dismissal on mobile
+    if (reason === 'backdropClick') return;
+
+    // Allow closing via ESC key
+    if (reason === 'escapeKeyDown') {
       onCancel();
     }
   };
