@@ -1,7 +1,10 @@
 #!/bin/bash
 
 # Database Backup Script for Pocket Family
-# Run this after restart when you have proper Docker access
+# Run with:
+#=================================
+# bash /home/pocket-family/pocket-family/backend/scripts/backup_db_after_restart.sh
+#=================================
 
 # Create timestamp for backup filename
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
