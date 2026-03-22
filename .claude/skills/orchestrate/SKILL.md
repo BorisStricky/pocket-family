@@ -1,12 +1,11 @@
 ---
-description: Orchestrate implementation work using milestone-based workflow with specialized agents
-argument-hint: [plan-file or "continue"]
-model: inherit
-context: fork
-agent: general-purpose
+name: orchestrate
+description: Orchestrate implementation work using milestone-based workflow with specialized agents. Use when implementing features from a plan file or resuming paused orchestration.
+argument-hint: "[plan-file or continue]"
+disable-model-invocation: true
 ---
 
-# Orchestration Command
+# Orchestration Skill
 
 You are the Orchestration Agent responsible for managing implementation work by breaking down plans into milestones, delegating to specialized agents in `.claude/agents/`, and managing the overall workflow.
 
@@ -247,6 +246,94 @@ Track progress across these files during orchestration:
 - Error context when retrying with suggested fixes
 - Iteration awareness (attempt number and retry limit)
 
+## Git Worktree Isolation (Default Mode)
+
+All orchestration work MUST be performed in an isolated git worktree to enable parallel work and prevent conflicts with the user's working branch.
+
+### Why Worktrees?
+
+- **Parallel safety**: Multiple orchestrations can run simultaneously without file conflicts
+- **Clean separation**: Each feature gets its own branch and working directory
+- **Easy review**: Changes result in a pull request back to the base branch
+- **No risk to base branch**: The user's current branch stays untouched
+
+### Branch Naming Convention
+
+Worktree branches follow this pattern:
+
+```
+{base_branch}_{feature_worked_on}
+```
+
+Where:
+- `{base_branch}` is the branch the user is currently on when invoking `/orchestrate`
+- `{feature_worked_on}` is a short kebab-case slug derived from the plan name or feature being implemented
+
+**Examples**:
+- Base branch `hardening`, feature "add rate limiting" → branch `hardening_add-rate-limiting`
+- Base branch `master`, feature "user settings page" → branch `master_user-settings-page`
+- Base branch `sprint-5`, feature "csv import" → branch `sprint-5_csv-import`
+
+### Worktree Workflow
+
+```
+1. Detect current branch (base_branch)
+   ↓
+2. Derive feature slug from plan name
+   ↓
+3. Create worktree branch: {base_branch}_{feature_slug}
+   ↓
+4. Create worktree at .claude/worktrees/{feature_slug}/
+   using: git worktree add .claude/worktrees/{feature_slug} -b {base_branch}_{feature_slug}
+   ↓
+5. Execute all milestone work inside the worktree directory
+   ↓
+6. Commit all changes in the worktree
+   ↓
+7. Push the worktree branch to remote
+   ↓
+8. Generate PR documentation using /document-changes (see below)
+   ↓
+9. Create pull request into {base_branch} using gh pr create
+   ↓
+10. Report PR URL to user
+```
+
+### Subagent Worktree Usage
+
+When delegating to subagents, pass the worktree path as the working directory context. Subagents should:
+- Perform all file reads/writes relative to the worktree path
+- Run all commands (tests, builds, linters) from the worktree directory
+- Use `isolation: "worktree"` in Agent tool calls when subagents need their own isolated copy
+
+### PR Documentation with /document-changes
+
+After all milestones are complete and changes are committed in the worktree:
+
+1. **Generate PR documentation** by following the workflow in the `document-changes` skill:
+   - Compare the worktree branch against the base branch: `git diff {base_branch}...HEAD`
+   - Read active context files for sprint/feature context
+   - Analyze all changed files and generate the full PR summary
+   - Delegate glossary analysis and linking to Haiku subagents
+   - Save output to `docs/Pull Requests/{feature_slug}_PR.md` inside the worktree
+
+2. **Create the pull request** using gh:
+   ```bash
+   gh pr create \
+     --base {base_branch} \
+     --head {base_branch}_{feature_slug} \
+     --title "Short descriptive title (under 70 chars)" \
+     --body-file docs/Pull\ Requests/{feature_slug}_PR.md
+   ```
+
+3. **Report to user**: Provide the PR URL and a summary of what was done
+
+### Worktree Cleanup
+
+- If the PR is created successfully, inform the user the worktree can be cleaned up after merge
+- Do NOT automatically remove the worktree — the user may want to make additional changes
+- Provide the cleanup command: `git worktree remove .claude/worktrees/{feature_slug}`
+
 ## Orchestration Best Practices
 
 - **Stay context-aware**: Reference the implementation plan throughout execution
@@ -254,22 +341,27 @@ Track progress across these files during orchestration:
 - **Escalate early**: If something seems architecturally wrong, don't force through
 - **Document decisions**: Keep track of any deviations from the original plan
 - **User is the authority**: When in doubt, return control and ask
+- **Always use worktrees**: Never modify the user's current working branch directly
 
 ## Your Task
 
 The user has invoked `/orchestrate` with arguments: `$ARGUMENTS`
 
 **If $ARGUMENTS is a file path**:
-1. Read the plan file at that path
-2. Parse it into milestones
-3. Begin executing milestone by milestone
-4. Wait for user confirmation between milestones
+1. Detect the current branch (`git branch --show-current`) — this is the `base_branch`
+2. Read the plan file at that path
+3. Derive a feature slug from the plan name (short, kebab-case)
+4. Create the worktree: `git worktree add .claude/worktrees/{feature_slug} -b {base_branch}_{feature_slug}`
+5. Parse the plan into milestones
+6. Execute milestones inside the worktree directory, waiting for user confirmation between each
+7. After all milestones complete: commit, push, generate PR docs via `/document-changes`, create PR into `base_branch`
 
 **If $ARGUMENTS is "continue"**:
 1. Check the current todo list for orchestration state
 2. Find the first task with status `in_progress`, or the first `pending` task after all `completed` tasks
-3. If found, resume execution from that milestone
-4. If no relevant todos found, ask user which plan to resume or start fresh
+3. Identify the worktree directory from the task context (check `.claude/worktrees/` for existing worktrees)
+4. If found, resume execution from that milestone inside the worktree
+5. If no relevant todos found, ask user which plan to resume or start fresh
 
 **If $ARGUMENTS is empty or unclear**:
 1. Ask the user which plan to orchestrate

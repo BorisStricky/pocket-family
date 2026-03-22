@@ -497,7 +497,7 @@ This command manages milestone-based workflows by:
 
 **Test agents are ALWAYS used for test writing** - implementation agents focus solely on feature code.
 
-See [.claude/commands/orchestrate.md](.claude/commands/orchestrate.md) for detailed orchestration rules, agent mappings, and validation criteria.
+See [.claude/skills/orchestrate/SKILL.md](.claude/skills/orchestrate/SKILL.md) for detailed orchestration rules, agent mappings, and validation criteria.
 
 ## Key Differences from Typical Projects
 
