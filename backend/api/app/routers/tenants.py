@@ -9,6 +9,7 @@ from ..models import User, Tenant, Membership, MembershipRole, MembershipStatus,
 from ..schemas import TenantCreate, TenantRead, TenantUpdate, MembershipCreate, MembershipRead, MembershipUpdate, ActiveContext
 from ..deps import get_db, get_active_context, get_current_user, get_authenticated_user
 from ..auth import create_access_token
+from ..seed_defaults import seed_tenant_defaults
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
 
@@ -34,8 +35,9 @@ async def create_tenant(payload: TenantCreate, db: AsyncSession = Depends(get_db
     # Persist and then create default resources (e.g., default account or categories) in the same transaction when possible.
     new_tenant_record = Tenant(name=payload.name)
     db.add(new_tenant_record)
-    await db.commit()
-    await db.refresh(new_tenant_record)
+    # Flush instead of commit so tenant ID is available but the transaction
+    # remains open — we want tenant + membership + seeded data to be atomic.
+    await db.flush()
 
     # create owner membership for creator
     owner_membership_record = Membership(
@@ -46,7 +48,15 @@ async def create_tenant(payload: TenantCreate, db: AsyncSession = Depends(get_db
         status=MembershipStatus.ACTIVE,
     )
     db.add(owner_membership_record)
+
+    # Seed default categories and budget for the new tenant.
+    # Accounts are NOT seeded here — only signup creates starter accounts.
+    # Users can manually share or create accounts for additional tenants.
+    await seed_tenant_defaults(db, new_tenant_record, user, include_accounts=False)
+
+    # Single commit persists tenant, membership, and all seeded data atomically
     await db.commit()
+    await db.refresh(new_tenant_record)
 
     return new_tenant_record
 
