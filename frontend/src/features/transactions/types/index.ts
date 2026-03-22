@@ -22,6 +22,7 @@ export interface TransactionRead {
   transaction_type: CategoryKind;
   description: string | null;
   created_by: string;
+  created_by_name: string | null; // Display name of the user who created this transaction
   created_at: string; // ISO datetime string
   updated_at: string; // ISO datetime string
   reconciled: boolean;

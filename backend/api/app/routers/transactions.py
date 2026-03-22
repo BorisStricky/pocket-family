@@ -7,7 +7,7 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_
 
-from ..models import Transaction, Account, Category, Membership, MembershipRole, MembershipStatus, TransactionSource, CategoryKind, AccountShare
+from ..models import Transaction, Account, Category, Membership, MembershipRole, MembershipStatus, TransactionSource, CategoryKind, AccountShare, User
 from ..schemas import TransactionCreate, TransactionRead, TransactionUpdate, ActiveContext
 from ..deps import get_db, get_current_user, get_active_context
 
@@ -24,9 +24,12 @@ async def _fetch_transaction_with_names(db: AsyncSession, tenant_id: UUID, trans
             Transaction,
             Account.name.label("account_name"),
             Category.name.label("category_name"),
+            # Resolve the creator's display name for the response payload
+            User.name.label("created_by_name"),
         )
         .outerjoin(Account, Account.id == Transaction.account_id)
         .outerjoin(Category, Category.id == Transaction.category_id)
+        .outerjoin(User, User.id == Transaction.created_by)
         .where(Transaction.tenant_id == tenant_id, Transaction.id == transaction_id)
     )
     result = await db.execute(query)
@@ -47,6 +50,8 @@ async def _fetch_transaction_with_names(db: AsyncSession, tenant_id: UUID, trans
         "transaction_type": transaction.transaction_type,
         "description": transaction.description,
         "created_by": transaction.created_by,
+        # Include the creator's display name resolved from the User join
+        "created_by_name": row.created_by_name,
         "created_at": transaction.created_at,
         "updated_at": transaction.updated_at,
         "reconciled": transaction.reconciled,
@@ -72,6 +77,8 @@ async def _rows_to_transaction_reads(rows: List[Any]) -> List[dict]:
             "transaction_type": transaction.transaction_type,
             "description": transaction.description,
             "created_by": transaction.created_by,
+            # Include the creator's display name resolved from the User join
+            "created_by_name": row.created_by_name,
             "created_at": transaction.created_at,
             "updated_at": transaction.updated_at,
             "reconciled": transaction.reconciled,
@@ -191,15 +198,18 @@ async def list_transactions(
     user = active_context.active_user
     tenant = active_context.active_tenant
 
-    # Build a joined query to get account_name and category_name
+    # Build a joined query to get account_name, category_name, and created_by_name
     query = (
         select(
             Transaction,
             Account.name.label("account_name"),
             Category.name.label("category_name"),
+            # Resolve the creator's display name so the frontend can show who created each transaction
+            User.name.label("created_by_name"),
         )
         .outerjoin(Account, Account.id == Transaction.account_id)
         .outerjoin(Category, Category.id == Transaction.category_id)
+        .outerjoin(User, User.id == Transaction.created_by)
     )
 
     # Apply tenant filtering based on scope
