@@ -234,7 +234,11 @@ export function AccountShareList({
       {/* Delete Confirmation Dialog */}
       <Dialog
         open={deleteConfirmOpen}
-        onClose={handleDeleteCancel}
+        // Prevent closing on backdrop click to avoid accidental data loss on mobile
+        onClose={(_event: object, reason: string) => {
+          if (reason === 'backdropClick') return;
+          handleDeleteCancel();
+        }}
         aria-labelledby="delete-share-dialog-title"
       >
         <DialogTitle id="delete-share-dialog-title">Remove Share</DialogTitle>

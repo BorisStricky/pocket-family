@@ -114,7 +114,11 @@ export function DeleteCategoryConfirm({
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      // Prevent closing on backdrop click to avoid accidental data loss on mobile
+      onClose={(_event: object, reason: string) => {
+        if (reason === 'backdropClick') return;
+        handleClose();
+      }}
       maxWidth="sm"
       fullWidth
       aria-labelledby="delete-category-dialog-title"

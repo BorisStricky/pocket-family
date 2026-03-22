@@ -47,7 +47,16 @@ export function DeleteBudgetConfirm({
   isDeleting = false,
 }: DeleteBudgetConfirmProps) {
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="xs" fullWidth>
+    <Dialog
+      open={open}
+      // Prevent closing on backdrop click to avoid accidental data loss on mobile
+      onClose={(_event: object, reason: string) => {
+        if (reason === 'backdropClick') return;
+        onCancel();
+      }}
+      maxWidth="xs"
+      fullWidth
+    >
       <DialogTitle>Delete Budget</DialogTitle>
       <DialogContent>
         <DialogContentText>
