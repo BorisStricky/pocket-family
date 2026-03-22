@@ -67,28 +67,6 @@ export function AgTransactionsGrid({
       },
     },
     {
-      field: 'description',
-      headerName: 'Description',
-      sortable: true,
-      flex: 1, // Allow this column to grow and fill available space
-      minWidth: 200,
-      valueFormatter: (params) => {
-        // Show description or empty placeholder if not provided
-        return params.value || '—';
-      },
-    },
-    {
-      field: 'account_name',
-      headerName: 'Account',
-      sortable: true,
-      filter: true, // Enable AG Grid text filter - icon appears next to header
-      width: 150,
-      valueFormatter: (params) => {
-        // Show friendly message when account has been deleted
-        return params.value || '[Deleted Account]';
-      },
-    },
-    {
       field: 'category_name',
       headerName: 'Category',
       sortable: true,
@@ -123,6 +101,28 @@ export function AgTransactionsGrid({
       },
     },
     {
+      field: 'description',
+      headerName: 'Description',
+      sortable: true,
+      flex: 1, // Allow this column to grow and fill available space
+      minWidth: 200,
+      valueFormatter: (params) => {
+        // Show description or empty placeholder if not provided
+        return params.value || '—';
+      },
+    },
+    {
+      field: 'account_name',
+      headerName: 'Account',
+      sortable: true,
+      filter: true, // Enable AG Grid text filter - icon appears next to header
+      width: 150,
+      valueFormatter: (params) => {
+        // Show friendly message when account has been deleted
+        return params.value || '[Deleted Account]';
+      },
+    },
+    {
       field: 'transaction_type',
       headerName: 'Type',
       sortable: true,
@@ -140,6 +140,16 @@ export function AgTransactionsGrid({
           color: isExpense ? '#d32f2f' : '#2e7d32', // MUI error and success colors
           fontWeight: 500,
         };
+      },
+    },
+    {
+      field: 'created_by_name',
+      headerName: 'Created By',
+      sortable: true,
+      width: 140,
+      valueFormatter: (params) => {
+        // Show the creator's display name, or "Unknown" if the user has no name set
+        return params.value || 'Unknown';
       },
     },
   ], []);
