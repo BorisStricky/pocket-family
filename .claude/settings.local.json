@@ -55,7 +55,8 @@
       "Bash(git -C /workspace diff HEAD frontend/src/components/ui/organisms/AppShell.tsx)",
       "Bash(git -C /workspace show HEAD:frontend/src/components/ui/organisms/AppShell.tsx)",
       "Bash(python3 -c \"from PIL import Image; print\\(''pillow available''\\)\")",
-      "Bash(pip install Pillow)"
+      "Bash(pip install Pillow)",
+      "WebSearch"
     ],
     "deny": [],
     "ask": []
