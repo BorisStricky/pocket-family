@@ -13,7 +13,7 @@ services:
       # This masks the host's node_modules with a container-managed volume
       - frontend_node_modules:/workspace/frontend/node_modules
     depends_on:
-      - db
+      - db-dev
     networks:
       - pfin-net
     ports:
@@ -31,11 +31,11 @@ services:
     # Run backend server: cd backend/api && uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
     # Run frontend server: cd frontend && npm run dev -- --host
 
-  db:
+  db-dev:
     image: postgres:15-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_DB: pfinancedb
+      POSTGRES_DB: pfinancedb_dev
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
