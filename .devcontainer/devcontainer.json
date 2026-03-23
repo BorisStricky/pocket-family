@@ -41,7 +41,7 @@
     }
   },
 
-  "postCreateCommand": "pip install -r backend/requirements.txt && cd frontend && npm ci",
+  "postCreateCommand": "cd backend && uv sync && cd ../frontend && npm ci",
 
   "remoteEnv": {
     "SSH_AUTH_SOCK": "${localEnv:SSH_AUTH_SOCK}",

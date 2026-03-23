@@ -9,9 +9,10 @@ personal/
 .env.production
 .env.test
 
-# Python cache
+# Python
 __pycache__/
 *.pyc
+.venv/
 
 # Frontend
 frontend/node_modules
