@@ -32,6 +32,14 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+    # Restrict this container to CPU cores 0–1 and cap it at 0.5 CPU / 512 MB RAM
+    # so the database cannot monopolise host resources.
+    cpuset: "0,1"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   # ── FastAPI backend ─────────────────────────────────────────────────────────
   backend:
@@ -62,6 +70,13 @@ services:
     # NOTE: No source-code volume mount here. In production the image must be
     # self-contained. The dev setup used ./backend/api/:/app for hot-reload,
     # which would overwrite the built image contents at runtime.
+    # Restrict this container to CPU cores 0–1 and cap it at 0.5 CPU / 512 MB RAM.
+    cpuset: "0,1"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
   # ── React frontend (served by nginx) ───────────────────────────────────────
   frontend:
@@ -81,6 +96,13 @@ services:
       - backend
     networks:
       - pfin-net
+    # Restrict this container to CPU cores 0–1 and cap it at 0.5 CPU / 512 MB RAM.
+    cpuset: "0,1"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 512M
 
 volumes:
   pgdata:
