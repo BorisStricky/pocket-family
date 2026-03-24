@@ -17,10 +17,10 @@ mkdir -p "$BACKUP_DIR"
 
 # Find the database container
 echo "Looking for database container..."
-CONTAINER_ID=$(docker ps --filter "name=db" --format "{{.ID}}")
+CONTAINER_ID=$(docker ps --filter "name=^pocket-family-db-1$" --format "{{.ID}}")
 
 if [ -z "$CONTAINER_ID" ]; then
-    echo "Error: Database container not found. Are the production containers running?"
+    echo "Error: Container 'pocket-family-db-1' not found. Is the production database running?"
     exit 1
 fi
 

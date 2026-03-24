@@ -19,7 +19,7 @@ export default defineConfig({
     // localhost or a LAN IP address.
     proxy: {
       '/api': {
-        target: process.env.BACKEND_URL || 'http://localhost:8000',
+        target: process.env.BACKEND_URL || 'http://localhost:8080',
         changeOrigin: true,
         // Strip the /api prefix before forwarding — the backend routes
         // don't include /api (e.g. /api/auth/login → /auth/login)

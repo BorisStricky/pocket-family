@@ -43,7 +43,7 @@ random.seed(42)
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@db:5432/pfinancedb",
+    "postgresql+asyncpg://postgres:postgres@db:5433/pfinancedb",
 )
 
 engine = create_async_engine(DATABASE_URL, echo=False)
