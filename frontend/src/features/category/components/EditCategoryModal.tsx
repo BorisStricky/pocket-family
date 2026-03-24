@@ -151,6 +151,12 @@ export function EditCategoryModal({
     }
   };
 
+  // Prevent closing on backdrop click to avoid accidental data loss on mobile
+  const handleDialogClose = (_event: object, reason: string) => {
+    if (reason === 'backdropClick') return;
+    handleClose();
+  };
+
   /**
    * Filter categories for parent selection
    * Excludes current category and its descendants to prevent circular references
@@ -175,7 +181,7 @@ export function EditCategoryModal({
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={handleDialogClose}
       maxWidth="sm"
       fullWidth
       aria-labelledby="edit-category-dialog-title"

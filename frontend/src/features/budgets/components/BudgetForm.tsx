@@ -153,7 +153,16 @@ export function BudgetForm({
   };
 
   return (
-    <Dialog open={open} onClose={onCancel} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      // Prevent closing on backdrop click to avoid accidental data loss on mobile
+      onClose={(_event: object, reason: string) => {
+        if (reason === 'backdropClick') return;
+        onCancel();
+      }}
+      maxWidth="sm"
+      fullWidth
+    >
       <DialogTitle>{mode === 'create' ? 'Create Budget' : 'Edit Budget'}</DialogTitle>
 
       <form onSubmit={handleSubmit(handleFormSubmit)}>

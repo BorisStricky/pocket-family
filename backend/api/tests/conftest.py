@@ -7,6 +7,12 @@ use an in-memory SQLite database for complete test isolation.
 """
 
 import os
+
+# Set environment variables BEFORE importing app modules.
+# auth.py validates JWT_SECRET at import time so it must exist first.
+os.environ.setdefault("JWT_SECRET", "test-secret-key-do-not-use-in-production")
+os.environ.setdefault("TEST_MODE", "1")
+
 import pytest
 import pytest_asyncio
 from decimal import Decimal

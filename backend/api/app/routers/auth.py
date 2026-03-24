@@ -18,6 +18,7 @@ from ..auth import (
     REFRESH_TOKEN_EXPIRE_DAYS,
     is_test_mode,
 )
+from ..seed_defaults import seed_tenant_defaults
 
 router = APIRouter()
 
@@ -109,6 +110,12 @@ async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depen
         created_at=datetime.utcnow(),
     )
     db.add(membership)
+
+    # Seed default categories, budget, and accounts for the new tenant.
+    # This runs within the same transaction so everything is atomic —
+    # if seeding fails the entire signup is rolled back.
+    await seed_tenant_defaults(db, tenant, user, include_accounts=True)
+
     await db.commit()
     await db.refresh(user)
 

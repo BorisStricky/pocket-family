@@ -141,7 +141,11 @@ export function FamilySettings({
       {/* Leave Family Confirmation Dialog */}
       <Dialog
         open={leaveDialogOpen}
-        onClose={() => setLeaveDialogOpen(false)}
+        // Prevent closing on backdrop click to avoid accidental data loss on mobile
+        onClose={(_event: object, reason: string) => {
+          if (reason === 'backdropClick') return;
+          setLeaveDialogOpen(false);
+        }}
         aria-labelledby="leave-family-dialog-title"
       >
         <DialogTitle id="leave-family-dialog-title">Leave Family</DialogTitle>
@@ -170,7 +174,9 @@ export function FamilySettings({
       {/* Delete Family Confirmation Dialog - requires typing family name */}
       <Dialog
         open={deleteDialogOpen}
-        onClose={() => {
+        // Prevent closing on backdrop click to avoid accidental data loss on mobile
+        onClose={(_event: object, reason: string) => {
+          if (reason === 'backdropClick') return;
           setDeleteDialogOpen(false);
           setDeleteConfirmationName('');
         }}

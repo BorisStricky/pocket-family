@@ -12,6 +12,7 @@ Or via docker compose from host:
 """
 
 import asyncio
+import calendar
 import os
 import sys
 import random
@@ -43,7 +44,7 @@ random.seed(42)
 
 DATABASE_URL = os.getenv(
     "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@db:5432/pfinancedb",
+    "postgresql+asyncpg://postgres:postgres@db:5433/pfinancedb",
 )
 
 engine = create_async_engine(DATABASE_URL, echo=False)
@@ -92,15 +93,7 @@ def random_amount() -> Decimal:
 
 def generate_dates_for_month(year: int, month: int, count: int) -> list[date]:
     """Generate `count` dates spread across the given month with slight jitter."""
-    if month == 12:
-        days_in_month = 31
-    elif month == 1:
-        days_in_month = 31
-    elif month == 2:
-        # 2026 is not a leap year
-        days_in_month = 28
-    else:
-        days_in_month = 30
+    days_in_month = calendar.monthrange(year, month)[1]
 
     dates = []
     spacing = days_in_month / count
@@ -374,8 +367,17 @@ async def seed():
         # 9. Generate transactions (600 per family = 3,600 total)
         # ------------------------------------------------------------------
         print("Generating transactions...")
-        # Months: (year, month, count)
-        month_specs = [(2025, 12, 300), (2026, 1, 200), (2026, 2, 100)]
+        # Current month + 2 preceding months (oldest gets most transactions)
+        today = date.today()
+        months = []
+        for months_ago in range(2, -1, -1):
+            year = today.year
+            month = today.month - months_ago
+            while month <= 0:
+                month += 12
+                year -= 1
+            months.append((year, month))
+        month_specs = [(year, month, count) for (year, month), count in zip(months, [300, 200, 100])]
         total_transaction_count = 0
 
         for code, (tenant, owner) in family_map.items():
@@ -411,7 +413,8 @@ async def seed():
                 session.add_all(transaction_batch)
                 total_transaction_count += len(transaction_batch)
 
-            print(f"  {code}: 600 transactions created")
+            family_total = sum(count for _, _, count in month_specs)
+            print(f"  {code}: {family_total} transactions created")
 
         await session.flush()
 

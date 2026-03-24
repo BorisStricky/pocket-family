@@ -335,6 +335,8 @@ class TransactionRead(SQLModel):
     transaction_type: CategoryKind
     description: Optional[str]
     created_by: UUID
+    # Display name of the user who created the transaction, resolved via User join
+    created_by_name: Optional[str] = None
     created_at: datetime
     updated_at: datetime
     reconciled: bool

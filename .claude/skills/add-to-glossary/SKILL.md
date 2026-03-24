@@ -1,3 +1,10 @@
+---
+name: add-to-glossary
+description: Add or update technical concepts in the project glossary based on conversation topics. Use when new technical terms need documenting or existing glossary entries need updating.
+argument-hint: "[--concept name] [--category file] [--dry-run] [--force-new]"
+disable-model-invocation: true
+---
+
 # Add to Glossary Skill
 
 ## Purpose

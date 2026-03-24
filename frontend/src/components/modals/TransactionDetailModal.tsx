@@ -45,6 +45,12 @@ export default function TransactionDetailModal() {
     navigate(-1);
   };
 
+  // Prevent closing on backdrop click to avoid accidental data loss on mobile
+  const handleDialogClose = (_event: object, reason: string) => {
+    if (reason === 'backdropClick') return;
+    close();
+  };
+
   // Minimal delete confirmation using window.confirm for now
   const onDelete = async () => {
     if (!transactionId) return;
@@ -93,7 +99,7 @@ export default function TransactionDetailModal() {
     <Dialog
       open={true}
       fullScreen={isSmall}
-      onClose={close}
+      onClose={handleDialogClose}
       aria-labelledby="transaction-detail-title"
       maxWidth="sm"
       fullWidth

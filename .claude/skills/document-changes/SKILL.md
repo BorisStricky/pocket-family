@@ -1,4 +1,11 @@
-# Document Changes Command
+---
+name: document-changes
+description: Generate comprehensive PR documentation for code changes, with glossary linking and Obsidian wikilinks. Use when preparing pull request descriptions or sprint summaries.
+argument-hint: "[--commits range] [--files paths] [--compare-branch branch] [--output path] [--format type]"
+disable-model-invocation: true
+---
+
+# Document Changes Skill
 
 ## Purpose
 Generate comprehensive documentation for code changes in a pull request, following the project's established documentation patterns (similar to sprint summary documents).
@@ -96,7 +103,7 @@ Generate comprehensive documentation for code changes in a pull request, followi
 
 ## Execution Steps
 
-When this command is invoked, Claude should:
+When this skill is invoked, Claude should:
 
 1. **Determine Change Scope**:
    ```bash
@@ -122,7 +129,7 @@ When this command is invoked, Claude should:
    - Include code examples where helpful
    - Reference related documentation
 
-5. **Link to Glossary and Related Documentation** (NEW):
+5. **Link to Glossary and Related Documentation**:
 
    a. **Write Initial Documentation Draft**:
       - Generate the complete documentation following the structure above
@@ -230,7 +237,7 @@ Output: Generates comprehensive sprint summary document.
 
 ## Integration with Workflow
 
-This command should be used:
+This skill should be used:
 
 1. **Before Creating PR**: Generate documentation to include in PR description
 2. **After Sprint Completion**: Create sprint summary for historical reference
@@ -270,7 +277,7 @@ The following glossary topics are available in `/docs/knowledge/glossary/`:
 ### Full Example: Documenting Sprint 4 Changes
 
 ```bash
-# User runs command
+# User runs skill
 /document-changes --compare-branch main --format sprint --output docs/Pull Requests/Sprint_4_Release.md
 ```
 

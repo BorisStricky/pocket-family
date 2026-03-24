@@ -51,7 +51,11 @@ export function DeleteConfirmDialog({
   return (
     <Dialog
       open={open}
-      onClose={onCancel}
+      // Prevent closing on backdrop click to avoid accidental dismissal on mobile
+      onClose={(_event: object, reason: string) => {
+        if (reason === 'backdropClick') return;
+        onCancel();
+      }}
       aria-labelledby="delete-confirm-dialog-title"
       aria-describedby="delete-confirm-dialog-description"
     >

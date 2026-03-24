@@ -126,7 +126,7 @@ Generate and update project documentation including glossary entries, sprint sum
 
 ### 4. Pull Request Summaries
 
-**Command Reference**: See `.claude/commands/document-changes.md`
+**Skill Reference**: See `.claude/skills/document-changes/SKILL.md`
 
 **Structure**:
 

@@ -40,19 +40,20 @@ This is a **multi-tenant personal finance SaaS** platform that allows individual
 ### Backend Development
 
 ```bash
-# Install dependencies
+# Install dependencies (uses uv for package management)
 cd backend
-pip install -r requirements.txt
+uv sync                         # Install production deps
+uv sync --all-extras            # Install production + dev deps
 
 # Run development server (with hot reload)
 cd backend/api
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 
 # Run tests
-pytest                          # Run all tests
-pytest tests/test_auth_endpoints.py  # Run specific test file
-pytest -v                       # Verbose output
-pytest --cov=app               # Run with coverage
+uv run pytest                          # Run all tests
+uv run pytest tests/test_auth_endpoints.py  # Run specific test file
+uv run pytest -v                       # Verbose output
+uv run pytest --cov=app               # Run with coverage
 
 # Database migrations
 cd backend/api
@@ -497,7 +498,7 @@ This command manages milestone-based workflows by:
 
 **Test agents are ALWAYS used for test writing** - implementation agents focus solely on feature code.
 
-See [.claude/commands/orchestrate.md](.claude/commands/orchestrate.md) for detailed orchestration rules, agent mappings, and validation criteria.
+See [.claude/skills/orchestrate/SKILL.md](.claude/skills/orchestrate/SKILL.md) for detailed orchestration rules, agent mappings, and validation criteria.
 
 ## Key Differences from Typical Projects
 
