@@ -12,7 +12,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import select, delete
 from typing import List, Optional
 from uuid import UUID
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -289,7 +289,7 @@ async def list_budgets(
     tenant_id = active_context.active_tenant.id
 
     # Default to current month/year when not specified by the client
-    current_datetime = datetime.utcnow()
+    current_datetime = datetime.now(timezone.utc)
     effective_month = month if month is not None else current_datetime.month
     effective_year = year if year is not None else current_datetime.year
 
@@ -342,7 +342,7 @@ async def get_budget(
     tenant_id = active_context.active_tenant.id
 
     # Default to current month/year when not specified
-    current_datetime = datetime.utcnow()
+    current_datetime = datetime.now(timezone.utc)
     effective_month = month if month is not None else current_datetime.month
     effective_year = year if year is not None else current_datetime.year
 
@@ -426,7 +426,7 @@ async def create_budget(
     await database_session.refresh(budget_record)
 
     # Return the budget with spent calculation for the current month
-    current_datetime = datetime.utcnow()
+    current_datetime = datetime.now(timezone.utc)
     return await _build_budget_read(
         database_session,
         budget_record,
@@ -496,7 +496,7 @@ async def update_budget(
         budget_record.currency = payload.currency
 
     # Update the modification timestamp
-    budget_record.updated_at = datetime.utcnow()
+    budget_record.updated_at = datetime.now(timezone.utc)
 
     # Replace the category set when category_ids is explicitly provided.
     # When category_ids is None (omitted from payload), leave unchanged.
@@ -513,7 +513,7 @@ async def update_budget(
     await database_session.refresh(budget_record)
 
     # Return with recalculated spent for the current month
-    current_datetime = datetime.utcnow()
+    current_datetime = datetime.now(timezone.utc)
     return await _build_budget_read(
         database_session,
         budget_record,

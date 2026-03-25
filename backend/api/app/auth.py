@@ -1,7 +1,7 @@
 import os
 import secrets
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 
 from jose import jwt, JWTError
@@ -62,7 +62,7 @@ def create_access_token(token_payload: Dict[str, Any], expires_delta: Optional[t
         Encoded JWT string.
     """
     claims_to_encode = token_payload.copy()
-    expiration_time = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    expiration_time = datetime.now(timezone.utc) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     claims_to_encode.update({"exp": expiration_time})
     encoded_access_token = jwt.encode(claims_to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_access_token

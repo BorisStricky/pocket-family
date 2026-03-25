@@ -36,8 +36,8 @@ export type Transaction = {
 };
 
 export interface TransactionListItemProps {
-  tx: Transaction;
-  onClick?: (tx: Transaction) => void;
+  transaction: Transaction;
+  onClick?: (transaction: Transaction) => void;
   showCategory?: boolean;
   compact?: boolean;
 }
@@ -61,16 +61,16 @@ const formatCurrency = (amount: number | string, currency = 'BRL') => {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency }).format(valueNumber);
 };
 
-export const TransactionListItem: React.FC<TransactionListItemProps> = ({ tx, onClick, showCategory = true, compact = false }) => {
+export const TransactionListItem: React.FC<TransactionListItemProps> = ({ transaction, onClick, showCategory = true, compact = false }) => {
   // Map backend transaction_type to a color: income -> credit (green), expense -> debit (red)
-  const isCredit = tx.transaction_type === 'income';
+  const isCredit = transaction.transaction_type === 'income';
   const amountColor = isCredit ? 'success.main' : 'error.main';
-  const dateLabel = tx.transaction_date ? formatDisplayDate(tx.transaction_date) : '';
+  const dateLabel = transaction.transaction_date ? formatDisplayDate(transaction.transaction_date) : '';
 
   return (
     <ListItem disablePadding>
       <ListItemButton
-        onClick={() => onClick?.(tx)}
+        onClick={() => onClick?.(transaction)}
         sx={{
           px: 2,
           py: compact ? 0.75 : 1.5,
@@ -78,7 +78,7 @@ export const TransactionListItem: React.FC<TransactionListItemProps> = ({ tx, on
         }}
       >
         <ListItemAvatar>
-          <Avatar src={tx.avatarUrl ?? null} name={tx.title ?? tx.account ?? 'Tx'} size={compact ? 36 : 48} />
+          <Avatar src={transaction.avatarUrl ?? null} name={transaction.title ?? transaction.account ?? 'Transaction'} size={compact ? 36 : 48} />
         </ListItemAvatar>
 
         <ListItemText
@@ -86,19 +86,19 @@ export const TransactionListItem: React.FC<TransactionListItemProps> = ({ tx, on
             <Box display="flex" alignItems="center" justifyContent="space-between" gap={1}>
               <Box>
                 <Typography variant={compact ? 'body2' : 'body1'} component="div" sx={{ fontWeight: 600 }}>
-                  {tx.title ?? tx.description ?? 'Transaction'}
+                  {transaction.title ?? transaction.description ?? 'Transaction'}
                 </Typography>
                 {/* show account name as subtitle if present */}
-                {tx.account && (
+                {transaction.account && (
                   <Typography variant="caption" color="text.secondary" component="div">
-                    {tx.account}
+                    {transaction.account}
                   </Typography>
                 )}
               </Box>
 
               <Box textAlign="right">
                 <Typography sx={{ fontWeight: 700, color: amountColor }}>
-                  {formatCurrency(tx.amount, tx.currency)}
+                  {formatCurrency(transaction.amount, transaction.currency)}
                 </Typography>
                 <Typography variant="caption" color="text.secondary">
                   {dateLabel}
@@ -109,9 +109,9 @@ export const TransactionListItem: React.FC<TransactionListItemProps> = ({ tx, on
           secondary={
             showCategory ? (
               <Box mt={1} display="flex" alignItems="center" gap={1}>
-                {tx.category && <Chip label={tx.category} size="small" />}
-                {(tx.source === 'recurring' || tx.recurring) && <Icon name="Repeat" size={14} title="Recurring" />}
-                {tx.reconciled && <Chip label="Reconciled" size="small" />}
+                {transaction.category && <Chip label={transaction.category} size="small" />}
+                {(transaction.source === 'recurring' || transaction.recurring) && <Icon name="Repeat" size={14} title="Recurring" />}
+                {transaction.reconciled && <Chip label="Reconciled" size="small" />}
               </Box>
             ) : null
           }

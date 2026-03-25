@@ -10,7 +10,7 @@ export class ApiError extends Error {
   constructor(
     message: string,
     public status: number,
-    public body: any
+    public body: unknown
   ) {
     super(message);
     this.name = 'ApiError';
@@ -145,24 +145,24 @@ export async function apiFetch(path: string, init: ApiFetchInit = {}) {
   ];
   const shouldIncludeCredentials = authEndpoints.some(endpoint => path.includes(endpoint));
 
-  const res = await fetch(url, {
+  const response = await fetch(url, {
     ...init,
     headers,
     credentials: shouldIncludeCredentials ? 'include' : 'omit'
   });
 
   // Handle 204 No Content - no body to parse
-  if (res.status === 204) {
+  if (response.status === 204) {
     return { ok: true };
   }
 
   // Parse response based on Content-Type
-  const ct = res.headers.get('content-type') || '';
-  let payload: any = null;
-  if (ct.includes('application/json')) {
-    payload = await res.json();
+  const contentType = response.headers.get('content-type') || '';
+  let payload: unknown = null;
+  if (contentType.includes('application/json')) {
+    payload = await response.json();
   } else {
-    payload = await res.text();
+    payload = await response.text();
   }
 
   // Handle 401 Unauthorized with automatic token refresh
@@ -171,7 +171,7 @@ export async function apiFetch(path: string, init: ApiFetchInit = {}) {
   // NOT an expired access token. Without this guard a failed login triggers a
   // refresh attempt which itself fails and swallows the original error message.
   const isCredentialEndpoint = path.includes(API_ENDPOINTS.LOGIN) || path.includes(API_ENDPOINTS.SIGNUP);
-  if (res.status === 401 && !init._isRetry && !isCredentialEndpoint) {
+  if (response.status === 401 && !init._isRetry && !isCredentialEndpoint) {
     try {
       // Attempt to refresh the access token using the HttpOnly refresh token cookie
       // This call returns the new token from localStorage after storing it
@@ -197,18 +197,19 @@ export async function apiFetch(path: string, init: ApiFetchInit = {}) {
   }
 
   // Throw ApiError if not successful (for non-401 errors or retry failures)
-  if (!res.ok) {
+  if (!response.ok) {
     // Extract detailed error message from backend response if available
     // Backend returns error details in the "detail" field of the response
     // Falls back to generic "API error {status}" if no detail is provided
+    const payloadObject = payload as Record<string, unknown> | null;
     const errorMessage =
-      (typeof payload === 'object' && payload?.detail)
-        ? payload.detail
-        : `API error ${res.status}`;
+      (typeof payloadObject === 'object' && payloadObject?.detail)
+        ? String(payloadObject.detail)
+        : `API error ${response.status}`;
 
     throw new ApiError(
       errorMessage,
-      res.status,
+      response.status,
       payload
     );
   }

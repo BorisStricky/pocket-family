@@ -19,7 +19,7 @@ import type { Transaction } from '../../types/transaction';
  * Behavior:
  * - Fetches transaction using useTransaction
  * - Shows readonly detail; toggle to edit by opening edit form in-place
- * - Actions: Edit (switches to form), Duplicate (creates a new tx copy), Delete (confirm)
+ * - Actions: Edit (switches to form), Duplicate (creates a new transaction copy), Delete (confirm)
  *
  * On close: navigate back to parent route (history.back equivalent)
  */
@@ -28,7 +28,7 @@ export default function TransactionDetailModal() {
   const { family_id: familyId, transactionId } = useParams() as { family_id?: string; transactionId?: string };
   const navigate = useNavigate();
   const isSmall = useMediaQuery('(max-width:600px)');
-  const { data: tx, isLoading, error } = useTransaction(familyId || '', transactionId);
+  const { data: transactionData, isLoading, error } = useTransaction(familyId || '', transactionId);
   const updateMut = useUpdateTransaction(familyId || '');
   const deleteMut = useDeleteTransaction(familyId || '');
   const dupMut = useDuplicateTransaction(familyId || '');
@@ -89,11 +89,11 @@ export default function TransactionDetailModal() {
   };
 
   const title = useMemo(() => {
-    if (tx) {
-      return `${tx.transaction_type === 'income' ? 'Income' : 'Expense'} • ${tx.amount} ${tx.currency}`;
+    if (transactionData) {
+      return `${transactionData.transaction_type === 'income' ? 'Income' : 'Expense'} • ${transactionData.amount} ${transactionData.currency}`;
     }
     return 'Transaction';
-  }, [tx]);
+  }, [transactionData]);
 
   return (
     <Dialog
@@ -107,7 +107,7 @@ export default function TransactionDetailModal() {
       <DialogTitle id="transaction-detail-title" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="h6">{title}</Typography>
-          {tx && <Typography variant="caption" color="text.secondary">{tx.transaction_date}</Typography>}
+          {transactionData && <Typography variant="caption" color="text.secondary">{transactionData.transaction_date}</Typography>}
         </Box>
 
         <Box>
@@ -129,32 +129,32 @@ export default function TransactionDetailModal() {
       <DialogContent dividers>
         {isLoading && <Typography>Loading...</Typography>}
         {error && <Typography color="error">Failed to load transaction</Typography>}
-        {!isLoading && tx && !editing && (
+        {!isLoading && transactionData && !editing && (
           <Box sx={{ display: 'grid', gap: 1 }}>
             <Typography variant="subtitle2">Amount</Typography>
-            <Typography>{tx.amount} {tx.currency}</Typography>
+            <Typography>{transactionData.amount} {transactionData.currency}</Typography>
             <Divider />
             <Typography variant="subtitle2">Account</Typography>
-            <Typography>{tx.account_id}</Typography>
+            <Typography>{transactionData.account_id}</Typography>
             <Divider />
             <Typography variant="subtitle2">Category</Typography>
-            <Typography>{tx.category_id || 'Uncategorized'}</Typography>
+            <Typography>{transactionData.category_id || 'Uncategorized'}</Typography>
             <Divider />
             <Typography variant="subtitle2">Date</Typography>
-            <Typography>{tx.transaction_date}</Typography>
+            <Typography>{transactionData.transaction_date}</Typography>
             <Divider />
             <Typography variant="subtitle2">Description</Typography>
-            <Typography>{tx.description || '-'}</Typography>
+            <Typography>{transactionData.description || '-'}</Typography>
             <Divider />
             <Typography variant="subtitle2">Meta</Typography>
-            <Typography variant="caption">Created by: {tx.created_by}</Typography>
-            <Typography variant="caption">Created: {new Date(tx.created_at).toLocaleString()}</Typography>
-            <Typography variant="caption">Updated: {new Date(tx.updated_at).toLocaleString()}</Typography>
+            <Typography variant="caption">Created by: {transactionData.created_by}</Typography>
+            <Typography variant="caption">Created: {new Date(transactionData.created_at).toLocaleString()}</Typography>
+            <Typography variant="caption">Updated: {new Date(transactionData.updated_at).toLocaleString()}</Typography>
           </Box>
         )}
 
-        {!isLoading && tx && editing && (
-          <TransactionForm initial={tx} onSubmit={onSubmitEdit} loading={updateMut.isLoading} />
+        {!isLoading && transactionData && editing && (
+          <TransactionForm initial={transactionData} onSubmit={onSubmitEdit} loading={updateMut.isLoading} />
         )}
       </DialogContent>
 
