@@ -11,15 +11,15 @@ import pytest
 from decimal import Decimal
 from uuid import uuid4
 
-from backend.api.app.models import Account, AccountShare, Membership, MembershipStatus, ShareVisibility
-from backend.api.app.schemas import AccountShareWith
+from app.models import Account, AccountShare, Membership, MembershipStatus, ShareVisibility
+from app.schemas import AccountShareWith
 
 
 class TestListAccountsWithTenantId:
     """Test GET /accounts endpoint with optional tenant_id query parameter."""
 
     async def test_list_accounts_without_tenant_id_returns_all_user_accounts(
-        self, async_client, test_session, test_user, test_tenant, test_membership, auth_headers, test_account
+        self, async_client, async_session, test_user, test_tenant, test_membership, auth_headers, test_account
     ):
         """Test that GET /accounts without tenant_id returns user's own accounts and shared accounts."""
         response = await async_client.get("/accounts", headers=auth_headers)
@@ -30,7 +30,7 @@ class TestListAccountsWithTenantId:
         assert any(account["id"] == str(test_account.id) for account in accounts)
 
     async def test_list_accounts_with_valid_tenant_id_returns_shared_accounts(
-        self, async_client, test_session, test_user, test_user2, test_tenant, test_tenant2,
+        self, async_client, async_session, test_user, test_user2, test_tenant, test_tenant2,
         test_membership, test_membership2, auth_headers, test_account2
     ):
         """Test that GET /accounts?tenant_id=X returns only accounts shared with that tenant."""
@@ -42,8 +42,8 @@ class TestListAccountsWithTenantId:
             visibility=ShareVisibility.VISIBLE,
             granted_by=test_user2.id
         )
-        test_session.add(account_share)
-        await test_session.commit()
+        async_session.add(account_share)
+        await async_session.commit()
 
         # Query accounts shared with test_tenant2
         response = await async_client.get(
@@ -58,7 +58,7 @@ class TestListAccountsWithTenantId:
         assert accounts[0]["id"] == str(test_account2.id)
 
     async def test_list_accounts_with_tenant_id_user_not_member_returns_403(
-        self, async_client, test_session, test_user, test_tenant, test_membership, auth_headers
+        self, async_client, async_session, test_user, test_tenant, test_membership, auth_headers
     ):
         """Test that GET /accounts?tenant_id=X returns 403 when user is not a member of that tenant."""
         # Create a tenant that test_user is not a member of
@@ -73,7 +73,7 @@ class TestListAccountsWithTenantId:
         assert "not an active member" in response.json()["detail"].lower()
 
     async def test_list_accounts_with_tenant_id_empty_when_no_shares(
-        self, async_client, test_session, test_user, test_tenant2, test_membership2, auth_headers_tenant2
+        self, async_client, async_session, test_user, test_tenant2, test_membership2, auth_headers_tenant2
     ):
         """Test that GET /accounts?tenant_id=X returns empty list when no accounts are shared."""
         response = await async_client.get(
@@ -90,7 +90,7 @@ class TestCreateAccountWithShareWith:
     """Test POST /accounts endpoint with optional share_with field."""
 
     async def test_create_account_without_share_with_succeeds(
-        self, async_client, test_session, test_user, test_tenant, test_membership, auth_headers
+        self, async_client, async_session, test_user, test_tenant, test_membership, auth_headers
     ):
         """Test that POST /accounts without share_with creates account normally."""
         account_data = {
@@ -109,7 +109,7 @@ class TestCreateAccountWithShareWith:
         assert account["balance"] == "2000.00"
 
     async def test_create_account_with_share_with_creates_account_and_share_atomically(
-        self, async_client, test_session, test_user, test_tenant, test_tenant2,
+        self, async_client, async_session, test_user, test_tenant, test_tenant2,
         test_membership, test_membership2, auth_headers
     ):
         """Test that POST /accounts with share_with creates both account and share atomically."""
@@ -136,7 +136,7 @@ class TestCreateAccountWithShareWith:
         from uuid import UUID
         account_id = UUID(account["id"])
         account_query = select(Account).where(Account.id == account_id)
-        account_result = await test_session.execute(account_query)
+        account_result = await async_session.execute(account_query)
         created_account = account_result.scalars().first()
         assert created_account is not None
 
@@ -145,14 +145,14 @@ class TestCreateAccountWithShareWith:
             AccountShare.account_id == account_id,
             AccountShare.tenant_id == test_tenant2.id
         )
-        share_result = await test_session.execute(share_query)
+        share_result = await async_session.execute(share_query)
         account_share = share_result.scalars().first()
         assert account_share is not None
         assert account_share.visibility == ShareVisibility.VISIBLE
         assert account_share.granted_by == test_user.id
 
     async def test_create_account_with_share_with_invalid_tenant_returns_404(
-        self, async_client, test_session, test_user, test_tenant, test_membership, auth_headers
+        self, async_client, async_session, test_user, test_tenant, test_membership, auth_headers
     ):
         """Test that POST /accounts with non-existent tenant_id in share_with returns 404."""
         non_existent_tenant_id = uuid4()
@@ -173,7 +173,7 @@ class TestCreateAccountWithShareWith:
         assert "tenant not found" in response.json()["detail"].lower()
 
     async def test_create_account_with_share_with_user_not_member_returns_403(
-        self, async_client, test_session, test_user, test_tenant, test_membership, test_tenant2, auth_headers
+        self, async_client, async_session, test_user, test_tenant, test_membership, test_tenant2, auth_headers
     ):
         """Test that POST /accounts with tenant user is not a member of returns 403."""
         # test_user is not a member of test_tenant2 (no test_membership2 fixture used)
@@ -194,7 +194,7 @@ class TestCreateAccountWithShareWith:
         assert "not an active member" in response.json()["detail"].lower()
 
     async def test_create_account_with_share_with_default_visibility_hidden(
-        self, async_client, test_session, test_user, test_tenant, test_tenant2,
+        self, async_client, async_session, test_user, test_tenant, test_tenant2,
         test_membership, test_membership2, auth_headers
     ):
         """Test that share_with without visibility defaults to HIDDEN."""
@@ -222,7 +222,7 @@ class TestCreateAccountWithShareWith:
             AccountShare.account_id == account_id,
             AccountShare.tenant_id == test_tenant2.id
         )
-        share_result = await test_session.execute(share_query)
+        share_result = await async_session.execute(share_query)
         account_share = share_result.scalars().first()
         assert account_share is not None
         assert account_share.visibility == ShareVisibility.HIDDEN
@@ -232,7 +232,7 @@ class TestTransactionBalanceUpdates:
     """Test that creating transactions updates account balances correctly."""
 
     async def test_create_income_transaction_increases_balance(
-        self, async_client, test_session, test_user, test_tenant, test_membership,
+        self, async_client, async_session, test_user, test_tenant, test_membership,
         auth_headers, test_account, test_category
     ):
         """Test that creating an INCOME transaction increases account balance."""
@@ -258,12 +258,12 @@ class TestTransactionBalanceUpdates:
         assert transaction["transaction_type"] == "income"
 
         # Refresh account and verify balance increased
-        await test_session.refresh(test_account)
+        await async_session.refresh(test_account)
         expected_balance = initial_balance + Decimal("200.50")
         assert test_account.balance == expected_balance
 
     async def test_create_expense_transaction_decreases_balance(
-        self, async_client, test_session, test_user, test_tenant, test_membership,
+        self, async_client, async_session, test_user, test_tenant, test_membership,
         auth_headers, test_account, test_category
     ):
         """Test that creating an EXPENSE transaction decreases account balance."""
@@ -289,12 +289,12 @@ class TestTransactionBalanceUpdates:
         assert transaction["transaction_type"] == "expense"
 
         # Refresh account and verify balance decreased
-        await test_session.refresh(test_account)
+        await async_session.refresh(test_account)
         expected_balance = initial_balance - Decimal("75.25")
         assert test_account.balance == expected_balance
 
     async def test_multiple_transactions_update_balance_correctly(
-        self, async_client, test_session, test_user, test_tenant, test_membership,
+        self, async_client, async_session, test_user, test_tenant, test_membership,
         auth_headers, test_account, test_category
     ):
         """Test that multiple transactions update balance correctly in sequence."""
@@ -342,16 +342,16 @@ class TestTransactionBalanceUpdates:
         assert response3.status_code == 200
 
         # Verify final balance: initial + 500 - 150 + 100
-        await test_session.refresh(test_account)
+        await async_session.refresh(test_account)
         expected_balance = initial_balance + Decimal("500.00") - Decimal("150.00") + Decimal("100.00")
         assert test_account.balance == expected_balance
 
     async def test_transaction_allows_negative_balance_for_credit_accounts(
-        self, async_client, test_session, test_user, test_tenant, test_membership, auth_headers
+        self, async_client, async_session, test_user, test_tenant, test_membership, auth_headers
     ):
         """Test that transactions can result in negative balance for credit accounts (debt)."""
         from datetime import date, datetime
-        from backend.api.app.models import AccountType
+        from app.models import AccountType
 
         # Create a credit account with zero balance
         credit_account = Account(
@@ -364,12 +364,12 @@ class TestTransactionBalanceUpdates:
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
-        test_session.add(credit_account)
-        await test_session.commit()
-        await test_session.refresh(credit_account)
+        async_session.add(credit_account)
+        await async_session.commit()
+        await async_session.refresh(credit_account)
 
         # Create expense transaction that makes balance negative
-        from backend.api.app.models import Category, CategoryKind
+        from app.models import Category, CategoryKind
         expense_category = Category(
             id=uuid4(),
             tenant_id=test_tenant.id,
@@ -378,8 +378,8 @@ class TestTransactionBalanceUpdates:
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
-        test_session.add(expense_category)
-        await test_session.commit()
+        async_session.add(expense_category)
+        await async_session.commit()
 
         transaction_data = {
             "account_id": str(credit_account.id),
@@ -396,5 +396,5 @@ class TestTransactionBalanceUpdates:
         assert response.status_code == 200
 
         # Verify balance is negative (representing debt)
-        await test_session.refresh(credit_account)
+        await async_session.refresh(credit_account)
         assert credit_account.balance == Decimal("-300.00")

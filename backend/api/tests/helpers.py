@@ -18,8 +18,8 @@
 # This approach is minimal, keeps application code unchanged, and ensures tests
 # can be executed individually or together without order-dependent failures.
 
-from backend.api.app.models import User
-from backend.api.app.auth import decode_access_token
+from app.models import User
+from app.auth import decode_access_token
 from sqlmodel import select
 from datetime import datetime
 
