@@ -4,12 +4,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton, useMediaQuery, Box, Typography, Divider } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { useTransaction } from '../../hooks/useTransaction';
-import { useUpdateTransaction, useDeleteTransaction, useDuplicateTransaction } from '../../hooks/useTransactionMutations';
+import { useTransaction } from '@/features/transactions/hooks/useTransaction';
+import { useUpdateTransaction } from '@/features/transactions/hooks/useUpdateTransaction';
+import { useDeleteTransaction } from '@/features/transactions/hooks/useDeleteTransaction';
 import { TransactionForm } from '../TransactionForm';
 import type { Transaction } from '../../types/transaction';
+import type { TransactionUpdate } from '@/features/transactions/types';
 
 /**
  * TransactionDetailModal
@@ -19,7 +20,7 @@ import type { Transaction } from '../../types/transaction';
  * Behavior:
  * - Fetches transaction using useTransaction
  * - Shows readonly detail; toggle to edit by opening edit form in-place
- * - Actions: Edit (switches to form), Duplicate (creates a new transaction copy), Delete (confirm)
+ * - Actions: Edit (switches to form), Delete (confirm)
  *
  * On close: navigate back to parent route (history.back equivalent)
  */
@@ -28,10 +29,12 @@ export default function TransactionDetailModal() {
   const { family_id: familyId, transactionId } = useParams() as { family_id?: string; transactionId?: string };
   const navigate = useNavigate();
   const isSmall = useMediaQuery('(max-width:600px)');
-  const { data: transactionData, isLoading, error } = useTransaction(familyId || '', transactionId);
-  const updateMut = useUpdateTransaction(familyId || '');
-  const deleteMut = useDeleteTransaction(familyId || '');
-  const dupMut = useDuplicateTransaction(familyId || '');
+  // Fetch transaction by ID; the hook only needs transactionId (tenant validated server-side via JWT)
+  const { data: transactionData, isLoading, error } = useTransaction(transactionId || '');
+  // Update mutation scoped to the current transaction
+  const updateMutation = useUpdateTransaction(transactionId || '');
+  // Delete mutation accepts transactionId at call time, no constructor params needed
+  const deleteMutation = useDeleteTransaction();
 
   // Local state: whether in-edit mode (simple approach)
   const [editing, setEditing] = React.useState(false);
@@ -57,33 +60,22 @@ export default function TransactionDetailModal() {
     const ok = window.confirm('Delete transaction? This action cannot be undone.');
     if (!ok) return;
     try {
-      await deleteMut.mutateAsync(transactionId);
+      await deleteMutation.mutateAsync(transactionId);
       close();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       alert('Failed to delete transaction');
-    }
-  };
-
-  const onDuplicate = async () => {
-    if (!transactionId) return;
-    try {
-      await dupMut.mutateAsync(transactionId);
-      // optionally close and let caller refresh list
-      close();
-    } catch (e) {
-      console.error(e);
-      alert('Failed to duplicate transaction');
     }
   };
 
   const onSubmitEdit = async (formData: Partial<Transaction>) => {
     if (!transactionId) return;
     try {
-      await updateMut.mutateAsync({ transactionId, body: formData });
+      // Cast to TransactionUpdate since the form returns partial transaction fields
+      await updateMutation.mutateAsync(formData as TransactionUpdate);
       setEditing(false);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       alert('Failed to update transaction');
     }
   };
@@ -111,10 +103,7 @@ export default function TransactionDetailModal() {
         </Box>
 
         <Box>
-          <IconButton aria-label="duplicate" onClick={onDuplicate} size="large">
-            <ContentCopyIcon />
-          </IconButton>
-          <IconButton aria-label="edit" onClick={() => setEditing((s) => !s)} size="large">
+          <IconButton aria-label="edit" onClick={() => setEditing((isCurrentlyEditing) => !isCurrentlyEditing)} size="large">
             <EditIcon />
           </IconButton>
           <IconButton aria-label="delete" onClick={onDelete} size="large">
@@ -154,7 +143,7 @@ export default function TransactionDetailModal() {
         )}
 
         {!isLoading && transactionData && editing && (
-          <TransactionForm initial={transactionData} onSubmit={onSubmitEdit} loading={updateMut.isLoading} />
+          <TransactionForm initial={transactionData} onSubmit={onSubmitEdit} loading={updateMutation.isPending} />
         )}
       </DialogContent>
 
