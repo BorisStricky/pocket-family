@@ -12,7 +12,7 @@ from sqlmodel import select
 from backend.api.app.models import User, RefreshToken
 
 # --- New tests for preferred tenant functionality ---
-from jose import jwt
+import jwt
 
 
 # Helper to signup and return response
