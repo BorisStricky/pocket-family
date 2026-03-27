@@ -14,7 +14,6 @@ import { FamilyProvider } from "@/features/family/context/FamilyContext";
 import AppRoot from "@/features/app/pages/AppRoot";
 
 import FamiliesPage from "@/features/family/pages/FamiliesPage";
-import AuthTest from "../features/auth/__test-auth__";
 import {
   TransactionsPage,
   TransactionDetailPage,
@@ -47,9 +46,6 @@ export default function AppRouter() {
 
         {/* Accept invite page (public, no auth required) */}
         <Route path="/accept-invite" element={<AcceptInvitePage />} />
-
-        {/* Test route for auth (remove in production) */}
-        <Route path="/test-auth" element={<AuthTest />} />
 
         {/* /app - redirect to default family */}
         <Route

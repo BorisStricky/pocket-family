@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import select, delete
 from typing import List, Optional, Any
@@ -155,9 +157,11 @@ async def create_transaction(payload: TransactionCreate, db: AsyncSession = Depe
     except Exception as error:
         # Rollback on any error to maintain consistency
         await db.rollback()
+        logger = logging.getLogger(__name__)
+        logger.exception("Failed to create transaction")
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=f"Failed to create transaction: {str(error)}"
+            detail="Failed to create transaction"
         )
 
     # Return with names using a joined query

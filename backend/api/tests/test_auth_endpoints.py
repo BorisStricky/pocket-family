@@ -9,10 +9,10 @@
 import pytest
 from datetime import datetime, timedelta
 from sqlmodel import select
-from backend.api.app.models import User, RefreshToken
+from app.models import User, RefreshToken
 
 # --- New tests for preferred tenant functionality ---
-from jose import jwt
+import jwt
 
 
 # Helper to signup and return response
@@ -135,8 +135,8 @@ def test_refresh_with_incorrect_token_fails(client):
 
 # --- New tests for authenticate_token helper ---
 from fastapi import HTTPException
-from backend.api.app.auth import authenticate_token, create_access_token, decode_access_token
-from backend.api.app.models import Membership
+from app.auth import authenticate_token, create_access_token, decode_access_token
+from app.models import Membership
 
 
 def test_authenticate_token_decodes_user_and_tenant(client):
@@ -190,7 +190,7 @@ def test_authenticate_token_expired_token_returns_expired(client):
 
 def test_login_with_explicit_tenant_updates_preferred(client, db_session):
     """Test that logging in with explicit tenant_uuid updates user.preferred_tenant_id"""
-    from backend.api.app.models import Membership
+    from app.models import Membership
     from tests.helpers import signup_and_auth
 
     # Setup: Create user with personal tenant
@@ -272,7 +272,7 @@ def test_login_without_tenant_uses_preferred(client, db_session):
 
 def test_login_without_tenant_no_preferred_uses_first(client, db_session):
     """Test that login without tenant and no preferred_tenant_id falls back to first membership"""
-    from backend.api.app.models import Membership
+    from app.models import Membership
     from tests.helpers import signup_and_auth
 
     # Setup: Create user (will have personal tenant as first membership)

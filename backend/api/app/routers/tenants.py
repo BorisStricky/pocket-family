@@ -310,8 +310,8 @@ async def list_members_for_tenant(
     if str(tenant.id) != str(tenant_id):
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token tenant does not match path tenant")
 
-    # enforce role (only owner can invite)
-    if Membership.status == MembershipStatus.ACTIVE:
+    # Reject requests from users whose membership is not active
+    if membership_record.status != MembershipStatus.ACTIVE:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not a member")
 
     tenant_membership_query = select(Membership).where(Membership.tenant_id == tenant_id)

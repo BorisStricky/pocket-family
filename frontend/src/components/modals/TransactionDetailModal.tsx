@@ -4,12 +4,13 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { Dialog, DialogTitle, DialogContent, DialogActions, Button, IconButton, useMediaQuery, Box, Typography, Divider } from '@mui/material';
 import CloseIcon from '@mui/icons-material/Close';
 import EditIcon from '@mui/icons-material/Edit';
-import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import DeleteIcon from '@mui/icons-material/Delete';
-import { useTransaction } from '../../hooks/useTransaction';
-import { useUpdateTransaction, useDeleteTransaction, useDuplicateTransaction } from '../../hooks/useTransactionMutations';
+import { useTransaction } from '@/features/transactions/hooks/useTransaction';
+import { useUpdateTransaction } from '@/features/transactions/hooks/useUpdateTransaction';
+import { useDeleteTransaction } from '@/features/transactions/hooks/useDeleteTransaction';
 import { TransactionForm } from '../TransactionForm';
 import type { Transaction } from '../../types/transaction';
+import type { TransactionUpdate } from '@/features/transactions/types';
 
 /**
  * TransactionDetailModal
@@ -19,7 +20,7 @@ import type { Transaction } from '../../types/transaction';
  * Behavior:
  * - Fetches transaction using useTransaction
  * - Shows readonly detail; toggle to edit by opening edit form in-place
- * - Actions: Edit (switches to form), Duplicate (creates a new tx copy), Delete (confirm)
+ * - Actions: Edit (switches to form), Delete (confirm)
  *
  * On close: navigate back to parent route (history.back equivalent)
  */
@@ -28,10 +29,12 @@ export default function TransactionDetailModal() {
   const { family_id: familyId, transactionId } = useParams() as { family_id?: string; transactionId?: string };
   const navigate = useNavigate();
   const isSmall = useMediaQuery('(max-width:600px)');
-  const { data: tx, isLoading, error } = useTransaction(familyId || '', transactionId);
-  const updateMut = useUpdateTransaction(familyId || '');
-  const deleteMut = useDeleteTransaction(familyId || '');
-  const dupMut = useDuplicateTransaction(familyId || '');
+  // Fetch transaction by ID; the hook only needs transactionId (tenant validated server-side via JWT)
+  const { data: transactionData, isLoading, error } = useTransaction(transactionId || '');
+  // Update mutation scoped to the current transaction
+  const updateMutation = useUpdateTransaction(transactionId || '');
+  // Delete mutation accepts transactionId at call time, no constructor params needed
+  const deleteMutation = useDeleteTransaction();
 
   // Local state: whether in-edit mode (simple approach)
   const [editing, setEditing] = React.useState(false);
@@ -57,43 +60,32 @@ export default function TransactionDetailModal() {
     const ok = window.confirm('Delete transaction? This action cannot be undone.');
     if (!ok) return;
     try {
-      await deleteMut.mutateAsync(transactionId);
+      await deleteMutation.mutateAsync(transactionId);
       close();
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       alert('Failed to delete transaction');
-    }
-  };
-
-  const onDuplicate = async () => {
-    if (!transactionId) return;
-    try {
-      await dupMut.mutateAsync(transactionId);
-      // optionally close and let caller refresh list
-      close();
-    } catch (e) {
-      console.error(e);
-      alert('Failed to duplicate transaction');
     }
   };
 
   const onSubmitEdit = async (formData: Partial<Transaction>) => {
     if (!transactionId) return;
     try {
-      await updateMut.mutateAsync({ transactionId, body: formData });
+      // Cast to TransactionUpdate since the form returns partial transaction fields
+      await updateMutation.mutateAsync(formData as TransactionUpdate);
       setEditing(false);
-    } catch (e) {
-      console.error(e);
+    } catch (error) {
+      console.error(error);
       alert('Failed to update transaction');
     }
   };
 
   const title = useMemo(() => {
-    if (tx) {
-      return `${tx.transaction_type === 'income' ? 'Income' : 'Expense'} • ${tx.amount} ${tx.currency}`;
+    if (transactionData) {
+      return `${transactionData.transaction_type === 'income' ? 'Income' : 'Expense'} • ${transactionData.amount} ${transactionData.currency}`;
     }
     return 'Transaction';
-  }, [tx]);
+  }, [transactionData]);
 
   return (
     <Dialog
@@ -107,14 +99,11 @@ export default function TransactionDetailModal() {
       <DialogTitle id="transaction-detail-title" sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
           <Typography variant="h6">{title}</Typography>
-          {tx && <Typography variant="caption" color="text.secondary">{tx.transaction_date}</Typography>}
+          {transactionData && <Typography variant="caption" color="text.secondary">{transactionData.transaction_date}</Typography>}
         </Box>
 
         <Box>
-          <IconButton aria-label="duplicate" onClick={onDuplicate} size="large">
-            <ContentCopyIcon />
-          </IconButton>
-          <IconButton aria-label="edit" onClick={() => setEditing((s) => !s)} size="large">
+          <IconButton aria-label="edit" onClick={() => setEditing((isCurrentlyEditing) => !isCurrentlyEditing)} size="large">
             <EditIcon />
           </IconButton>
           <IconButton aria-label="delete" onClick={onDelete} size="large">
@@ -129,32 +118,32 @@ export default function TransactionDetailModal() {
       <DialogContent dividers>
         {isLoading && <Typography>Loading...</Typography>}
         {error && <Typography color="error">Failed to load transaction</Typography>}
-        {!isLoading && tx && !editing && (
+        {!isLoading && transactionData && !editing && (
           <Box sx={{ display: 'grid', gap: 1 }}>
             <Typography variant="subtitle2">Amount</Typography>
-            <Typography>{tx.amount} {tx.currency}</Typography>
+            <Typography>{transactionData.amount} {transactionData.currency}</Typography>
             <Divider />
             <Typography variant="subtitle2">Account</Typography>
-            <Typography>{tx.account_id}</Typography>
+            <Typography>{transactionData.account_id}</Typography>
             <Divider />
             <Typography variant="subtitle2">Category</Typography>
-            <Typography>{tx.category_id || 'Uncategorized'}</Typography>
+            <Typography>{transactionData.category_id || 'Uncategorized'}</Typography>
             <Divider />
             <Typography variant="subtitle2">Date</Typography>
-            <Typography>{tx.transaction_date}</Typography>
+            <Typography>{transactionData.transaction_date}</Typography>
             <Divider />
             <Typography variant="subtitle2">Description</Typography>
-            <Typography>{tx.description || '-'}</Typography>
+            <Typography>{transactionData.description || '-'}</Typography>
             <Divider />
             <Typography variant="subtitle2">Meta</Typography>
-            <Typography variant="caption">Created by: {tx.created_by}</Typography>
-            <Typography variant="caption">Created: {new Date(tx.created_at).toLocaleString()}</Typography>
-            <Typography variant="caption">Updated: {new Date(tx.updated_at).toLocaleString()}</Typography>
+            <Typography variant="caption">Created by: {transactionData.created_by}</Typography>
+            <Typography variant="caption">Created: {new Date(transactionData.created_at).toLocaleString()}</Typography>
+            <Typography variant="caption">Updated: {new Date(transactionData.updated_at).toLocaleString()}</Typography>
           </Box>
         )}
 
-        {!isLoading && tx && editing && (
-          <TransactionForm initial={tx} onSubmit={onSubmitEdit} loading={updateMut.isLoading} />
+        {!isLoading && transactionData && editing && (
+          <TransactionForm initial={transactionData} onSubmit={onSubmitEdit} loading={updateMutation.isPending} />
         )}
       </DialogContent>
 

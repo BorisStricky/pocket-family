@@ -11,7 +11,7 @@ import Button from '../atoms/Button';
 export interface TransactionsListProps {
   data?: Transaction[]; // optional: if omitted, component shows loading or empty
   loading?: boolean;
-  onRowClick?: (tx: Transaction) => void;
+  onRowClick?: (transaction: Transaction) => void;
   page?: number;
   totalPages?: number;
   onPageChange?: (page: number) => void;
@@ -49,8 +49,8 @@ export const TransactionsList: React.FC<TransactionsListProps> = ({
   return (
     <Box>
       <List>
-        {data.map((tx) => (
-          <TransactionListItem key={tx.id} tx={tx} onClick={onRowClick} />
+        {data.map((transaction) => (
+          <TransactionListItem key={transaction.id} transaction={transaction} onClick={onRowClick} />
         ))}
       </List>
 

@@ -155,8 +155,8 @@ def test_switch_tenant_updates_preferred_tenant(client, db_session):
 
     This ensures when users log out and back in, they continue with their last active tenant.
     """
-    from backend.api.app.models import User, Membership
-    from backend.api.app.auth import decode_access_token
+    from app.models import User, Membership
+    from app.auth import decode_access_token
     from sqlmodel import select
 
     # Setup: Create user with personal tenant

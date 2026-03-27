@@ -9,7 +9,7 @@ import Chip from '../atoms/Chip';
 import Icon from '../atoms/Icon';
 
 export interface TransactionsFilterBarProps {
-  onSearch?: (q: string) => void;
+  onSearch?: (searchQuery: string) => void;
   onCategoryChange?: (value: string | number) => void;
   onClear?: () => void;
   categories?: { label: string; value: string }[];

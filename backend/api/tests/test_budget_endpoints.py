@@ -16,7 +16,7 @@ including:
 
 import pytest
 from decimal import Decimal
-from datetime import date, datetime
+from datetime import date, datetime, timezone
 from uuid import uuid4
 
 from httpx import AsyncClient
@@ -828,8 +828,8 @@ class TestSpentCalculation:
         creates expense transactions in both categories. Verifies the
         spent amount is the sum of all matching transactions.
         """
-        current_month = datetime.utcnow().month
-        current_year = datetime.utcnow().year
+        current_month = datetime.now(timezone.utc).month
+        current_year = datetime.now(timezone.utc).year
 
         # Create budget with two categories
         budget = Budget(
@@ -919,8 +919,8 @@ class TestSpentCalculation:
         Creates a budget with no linked categories, then creates
         transactions in different categories. Verifies all are counted.
         """
-        current_month = datetime.utcnow().month
-        current_year = datetime.utcnow().year
+        current_month = datetime.now(timezone.utc).month
+        current_year = datetime.now(timezone.utc).year
 
         # Create universal budget (no categories)
         budget = Budget(
@@ -985,8 +985,8 @@ class TestSpentCalculation:
         Creates both expense and income transactions. Only expenses
         should be included in the spent total.
         """
-        current_month = datetime.utcnow().month
-        current_year = datetime.utcnow().year
+        current_month = datetime.now(timezone.utc).month
+        current_year = datetime.now(timezone.utc).year
 
         # Universal budget (no categories)
         budget = Budget(
@@ -1065,8 +1065,8 @@ class TestSpentCalculation:
         async_session.add(budget_category)
         await async_session.commit()
 
-        current_month = datetime.utcnow().month
-        current_year = datetime.utcnow().year
+        current_month = datetime.now(timezone.utc).month
+        current_year = datetime.now(timezone.utc).year
 
         response = await async_client.get(
             f"/budgets/{budget.id}?month={current_month}&year={current_year}",
@@ -2205,8 +2205,8 @@ class TestCurrencyFiltering:
         Creates both BRL and USD transactions in the same category.
         Only the BRL transactions should count toward the BRL budget's spent.
         """
-        current_month = datetime.utcnow().month
-        current_year = datetime.utcnow().year
+        current_month = datetime.now(timezone.utc).month
+        current_year = datetime.now(timezone.utc).year
 
         # Create BRL budget
         budget = Budget(
@@ -2280,8 +2280,8 @@ class TestCurrencyFiltering:
         Creates BRL and USD transactions. Only USD transactions should
         be summed in the USD budget's spent calculation.
         """
-        current_month = datetime.utcnow().month
-        current_year = datetime.utcnow().year
+        current_month = datetime.now(timezone.utc).month
+        current_year = datetime.now(timezone.utc).year
 
         # Create USD budget
         budget = Budget(
@@ -2356,8 +2356,8 @@ class TestCurrencyFiltering:
         Creates a BRL universal budget and transactions in both BRL and USD.
         Only BRL transactions should count toward spent, regardless of category.
         """
-        current_month = datetime.utcnow().month
-        current_year = datetime.utcnow().year
+        current_month = datetime.now(timezone.utc).month
+        current_year = datetime.now(timezone.utc).year
 
         # BRL universal budget (no categories)
         budget = Budget(
@@ -2439,8 +2439,8 @@ class TestCurrencyFiltering:
         linked to the same category. Verifies each budget's spent only
         includes transactions matching its own currency.
         """
-        current_month = datetime.utcnow().month
-        current_year = datetime.utcnow().year
+        current_month = datetime.now(timezone.utc).month
+        current_year = datetime.now(timezone.utc).year
 
         # BRL budget
         brl_budget = Budget(

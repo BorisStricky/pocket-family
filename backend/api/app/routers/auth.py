@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlmodel import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 from uuid import UUID
 
@@ -94,11 +94,11 @@ async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depen
         email=payload.email,
         password_hash=hash_password(payload.password),
         name=payload.name,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.add(user)
     # create tenant for user by default
-    tenant = Tenant(name=f"{payload.name or payload.email}'s family", created_at=datetime.utcnow())
+    tenant = Tenant(name=f"{payload.name or payload.email}'s family", created_at=datetime.now(timezone.utc).replace(tzinfo=None))
 
     db.add(tenant)
     await db.flush()  # ensure tenant/user ids populated
@@ -107,7 +107,7 @@ async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depen
         user_email=user.email,
         tenant_id=tenant.id,
         role="owner",
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.add(membership)
 
@@ -125,8 +125,8 @@ async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depen
     refresh_token_record = RefreshToken(
         user_id=user.id,
         token_hash=hash_token(raw_refresh_token),
-        issued_at=datetime.utcnow(),
-        expires_at=datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+        issued_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
         revoked=False,
     )
     db.add(refresh_token_record)
@@ -195,8 +195,8 @@ async def login(payload: LoginIn, response: Response, db: AsyncSession = Depends
     refresh_token_record = RefreshToken(
         user_id=user.id,
         token_hash=hash_token(raw_refresh_token),
-        issued_at=datetime.utcnow(),
-        expires_at=datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+        issued_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
         revoked=False,
     )
     db.add(refresh_token_record)
@@ -244,7 +244,7 @@ async def refresh(request: Request, response: Response, db: AsyncSession = Depen
     refresh_token_lookup_query = select(RefreshToken).where(RefreshToken.token_hash == refresh_token_hash, RefreshToken.revoked == False)
     refresh_token_query_result = await db.execute(refresh_token_lookup_query)
     refresh_token_record = refresh_token_query_result.scalars().first()
-    if not refresh_token_record or refresh_token_record.expires_at < datetime.utcnow():
+    if not refresh_token_record or refresh_token_record.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
     user = await db.get(User, refresh_token_record.user_id)
     if not user:
@@ -255,8 +255,8 @@ async def refresh(request: Request, response: Response, db: AsyncSession = Depen
     new_rt = RefreshToken(
         user_id=user.id,
         token_hash=hash_token(new_raw_refresh_token),
-        issued_at=datetime.utcnow(),
-        expires_at=datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
+        issued_at=datetime.now(timezone.utc).replace(tzinfo=None),
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
         revoked=False,
     )
     db.add(new_rt)
@@ -362,9 +362,9 @@ async def create_invite(
         email=payload.email,
         token_hash=hash_token(raw_invite_token),
         role=payload.role,
-        expires_at=datetime.utcnow() + timedelta(days=7),
+        expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=7),
         consumed=False,
-        created_at=datetime.utcnow(),
+        created_at=datetime.now(timezone.utc).replace(tzinfo=None),
     )
     db.add(invite_record)
     await db.commit()

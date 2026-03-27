@@ -1,11 +1,11 @@
 import os
 import secrets
 import hashlib
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any
 
-from jose import jwt, JWTError
-from jose.exceptions import ExpiredSignatureError
+import jwt
+from jwt import ExpiredSignatureError, InvalidTokenError
 from fastapi import HTTPException, status
 from passlib.context import CryptContext
 
@@ -62,7 +62,8 @@ def create_access_token(token_payload: Dict[str, Any], expires_delta: Optional[t
         Encoded JWT string.
     """
     claims_to_encode = token_payload.copy()
-    expiration_time = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
+    # Use naive UTC datetimes to match TIMESTAMP WITHOUT TIME ZONE columns in PostgreSQL
+    expiration_time = datetime.now(timezone.utc).replace(tzinfo=None) + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     claims_to_encode.update({"exp": expiration_time})
     encoded_access_token = jwt.encode(claims_to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_access_token
@@ -79,7 +80,7 @@ def decode_access_token(encoded_access_token: str) -> Optional[Dict[str, Any]]:
     try:
         token_payload = jwt.decode(encoded_access_token, SECRET_KEY, algorithms=[ALGORITHM])
         return token_payload
-    except JWTError:
+    except InvalidTokenError:
         return None
 
 def make_refresh_token() -> str:
@@ -121,7 +122,7 @@ def authenticate_token(token: str) -> Dict[str, Any]:
     Notes:
     - We expect access tokens created via create_access_token to include at least
       "sub" (user identifier) and "tenant_id" claims.
-    - Uses python-jose for verification which will raise ExpiredSignatureError for expired tokens.
+    - Uses PyJWT for verification which will raise ExpiredSignatureError for expired tokens.
 
     Args:
         token: Encoded JWT access token from an Authorization header.
@@ -130,12 +131,12 @@ def authenticate_token(token: str) -> Dict[str, Any]:
         A dict with 'user_id' and 'tenant_id' extracted from the token payload.
     """
     try:
-        # Decode the JWT and verify signature + expiration using python-jose
+        # Decode the JWT and verify signature + expiration using PyJWT
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
     except ExpiredSignatureError:
         # Token is structurally valid but the exp claim is in the past
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token expired")
-    except JWTError:
+    except InvalidTokenError:
         # Any other JWT error (bad signature, malformed, wrong alg, etc.)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 

@@ -26,8 +26,8 @@ dependencies = [
     "redis==5.1.1",
 
     # Security & password hashing
-    "passlib[bcrypt]==1.7.4",
-    "python-jose[cryptography]==3.3.0",
+    "passlib[argon2]==1.7.4",
+    "PyJWT==2.10.1",
     "argon2-cffi",
 ]
 

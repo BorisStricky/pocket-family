@@ -118,8 +118,8 @@ export function CategorySelect({
   // Parents sorted alphabetically, children sorted alphabetically within each parent
   const sortedCategories = useMemo(() => {
     // Separate parents and children
-    const parents = filteredCategories.filter(cat => cat.parent_id === null);
-    const children = filteredCategories.filter(cat => cat.parent_id !== null);
+    const parents = filteredCategories.filter(category => category.parent_id === null);
+    const children = filteredCategories.filter(category => category.parent_id !== null);
 
     // Sort parents alphabetically
     parents.sort((a, b) => a.name.localeCompare(b.name));

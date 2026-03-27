@@ -18,10 +18,17 @@ __pycache__/
 frontend/node_modules
 frontend/.vite/
 frontend/dist
+frontend/coverage/
 
-#Obsidian config
+# Logs
+*.log
+
+# IDE
+.vscode/settings.json
+
+# Obsidian config
 .obsidian
+
 # Note: .env.example files are intentionally not ignored - they should be committed
 .claude/settings.local.json
 .claude/worktrees/
-.claude/settings.local.json
