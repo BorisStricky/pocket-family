@@ -69,6 +69,7 @@ class Currency(str, Enum):
     BRL = "BRL"
     USD = "USD"
     EUR = "EUR"
+    RSD = "RSD"
 
 class ShareVisibility(str, Enum):
     """Controls whether an account's balance is visible to a membership."""
@@ -101,10 +102,16 @@ class Tenant(SQLModel, table=True):
     Attributes:
         id: Unique tenant identifier.
         name: Human-readable tenant name.
+        default_currency: The main currency for this family. All transaction amounts
+            are stored in this currency after conversion. Defaults to BRL.
         created_at: Timestamp when the tenant was created.
     """
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     name: str
+    default_currency: Currency = Field(
+        sa_column=Column(SAEnum(Currency, name="account_currency", create_constraint=False), nullable=False),
+        default=Currency.BRL,
+    )
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
 class Membership(SQLModel, table=True):
@@ -237,9 +244,17 @@ class Transaction(SQLModel, table=True):
         default=TransactionType.EXPENSE,
     )
 
+    # amount is always stored in the family's default currency after conversion
     amount: Decimal = Field(sa_column=Column(Numeric(18, 2), nullable=False))
-    currency: Currency = Field(
+    # original_amount and original_currency record exactly what the user entered;
+    # when the user enters in the main currency they equal amount and currency respectively
+    original_amount: Decimal = Field(sa_column=Column(Numeric(18, 2), nullable=False))
+    original_currency: Currency = Field(
         sa_column=Column(SAEnum(Currency, name="transaction_currency"), nullable=False),
+        default=Currency.BRL,
+    )
+    currency: Currency = Field(
+        sa_column=Column(SAEnum(Currency, name="transaction_currency", create_constraint=False), nullable=False),
         default=Currency.BRL,
     )
     created_by: UUID = Field(foreign_key="user.id", nullable=False, index=True)
@@ -363,6 +378,44 @@ class BudgetCategory(SQLModel, table=True):
         )
     )
     added_at: datetime = Field(default_factory=datetime.utcnow)
+
+
+class CurrencyExchangeRate(SQLModel, table=True):
+    """Stores per-family exchange rates for converting foreign currency transactions.
+
+    Each row defines how many units of the family's default currency equal one unit
+    of a foreign currency (e.g. rate=5.0 when default=BRL and currency=USD means
+    1 USD = 5 BRL). The combination of (tenant_id, currency) is unique — there is
+    exactly one rate per foreign currency per family.
+
+    Attributes:
+        id: Unique row identifier.
+        tenant_id: Family this rate belongs to (multi-tenant isolation).
+        currency: The foreign currency this rate applies to.
+        rate: How many units of the family's default currency equal 1 unit of
+            this foreign currency. Stored with 6 decimal places for precision.
+        updated_at: Timestamp of the last rate update.
+    """
+    __tablename__ = "currencyexchangerate"
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "currency", name="uq_exchange_rate_tenant_currency"),
+    )
+
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("tenant.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
+    # Reuses the existing account_currency PostgreSQL enum type (BRL/USD/EUR/RSD)
+    currency: Currency = Field(
+        sa_column=Column(SAEnum(Currency, name="account_currency", create_constraint=False), nullable=False),
+    )
+    rate: Decimal = Field(sa_column=Column(Numeric(18, 6), nullable=False))
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
 
 
 class RefreshToken(SQLModel, table=True):

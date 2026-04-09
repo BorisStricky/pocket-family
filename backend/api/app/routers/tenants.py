@@ -144,6 +144,10 @@ async def update_tenant(tenant_id: UUID, payload: TenantUpdate, db: AsyncSession
     
     if payload.name is not None:
         tenant.name = payload.name
+    if payload.default_currency is not None:
+        # Changing default_currency affects how future transactions are converted
+        # but does NOT retroactively re-convert existing transaction amounts.
+        tenant.default_currency = payload.default_currency
     db.add(tenant)
     await db.commit()
     await db.refresh(tenant)

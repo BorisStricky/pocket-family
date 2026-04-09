@@ -9,7 +9,7 @@ from datetime import date
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_
 
-from ..models import Transaction, Account, Category, Membership, MembershipRole, MembershipStatus, TransactionSource, CategoryKind, AccountShare, User
+from ..models import Transaction, Account, Category, Membership, MembershipRole, MembershipStatus, TransactionSource, CategoryKind, AccountShare, User, CurrencyExchangeRate
 from ..schemas import TransactionCreate, TransactionRead, TransactionUpdate, ActiveContext
 from ..deps import get_db, get_current_user, get_active_context
 
@@ -48,6 +48,8 @@ async def _fetch_transaction_with_names(db: AsyncSession, tenant_id: UUID, trans
         "category_name": row.category_name,
         "amount": transaction.amount,
         "currency": transaction.currency,
+        "original_amount": transaction.original_amount,
+        "original_currency": transaction.original_currency,
         "transaction_date": transaction.transaction_date,
         "transaction_type": transaction.transaction_type,
         "description": transaction.description,
@@ -75,6 +77,8 @@ async def _rows_to_transaction_reads(rows: List[Any]) -> List[dict]:
             "category_name": row.category_name,
             "amount": transaction.amount,
             "currency": transaction.currency,
+            "original_amount": transaction.original_amount,
+            "original_currency": transaction.original_currency,
             "transaction_date": transaction.transaction_date,
             "transaction_type": transaction.transaction_type,
             "description": transaction.description,
@@ -124,14 +128,47 @@ async def create_transaction(payload: TransactionCreate, db: AsyncSession = Depe
     if not account:
         raise HTTPException(status_code=404, detail="account not found")
 
+    # --- Currency conversion ---
+    # Always record what the user entered (original_amount / original_currency).
+    # When the input currency differs from the family's default, look up the
+    # configured exchange rate and compute the main-currency amount.
+    original_amount = payload.amount
+    original_currency = payload.currency or tenant.default_currency
+    input_currency = payload.currency or tenant.default_currency
+
+    if input_currency != tenant.default_currency:
+        # Look up the pre-configured exchange rate for this foreign currency
+        rate_query = select(CurrencyExchangeRate).where(
+            CurrencyExchangeRate.tenant_id == tenant.id,
+            CurrencyExchangeRate.currency == input_currency,
+        )
+        rate_result = await db.execute(rate_query)
+        exchange_rate = rate_result.scalars().first()
+
+        if not exchange_rate:
+            raise HTTPException(
+                status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                detail=f"No exchange rate configured for {input_currency}. "
+                       "Set one in Settings → Currency before recording transactions in this currency.",
+            )
+        # Convert to the main currency; store the main-currency amount in `amount`
+        converted_amount = original_amount * exchange_rate.rate
+        main_currency = tenant.default_currency
+    else:
+        # No conversion needed — user entered in the family's default currency
+        converted_amount = original_amount
+        main_currency = tenant.default_currency
+
     try:
-        # Create transaction record
+        # Create transaction record; `amount` is always in the family's default currency
         transaction_record = Transaction(
             tenant_id=tenant.id,
             account_id=payload.account_id,
             category_id=payload.category_id,
-            amount=payload.amount,
-            currency=payload.currency,
+            amount=converted_amount,
+            currency=main_currency,
+            original_amount=original_amount,
+            original_currency=original_currency,
             transaction_date=payload.transaction_date,
             transaction_type=payload.transaction_type,
             description=payload.description,
@@ -140,12 +177,12 @@ async def create_transaction(payload: TransactionCreate, db: AsyncSession = Depe
         )
         db.add(transaction_record)
 
-        # Update account balance based on transaction type
-        # INCOME increases balance, EXPENSE decreases balance
+        # Update account balance based on transaction type using the converted
+        # (main-currency) amount so all balances stay in a single currency.
         if payload.transaction_type == CategoryKind.INCOME:
-            account.balance += payload.amount
+            account.balance += converted_amount
         elif payload.transaction_type == CategoryKind.EXPENSE:
-            account.balance -= payload.amount
+            account.balance -= converted_amount
 
         db.add(account)
 
@@ -345,10 +382,6 @@ async def update_transaction(transaction_id: UUID, payload: TransactionUpdate, d
 
     if payload.category_id is not None:
         transaction_record.category_id = payload.category_id
-    if payload.amount is not None:
-        transaction_record.amount = payload.amount
-    if payload.currency is not None:
-        transaction_record.currency = payload.currency
     if payload.transaction_date is not None:
         transaction_record.transaction_date = payload.transaction_date
     if payload.transaction_type is not None:
@@ -357,6 +390,35 @@ async def update_transaction(transaction_id: UUID, payload: TransactionUpdate, d
         transaction_record.description = payload.description
     if payload.reconciled is not None:
         transaction_record.reconciled = payload.reconciled
+
+    # Re-apply currency conversion whenever amount or currency is updated.
+    # The effective values are the new payload values, falling back to what
+    # was previously stored on the transaction.
+    if payload.amount is not None or payload.currency is not None:
+        new_original_amount = payload.amount if payload.amount is not None else transaction_record.original_amount
+        new_original_currency = payload.currency if payload.currency is not None else transaction_record.original_currency
+
+        if new_original_currency != tenant.default_currency:
+            rate_query = select(CurrencyExchangeRate).where(
+                CurrencyExchangeRate.tenant_id == tenant.id,
+                CurrencyExchangeRate.currency == new_original_currency,
+            )
+            rate_result = await db.execute(rate_query)
+            exchange_rate = rate_result.scalars().first()
+            if not exchange_rate:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"No exchange rate configured for {new_original_currency}.",
+                )
+            new_converted_amount = new_original_amount * exchange_rate.rate
+        else:
+            new_converted_amount = new_original_amount
+
+        transaction_record.original_amount = new_original_amount
+        transaction_record.original_currency = new_original_currency
+        transaction_record.amount = new_converted_amount
+        transaction_record.currency = tenant.default_currency
+
     db.add(transaction_record)
     await db.commit()
     await db.refresh(transaction_record)

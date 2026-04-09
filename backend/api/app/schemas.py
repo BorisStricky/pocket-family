@@ -101,10 +101,12 @@ class TenantRead(SQLModel):
     Attributes:
         id: Tenant identifier.
         name: Tenant name.
+        default_currency: The family's main currency for transaction conversion.
         created_at: Creation timestamp.
     """
     id: UUID
     name: str
+    default_currency: Currency
     created_at: datetime
 
 
@@ -113,8 +115,11 @@ class TenantUpdate(SQLModel):
 
     Args:
         name: New name for the tenant (optional).
+        default_currency: New default currency (optional). Changing this does not
+            retroactively re-convert existing transactions.
     """
     name: Optional[str] = None
+    default_currency: Optional[Currency] = None
 
 
 # -------------------------
@@ -312,8 +317,11 @@ class TransactionRead(SQLModel):
         tenant_id: Tenant id.
         account_id: Account id.
         category_id: Optional category id.
-        amount: Monetary amount.
-        currency: Currency code.
+        amount: Monetary amount in the family's default currency (after conversion).
+        currency: The family's default currency code (the currency of `amount`).
+        original_amount: Amount exactly as the user entered it (before conversion).
+        original_currency: Currency as the user entered it. Equals `currency` when
+            the transaction was recorded in the family's default currency.
         transaction_date: Date of transaction.
         transaction_type: Expense or income.
         description: Optional text description.
@@ -331,6 +339,8 @@ class TransactionRead(SQLModel):
     category_name: Optional[str]
     amount: Decimal
     currency: Currency
+    original_amount: Decimal
+    original_currency: Currency
     transaction_date: date
     transaction_type: CategoryKind
     description: Optional[str]
@@ -500,3 +510,36 @@ class BudgetUpdate(SQLModel):
     amount: Optional[Decimal] = Field(default=None, gt=0)
     currency: Optional[Currency] = None
     category_ids: Optional[List[UUID]] = None
+
+
+# -------------------------
+# CurrencyExchangeRate
+# -------------------------
+class CurrencyExchangeRateRead(SQLModel):
+    """Read schema for a per-family exchange rate.
+
+    Attributes:
+        id: Exchange rate record identifier.
+        tenant_id: Family this rate belongs to.
+        currency: The foreign currency (not the family's default).
+        rate: How many units of the family's default currency equal 1 unit of
+            this foreign currency (e.g. 5.5 when default=BRL, currency=USD).
+        updated_at: Timestamp of last update.
+    """
+    id: UUID
+    tenant_id: UUID
+    currency: Currency
+    rate: Decimal
+    updated_at: datetime
+
+
+class CurrencyExchangeRateUpdate(SQLModel):
+    """Input schema for creating or updating an exchange rate.
+
+    The currency is provided in the URL path, not in the body.
+
+    Args:
+        rate: Exchange rate — units of family default currency per 1 unit of
+            the foreign currency. Must be greater than zero.
+    """
+    rate: Decimal = Field(gt=0)
