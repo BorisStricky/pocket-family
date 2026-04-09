@@ -26,6 +26,7 @@ import { DeleteCategoryConfirm } from '@/features/category/components/DeleteCate
 import { MembersList } from '@/features/family/components/MembersList';
 import { InviteMemberModal } from '@/features/family/components/InviteMemberModal';
 import { FamilySettings } from '@/features/family/components/FamilySettings';
+import { CurrencySettings } from '../components/CurrencySettings';
 import { useCategories } from '@/features/category/hooks/useCategories';
 import { useCreateCategory } from '@/features/category/hooks/useCreateCategory';
 import { useUpdateCategory } from '@/features/category/hooks/useUpdateCategory';
@@ -282,6 +283,7 @@ export function SettingsPage() {
           <Tabs value={activeTab} onChange={handleTabChange} aria-label="settings tabs">
             <Tab label="Categories" value="categories" />
             <Tab label="Family" value="family" />
+            <Tab label="Currency" value="currency" />
             {/* Future tabs: Profile, Notifications, Preferences */}
           </Tabs>
         </Box>
@@ -305,6 +307,22 @@ export function SettingsPage() {
               onDelete={handleOpenDeleteModal}
               onAddRoot={(kind) => handleOpenAddModal(undefined, kind)}
             />
+          </Paper>
+        )}
+
+        {/* Currency Tab Panel - Default currency and exchange rate configuration */}
+        {activeTab === 'currency' && (
+          <Paper sx={{ padding: 3 }}>
+            {familyData ? (
+              <CurrencySettings
+                family={familyData}
+                currentUserMembership={currentUserMembership}
+              />
+            ) : (
+              <Box sx={{ display: 'flex', justifyContent: 'center', py: 4 }}>
+                <CircularProgress />
+              </Box>
+            )}
           </Paper>
         )}
 

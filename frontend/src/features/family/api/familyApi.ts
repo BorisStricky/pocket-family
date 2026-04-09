@@ -4,7 +4,7 @@
 
 import { apiFetch } from '@/lib/apiClient';
 import { API_ENDPOINTS } from '@/lib/constants';
-import type { TenantRead, TenantCreate, MembershipRead, MembershipCreate } from '@/types/family';
+import type { TenantRead, TenantCreate, TenantUpdate, MembershipRead, MembershipCreate } from '@/types/family';
 import type { TokenResponse } from '@/types';
 
 /**
@@ -53,6 +53,20 @@ export async function switchFamily(familyId: string): Promise<TokenResponse> {
 export async function createFamily(data: TenantCreate): Promise<TenantRead> {
   return apiFetch(API_ENDPOINTS.TENANTS, {
     method: 'POST',
+    body: JSON.stringify(data),
+  });
+}
+
+/**
+ * Update a family/tenant's properties (name, default_currency)
+ * Calls PATCH /tenants/{tenant_id}
+ * Only the owner of the family can update it
+ * All fields are optional — only provided fields are updated
+ */
+export async function updateFamily(familyId: string, data: TenantUpdate): Promise<TenantRead> {
+  const url = API_ENDPOINTS.TENANT_BY_ID.replace(':id', familyId);
+  return apiFetch(url, {
+    method: 'PATCH',
     body: JSON.stringify(data),
   });
 }

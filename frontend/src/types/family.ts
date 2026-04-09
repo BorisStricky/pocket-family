@@ -9,7 +9,19 @@
 export interface TenantRead {
   id: string; // UUID
   name: string; // Family/tenant display name
+  // The family's main currency. All transaction amounts are stored in this currency
+  // after conversion from whatever currency the user entered.
+  default_currency: string; // BRL | USD | EUR | RSD
   created_at: string; // ISO datetime string
+}
+
+/**
+ * TenantUpdate schema - request body for PATCH /tenants/{tenant_id}
+ * Used by owners to update family properties. All fields are optional.
+ */
+export interface TenantUpdate {
+  name?: string;
+  default_currency?: string; // BRL | USD | EUR | RSD
 }
 
 /**

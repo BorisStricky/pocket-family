@@ -8,6 +8,11 @@ import { CategoryKind, TransactionSource } from '@/types';
  * TransactionRead represents the full transaction response from the API
  * Includes joined account_name and category_name from related tables
  * Matches backend TransactionRead schema
+ *
+ * Currency fields:
+ *   - amount / currency      → always in the family's default currency (post-conversion)
+ *   - original_amount / original_currency → exactly what the user entered; equals
+ *     amount/currency when the transaction was recorded in the default currency
  */
 export interface TransactionRead {
   id: string;
@@ -16,8 +21,14 @@ export interface TransactionRead {
   account_name: string;
   category_id: string | null;
   category_name: string | null;
+  // Amount in the family's default currency after conversion
   amount: string; // Decimal returned as string for precision
-  currency: string;
+  // The family's default currency code (e.g. 'BRL')
+  currency: string; // BRL | USD | EUR | RSD
+  // Amount exactly as the user entered it (before any conversion)
+  original_amount: string; // Decimal returned as string for precision
+  // Currency the user selected when recording the transaction
+  original_currency: string; // BRL | USD | EUR | RSD
   transaction_date: string; // ISO date string (YYYY-MM-DD)
   transaction_type: CategoryKind;
   description: string | null;

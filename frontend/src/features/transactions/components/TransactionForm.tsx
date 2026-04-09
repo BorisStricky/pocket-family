@@ -16,6 +16,7 @@ import {
   InputLabel,
   Stack,
   CircularProgress,
+  Chip,
 } from "@mui/material";
 import { DatePicker } from "@mui/x-date-pickers/DatePicker";
 import { LocalizationProvider } from "@mui/x-date-pickers/LocalizationProvider";
@@ -24,6 +25,8 @@ import { enUS } from "date-fns/locale";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import { useCategories } from "@/features/category/hooks/useCategories";
 import { CategorySelect } from "@/components/domain/CategorySelect";
+import { useFamilyById } from "@/features/family/hooks/useFamilyById";
+import { useExchangeRates } from "@/features/settings/hooks/useExchangeRates";
 import type { TransactionRead, TransactionCreate } from "../types";
 import type { CategoryRead } from "@/types/category";
 
@@ -104,9 +107,18 @@ export function TransactionForm({
   const { data: categories = [], isLoading: isLoadingCategories } =
     useCategories(familyId);
 
+  // Fetch family data to determine the default currency for conversion preview
+  const { data: family } = useFamilyById(familyId);
+  const familyDefaultCurrency = family?.default_currency ?? "BRL";
+
+  // Fetch configured exchange rates for this family so the form can compute
+  // a live conversion preview when the user picks a foreign currency
+  const { data: exchangeRates = [] } = useExchangeRates(familyId);
+
   // Set up form with React Hook Form and default values
-  // In edit mode, pre-populate fields from initialData
-  // In create mode, use sensible defaults (today's date, expense type)
+  // In edit mode, pre-populate fields from initialData using the original (pre-conversion)
+  // values so users see what they originally entered, not the converted amount.
+  // In create mode, use sensible defaults (today's date, expense type).
   const {
     control,
     register,
@@ -120,8 +132,9 @@ export function TransactionForm({
           tenant_id: initialData.tenant_id,
           account_id: initialData.account_id,
           category_id: initialData.category_id,
-          amount: initialData.amount,
-          currency: initialData.currency,
+          // Use original_amount/currency so the user edits what they originally typed
+          amount: initialData.original_amount,
+          currency: initialData.original_currency,
           transaction_date: initialData.transaction_date,
           transaction_type: initialData.transaction_type,
           description: initialData.description || "",
@@ -131,7 +144,7 @@ export function TransactionForm({
           account_id: defaultOverrides?.account_id || "",
           category_id: defaultOverrides?.category_id || "",
           amount: "", // Always fresh — amount varies per transaction
-          currency: defaultOverrides?.currency || "BRL",
+          currency: defaultOverrides?.currency || familyDefaultCurrency,
           transaction_date: defaultOverrides?.transaction_date || new Date().toISOString().split("T")[0],
           transaction_type: defaultOverrides?.transaction_type || "expense",
           description: "", // Always fresh — description varies per transaction
@@ -142,8 +155,30 @@ export function TransactionForm({
   // When user switches between expense/income, CategorySelect will only show relevant categories
   const watchedTransactionType = watch("transaction_type");
 
+  // Watch currency and amount so we can compute a live conversion preview
+  const watchedCurrency = watch("currency");
+  const watchedAmount = watch("amount");
+
   // Watch category_id to track selected category for CategorySelect component
   const selectedCategoryId = watch("category_id");
+
+  // Compute the conversion preview: when the selected currency differs from the
+  // family's default, look up the exchange rate and calculate the converted amount
+  const conversionPreview = React.useMemo(() => {
+    if (!watchedCurrency || !watchedAmount || watchedCurrency === familyDefaultCurrency) {
+      return null;
+    }
+    const parsedAmount = Number(watchedAmount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return null;
+    }
+    const exchangeRate = exchangeRates.find((rate) => rate.currency === watchedCurrency);
+    if (!exchangeRate) {
+      return null;
+    }
+    const convertedAmount = (parsedAmount * Number(exchangeRate.rate)).toFixed(2);
+    return `≈ ${convertedAmount} ${familyDefaultCurrency}`;
+  }, [watchedCurrency, watchedAmount, familyDefaultCurrency, exchangeRates]);
 
   // Find selected category object from categories list
   // CategorySelect expects the full category object, not just the ID
@@ -307,7 +342,9 @@ export function TransactionForm({
         />
 
         {/* Currency Selection - Required Field */}
-        {/* Multi-currency support for international transactions */}
+        {/* Supports all four currencies: BRL, USD, EUR, RSD.
+            When the selected currency differs from the family's default, the form
+            shows a live conversion preview below using the configured exchange rate. */}
         <FormControl fullWidth error={!!errors.currency} required>
           <InputLabel id="currency-select-label">Currency</InputLabel>
           <Controller
@@ -324,6 +361,7 @@ export function TransactionForm({
                 <MenuItem value="BRL">Brazilian Real (BRL)</MenuItem>
                 <MenuItem value="USD">United States Dollar (USD)</MenuItem>
                 <MenuItem value="EUR">Euro (EUR)</MenuItem>
+                <MenuItem value="RSD">Serbian Dinar (RSD)</MenuItem>
               </Select>
             )}
           />
@@ -331,6 +369,22 @@ export function TransactionForm({
             <FormHelperText>{errors.currency.message}</FormHelperText>
           )}
         </FormControl>
+
+        {/* Conversion preview — shown only when the selected currency differs from
+            the family's default and a valid exchange rate exists */}
+        {conversionPreview && (
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <Chip
+              label={conversionPreview}
+              size="small"
+              color="info"
+              variant="outlined"
+            />
+            <Typography variant="caption" color="text.secondary">
+              estimated in {familyDefaultCurrency} using your configured exchange rate
+            </Typography>
+          </Box>
+        )}
 
         {/* Transaction Date Input - Required Field */}
         {/* Uses MUI DatePicker for consistent dd-MMM-yyyy format across the app */}
