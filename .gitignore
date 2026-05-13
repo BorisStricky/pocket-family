@@ -32,3 +32,4 @@ frontend/coverage/
 # Note: .env.example files are intentionally not ignored - they should be committed
 .claude/settings.local.json
 .claude/worktrees/
+.env.aws.production

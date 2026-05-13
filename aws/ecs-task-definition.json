@@ -1,0 +1,137 @@
+{
+  "_comment": [
+    "ECS Task Definition template for pocket-family on AWS Fargate.",
+    "",
+    "BEFORE USE — replace every <PLACEHOLDER> value:",
+    "  <AWS_ACCOUNT_ID>  — your 12-digit AWS account ID",
+    "  <AWS_REGION>      — e.g. us-east-1",
+    "  <DB_HOST>         — your Aurora Serverless v2 cluster writer endpoint",
+    "  <DB_USER>         — the IAM-mapped PostgreSQL user (e.g. iam_app_user)",
+    "  <JWT_SECRET>      — output of: openssl rand -hex 32",
+    "  <ALB_OR_DOMAIN>   — the public URL users hit, e.g. https://pocket-family.example.com",
+    "",
+    "DATABASE CONNECTION:",
+    "  DB_INSTANCE=aws_aurora_serverless enables IAM database authentication.",
+    "  The backend generates short-lived IAM auth tokens via boto3 — no static DB password needed.",
+    "  The ECS task role (taskRoleArn) must have rds-db:connect permission for the Aurora cluster.",
+    "",
+    "NETWORKING (awsvpc mode):",
+    "  Both containers share a single network namespace (like processes on the same host).",
+    "  They communicate via localhost — Docker DNS service names do not exist here.",
+    "  nginx in the frontend container proxies /api/ to localhost:8000 (the backend).",
+    "  The ALB forwards port 80 traffic to the frontend container on port 80.",
+    "  The backend is NOT directly reachable from outside the task.",
+    "",
+    "REGISTRATION:",
+    "  aws ecs register-task-definition --cli-input-json file://aws/ecs-task-definition.json",
+    "",
+    "DEPLOYMENT:",
+    "  aws ecs update-service --cluster pocket-family --service pocket-family-svc --force-new-deployment",
+    "",
+    "MIGRATIONS (run once after first deploy or after schema changes):",
+    "  aws ecs run-task --cluster pocket-family --task-definition pocket-family \\",
+    "    --network-configuration 'awsvpcConfiguration={subnets=[<subnet-id>],securityGroups=[<sg-id>]}' \\",
+    "    --overrides '{\"containerOverrides\":[{\"name\":\"backend\",\"command\":[\"uv\",\"run\",\"alembic\",\"upgrade\",\"head\"]}]}'"
+  ],
+  "family": "pocket-family",
+  "networkMode": "awsvpc",
+  "requiresCompatibilities": ["FARGATE"],
+  "cpu": "512",
+  "memory": "1024",
+  "executionRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/ecsTaskExecutionRole",
+  "taskRoleArn": "arn:aws:iam::<AWS_ACCOUNT_ID>:role/pocketFamilyTaskRole",
+  "containerDefinitions": [
+    {
+      "name": "backend",
+      "image": "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/pocket-family-backend:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 8000,
+          "protocol": "tcp"
+        }
+      ],
+      "environment": [
+        {
+          "name": "DB_INSTANCE",
+          "value": "aws_aurora_serverless"
+        },
+        {
+          "name": "DB_HOST",
+          "value": "<DB_HOST>"
+        },
+        {
+          "name": "DB_PORT",
+          "value": "5432"
+        },
+        {
+          "name": "DB_USER",
+          "value": "<DB_USER>"
+        },
+        {
+          "name": "DB_NAME",
+          "value": "pfinancedb"
+        },
+        {
+          "name": "AWS_REGION",
+          "value": "<AWS_REGION>"
+        },
+        {
+          "name": "JWT_SECRET",
+          "value": "<JWT_SECRET>"
+        },
+        {
+          "name": "TEST_MODE",
+          "value": "0"
+        },
+        {
+          "name": "CORS_ORIGINS",
+          "value": "<ALB_OR_DOMAIN>"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/pocket-family",
+          "awslogs-region": "<AWS_REGION>",
+          "awslogs-stream-prefix": "backend"
+        }
+      },
+      "healthCheck": {
+        "command": [
+          "CMD-SHELL",
+          "curl -f http://localhost:8000/ping || exit 1"
+        ],
+        "interval": 15,
+        "timeout": 5,
+        "retries": 3,
+        "startPeriod": 10
+      }
+    },
+    {
+      "name": "frontend",
+      "image": "<AWS_ACCOUNT_ID>.dkr.ecr.<AWS_REGION>.amazonaws.com/pocket-family-frontend:latest",
+      "essential": true,
+      "portMappings": [
+        {
+          "containerPort": 80,
+          "protocol": "tcp"
+        }
+      ],
+      "dependsOn": [
+        {
+          "containerName": "backend",
+          "condition": "HEALTHY"
+        }
+      ],
+      "logConfiguration": {
+        "logDriver": "awslogs",
+        "options": {
+          "awslogs-group": "/ecs/pocket-family",
+          "awslogs-region": "<AWS_REGION>",
+          "awslogs-stream-prefix": "frontend"
+        }
+      }
+    }
+  ]
+}
