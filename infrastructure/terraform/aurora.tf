@@ -1,0 +1,53 @@
+# Aurora Serverless v2 with IAM database authentication.
+#
+# Free-tier eligible up to 4 ACUs + 1 GiB storage per cluster (as of 2026).
+# min_acu = 0 scales the cluster to zero when idle — no charges between requests.
+#
+# The PostgreSQL-level setup (CREATE USER pf_iam_app_user; GRANT rds_iam ...;
+# CREATE DATABASE pfinancedb) is NOT in this template. Run it via CloudShell + psql
+# after the cluster comes up — see infrastructure/README.md.
+
+resource "aws_db_subnet_group" "aurora" {
+  name        = "${var.project_name}-aurora-subnets"
+  description = "Subnets for Aurora Serverless cluster"
+  subnet_ids  = data.aws_subnets.default.ids
+}
+
+resource "aws_rds_cluster" "main" {
+  cluster_identifier   = "${var.project_name}-db"
+  engine               = "aurora-postgresql"
+  engine_mode          = "provisioned" # Serverless v2 uses provisioned mode with serverlessv2_scaling_configuration
+  engine_version       = "15.4"
+  database_name        = var.db_name
+  master_username      = var.db_master_username
+  master_password      = var.db_master_password
+  db_subnet_group_name = aws_db_subnet_group.aurora.name
+
+  vpc_security_group_ids              = [aws_security_group.aurora.id]
+  iam_database_authentication_enabled = true
+  storage_encrypted                   = true
+
+  # Skip the final snapshot for an easy `terraform destroy` — change in production.
+  skip_final_snapshot       = true
+  final_snapshot_identifier = null
+
+  serverlessv2_scaling_configuration {
+    min_capacity = var.min_acu
+    max_capacity = var.max_acu
+  }
+
+  lifecycle {
+    # master_password is set once at create time; later changes happen via psql.
+    ignore_changes = [master_password]
+  }
+}
+
+# At least one cluster instance is required even for Serverless v2.
+resource "aws_rds_cluster_instance" "writer" {
+  identifier         = "${var.project_name}-db-writer"
+  cluster_identifier = aws_rds_cluster.main.id
+  instance_class     = "db.serverless"
+  engine             = aws_rds_cluster.main.engine
+  engine_version     = aws_rds_cluster.main.engine_version
+  publicly_accessible = false
+}

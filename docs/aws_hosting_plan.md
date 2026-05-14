@@ -126,7 +126,7 @@ The ECS task role (separate from the execution role) needs `rds-db:connect` perm
 }
 ```
 
-- [ ] Todo[text](about:blank#blocked)
+- [X] Done
 
 Find `<CLUSTER_RESOURCE_ID>` in the RDS console under the cluster's "Configuration" tab (looks like `cluster-XXXXXXXXXXXXXXXXXXXXXXXXXX`).
 
@@ -150,19 +150,19 @@ aws iam put-role-policy --role-name pocketFamilyTaskRole \
 
 ### 1c. Create a CloudWatch log group
 
-- [ ] Todo
+- [X]
 ```bash
 aws logs create-log-group --log-group-name /ecs/pocket-family --region <AWS_REGION>
 ```
 
 ### 1d. Create an ECS cluster
- - [ ] Todo
+ - [X] 
 ```bash
 aws ecs create-cluster --cluster-name pocket-family --capacity-providers FARGATE
 ```
 
 ### 1e. Create an Application Load Balancer
-- [ ] Done
+- [X] Done
 
 - Scheme: Internet-facing
 - Listeners: port 80 (add HTTPS/443 + ACM certificate when you have a domain)
