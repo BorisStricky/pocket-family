@@ -1,0 +1,19 @@
+# Copy to terraform.tfvars and fill in real values before `terraform apply`.
+# terraform.tfvars is gitignored — never commit secrets.
+
+# Region defaults to us-east-1; override only if you need a different one.
+# aws_region = "us-east-1"
+
+# Sensitive — generate fresh values:
+#   db_master_password = $(openssl rand -base64 24)
+#   jwt_secret         = $(openssl rand -hex 32)
+db_master_password = "REPLACE_ME_openssl_rand_base64_24"
+jwt_secret         = "REPLACE_ME_openssl_rand_hex_32"
+
+# Leave empty on first apply. After Terraform creates the ALB, copy its DNS
+# from the `alb_dns_name` output and set this, then `terraform apply` again
+# to roll the ECS task definition with the new env var.
+# cors_origins = "http://pocket-family-alb-xxxxxxxxxx.us-east-1.elb.amazonaws.com"
+
+# Optional: enable billing alarms by uncommenting and adding your email.
+# billing_alarm_email = "you@example.com"

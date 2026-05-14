@@ -32,3 +32,11 @@ frontend/coverage/
 # Note: .env.example files are intentionally not ignored - they should be committed
 .claude/settings.local.json
 .claude/worktrees/
+.env.aws.production
+
+# Terraform — secrets and local state
+infrastructure/terraform/terraform.tfvars
+infrastructure/terraform/*.tfstate
+infrastructure/terraform/*.tfstate.backup
+infrastructure/terraform/.terraform/
+infrastructure/terraform/.terraform.lock.hcl
