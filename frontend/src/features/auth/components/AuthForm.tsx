@@ -80,6 +80,7 @@ export function AuthForm({ mode, onSubmit, isLoading = false, error = null }: Au
         gap: 2,
         width: '100%',
         maxWidth: 400,
+        mx: 'auto',
       }}
     >
       <Typography variant="h4" component="h1" sx={{ mb: 2, textAlign: 'center' }}>

@@ -54,7 +54,7 @@ export default function LoginPage() {
       <Container maxWidth="sm">
         <Paper elevation={3} sx={{ p: 4 }}>
           {IS_DEMO_MODE && (
-            <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', gap: 1 }}>
+            <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', gap: 1, maxWidth: 400, mx: 'auto' }}>
               <Button
                 variant="contained"
                 size="large"
