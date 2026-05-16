@@ -17,7 +17,9 @@ export default function DemoBanner() {
       sx={{
         position: 'sticky',
         top: 0,
-        zIndex: (theme) => theme.zIndex.appBar + 2,
+        // Must exceed TopNav's zIndex (drawer + 1 = 1201) so the banner
+        // renders on top of the fixed AppBar instead of behind it.
+        zIndex: (theme) => theme.zIndex.drawer + 2,
       }}
     >
       <Alert

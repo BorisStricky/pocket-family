@@ -18,6 +18,7 @@ import { useNavigate } from 'react-router-dom';
 import { useLogout } from '@/features/auth/hooks/useLogout';
 import { FamilyContext } from '@/features/family/context/FamilyContext';
 import FamilySwitcherMini from '@/components/ui/molecules/FamilySwitcherMini';
+import { IS_DEMO_MODE, LAYOUT } from '@/lib/constants';
 import type { User } from '@/types';
 
 interface TopNavProps {
@@ -79,6 +80,8 @@ export default function TopNav({ user, globalMode = false, onMenuClick }: TopNav
       position="fixed"
       sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
+        // In demo mode, shift down so the sticky DemoBanner above it stays visible.
+        top: IS_DEMO_MODE ? LAYOUT.DEMO_BANNER_HEIGHT : 0,
         bgcolor: 'white',
         color: 'text.primary',
         boxShadow: 1,

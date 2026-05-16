@@ -77,6 +77,9 @@ export const API_ENDPOINTS = {
  */
 export const LAYOUT = {
   DRAWER_WIDTH: 240,
+  // Height of the demo warning banner — used to offset the fixed TopNav so the
+  // banner remains visible above it in demo mode.
+  DEMO_BANNER_HEIGHT: 40,
 } as const;
 
 /**
