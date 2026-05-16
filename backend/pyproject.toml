@@ -32,6 +32,9 @@ dependencies = [
 
     # AWS (lazy-imported only when DB_INSTANCE=aws_aurora_serverless)
     "boto3>=1.34.0",
+
+    # Rate limiting (in-process; primarily to protect demo auth endpoints from abuse)
+    "slowapi==0.1.9",
 ]
 
 [project.optional-dependencies]

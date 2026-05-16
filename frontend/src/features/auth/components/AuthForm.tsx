@@ -4,6 +4,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TextField, Button, Box, Typography, Alert, CircularProgress } from '@mui/material';
+import { IS_DEMO_MODE } from '@/lib/constants';
 
 interface AuthFormProps {
   mode: 'login' | 'signup';
@@ -146,17 +147,22 @@ export function AuthForm({ mode, onSubmit, isLoading = false, error = null }: Au
         )}
       </Button>
 
-      <Box sx={{ textAlign: 'center', mt: 2 }}>
-        <Typography variant="body2">
-          {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
-          <Link
-            to={isSignup ? '/login' : '/signup'}
-            style={{ color: '#044218', textDecoration: 'none' }}
-          >
-            {isSignup ? 'Log in' : 'Sign up'}
-          </Link>
-        </Typography>
-      </Box>
+      {/* Hide the cross-link to /signup when running as the public demo —
+          account creation is disabled there. Still surface the link back to
+          /login from the (informational) signup page. */}
+      {(!IS_DEMO_MODE || isSignup) && (
+        <Box sx={{ textAlign: 'center', mt: 2 }}>
+          <Typography variant="body2">
+            {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
+            <Link
+              to={isSignup ? '/login' : '/signup'}
+              style={{ color: '#044218', textDecoration: 'none' }}
+            >
+              {isSignup ? 'Log in' : 'Sign up'}
+            </Link>
+          </Typography>
+        </Box>
+      )}
     </Box>
   );
 }

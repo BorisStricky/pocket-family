@@ -104,3 +104,17 @@ variable "billing_alarm_email" {
   type        = string
   default     = ""
 }
+
+# ── Demo instance ───────────────────────────────────────────────────────────
+
+variable "demo_mode" {
+  description = "When true, this deployment is the public demo: backend disables signup and the EventBridge daily reset rule is created."
+  type        = bool
+  default     = false
+}
+
+variable "demo_reset_cron" {
+  description = "CloudWatch Events cron expression for the daily demo data reset. AWS cron uses 6 fields (min hour day month day-of-week year). Default 06:00 UTC daily."
+  type        = string
+  default     = "cron(0 6 * * ? *)"
+}

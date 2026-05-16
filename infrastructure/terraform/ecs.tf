@@ -31,13 +31,14 @@ locals {
 
   backend_environment = [
     { name = "DB_INSTANCE", value = "aws_aurora_serverless" },
-    { name = "DB_HOST",     value = aws_rds_cluster.main.endpoint },
-    { name = "DB_PORT",     value = "5432" },
-    { name = "DB_USER",     value = var.db_app_user },
-    { name = "DB_NAME",     value = var.db_name },
-    { name = "AWS_REGION",  value = var.aws_region },
-    { name = "JWT_SECRET",  value = var.jwt_secret },
-    { name = "TEST_MODE",   value = "0" },
+    { name = "DB_HOST", value = aws_rds_cluster.main.endpoint },
+    { name = "DB_PORT", value = "5432" },
+    { name = "DB_USER", value = var.db_app_user },
+    { name = "DB_NAME", value = var.db_name },
+    { name = "AWS_REGION", value = var.aws_region },
+    { name = "JWT_SECRET", value = var.jwt_secret },
+    { name = "TEST_MODE", value = "0" },
+    { name = "DEMO_MODE", value = var.demo_mode ? "1" : "0" },
     { name = "CORS_ORIGINS", value = var.cors_origins },
   ]
 }
@@ -56,6 +57,7 @@ resource "aws_ecs_task_definition" "main" {
       name      = "backend"
       image     = local.backend_image
       essential = true
+      cpu       = 256
       portMappings = [{
         containerPort = 8000
         protocol      = "tcp"
@@ -85,6 +87,7 @@ resource "aws_ecs_task_definition" "main" {
       name      = "frontend"
       image     = local.frontend_image
       essential = true
+      cpu       = 256
       portMappings = [{
         containerPort = 80
         protocol      = "tcp"

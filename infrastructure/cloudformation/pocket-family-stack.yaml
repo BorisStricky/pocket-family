@@ -347,6 +347,7 @@ Resources:
         - Name: backend
           Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrBackend}:${ImageTag}'
           Essential: true
+          Cpu: 256
           PortMappings:
             - ContainerPort: 8000
               Protocol: tcp
@@ -387,6 +388,7 @@ Resources:
         - Name: frontend
           Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrFrontend}:${ImageTag}'
           Essential: true
+          Cpu: 256
           PortMappings:
             - ContainerPort: 80
               Protocol: tcp

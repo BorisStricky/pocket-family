@@ -1,0 +1,5 @@
+# Default robots policy for non-demo builds. The Dockerfile overwrites this
+# file with robots.demo.txt when VITE_DEMO_MODE=true so the demo instance is
+# excluded from search-engine indexes.
+User-agent: *
+Allow: /

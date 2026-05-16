@@ -14,7 +14,7 @@ Different regions are intentional — you can deploy both side-by-side without r
 ## What gets created (both stacks)
 
 - 2× ECR repositories (`pocket-family-backend`, `pocket-family-frontend`) with lifecycle policies
-- ECS Fargate cluster + task definition + service (single task, 0.5 vCPU / 1 GiB)
+- ECS Fargate cluster + task definition + service (single task, 0.5 vCPU / 1 GiB — split as 0.25 vCPU per container across backend + frontend)
 - Aurora Serverless v2 cluster with **IAM database authentication** (no static password for the app)
 - Application Load Balancer (HTTP only — HTTPS deferred until you have a domain)
 - 3× Security groups (ALB public, Fargate from ALB, Aurora from Fargate)
