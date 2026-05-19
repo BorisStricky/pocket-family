@@ -35,8 +35,10 @@ A collaborative personal finance platform that enables individuals and families 
 - **Storybook** - Component development and documentation
 
 ### DevOps
-- **Docker + Docker Compose** - Containerized development environment
+- **Docker + Docker Compose** - Containerized development and self-hosting
 - **Vite** - Lightning-fast frontend build tool
+- **AWS ECS Fargate + Aurora Serverless v2** - Production cloud deployment
+- **Terraform / CloudFormation** - Infrastructure as Code (dual-template)
 
 ## Quick Start
 
@@ -88,6 +90,26 @@ uv run pytest
 cd frontend
 npm run test:run
 ```
+
+### AWS Deployment
+
+The application is production-deployed on AWS using Infrastructure as Code. Two parallel templates are provided — choose whichever tool you prefer:
+
+| Tool | Region | Folder |
+|---|---|---|
+| Terraform | `us-east-1` | [infrastructure/terraform/](infrastructure/terraform/) |
+| CloudFormation | `us-east-2` | [infrastructure/cloudformation/](infrastructure/cloudformation/) |
+
+**Resources provisioned by both stacks:**
+- ECS Fargate cluster running both containers in a single shared task (0.5 vCPU / 1 GiB)
+- Aurora Serverless v2 with IAM database authentication (no static DB password at runtime)
+- Application Load Balancer (HTTP; HTTPS can be added once you have a domain)
+- ECR repositories for backend and frontend images
+- IAM roles, security groups, and CloudWatch log group
+
+**Self-hosting alternative:** `infrastructure/self-host.sh` wraps `docker compose` for home-server deployments using a local PostgreSQL container instead of Aurora.
+
+See [infrastructure/README.md](infrastructure/README.md) for the full quickstart, step-by-step deploy instructions, and teardown commands.
 
 ## Project Structure
 
