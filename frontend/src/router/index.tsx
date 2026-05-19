@@ -7,7 +7,10 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import LandingPage from "../pages/landing_page";
 import LoginPage from "../pages/login_page";
 import SignupPage from "../pages/signup_page";
+import LegalPage from "../pages/legal_page";
 import AppShell from "@/components/ui/organisms/AppShell";
+import DemoBanner from "@/components/ui/organisms/DemoBanner";
+import DemoDisclaimerModal from "@/components/ui/organisms/DemoDisclaimerModal";
 import { ProtectedRoute } from "../components/ProtectedRoute";
 import FamilyGuard from "../components/FamilyGuard";
 import { FamilyProvider } from "@/features/family/context/FamilyContext";
@@ -38,11 +41,17 @@ function Reports() {
 export default function AppRouter() {
   return (
     <BrowserRouter>
+      {/* DemoBanner / DemoDisclaimerModal render nothing when VITE_DEMO_MODE
+          is not set, so they are safe to mount unconditionally at the
+          router root and appear on every public + protected page. */}
+      <DemoBanner />
+      <DemoDisclaimerModal />
       <Routes>
         {/* Public routes */}
         <Route path="/" element={<LandingPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/signup" element={<SignupPage />} />
+        <Route path="/legal" element={<LegalPage />} />
 
         {/* Accept invite page (public, no auth required) */}
         <Route path="/accept-invite" element={<AcceptInvitePage />} />

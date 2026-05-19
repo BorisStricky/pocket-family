@@ -17,5 +17,10 @@ RUN uv sync --frozen --no-dev --no-editable
 # so the app package lands at /app/app/main.py where uvicorn expects it.
 COPY api/ .
 
+# Also copy backend/scripts/ so one-shot tasks (e.g. the daily demo-data
+# reset launched via EventBridge → ECS RunTask) can import the same app
+# package without needing a separate image.
+COPY scripts/ /app/scripts/
+
 EXPOSE 8000
 CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]

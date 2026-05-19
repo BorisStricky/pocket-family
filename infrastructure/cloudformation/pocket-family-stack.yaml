@@ -1,0 +1,462 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >
+  pocket-family stack — ECS Fargate + Aurora Serverless v2 (IAM auth) + ALB + ECR.
+  Defaults to us-east-2 to avoid collision with the live sa-east-1 manual deployment
+  and the Terraform us-east-1 stack.
+
+# ── Parameters ──────────────────────────────────────────────────────────────
+
+Parameters:
+  ProjectName:
+    Type: String
+    Default: pocket-family
+    Description: Prefix applied to every resource name.
+
+  # ── Networking ──
+  # CloudFormation has no native equivalent to Terraform's `data "aws_vpc" "default"`,
+  # so we accept VPC + subnets as parameters. The AWS console auto-populates a picker.
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: VPC to deploy into. Pick the default VPC for the simplest setup.
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: At least two subnets in different AZs (required for Aurora + ALB).
+
+  # ── Database ──
+  DbName:
+    Type: String
+    Default: pfinancedb
+
+  DbMasterUsername:
+    Type: String
+    Default: postgres
+    Description: Aurora master username — used only for initial setup.
+
+  DbMasterPassword:
+    Type: String
+    NoEcho: true
+    MinLength: 12
+    Description: Aurora master password. Generate with `openssl rand -base64 24`.
+
+  DbAppUser:
+    Type: String
+    Default: pf_iam_app_user
+    Description: PostgreSQL role mapped to IAM authentication (created out-of-band).
+
+  MinAcu:
+    Type: Number
+    Default: 0
+    MinValue: 0
+    MaxValue: 256
+    Description: Minimum Aurora ACUs. 0 = scale to zero when idle.
+
+  MaxAcu:
+    Type: Number
+    Default: 4
+    MinValue: 0.5
+    MaxValue: 256
+    Description: Maximum Aurora ACUs. 4 = AWS free-plan ceiling.
+
+  # ── Application ──
+  JwtSecret:
+    Type: String
+    NoEcho: true
+    MinLength: 32
+    Description: JWT signing secret. Generate with `openssl rand -hex 32`.
+
+  CorsOrigins:
+    Type: String
+    Default: ''
+    Description: >
+      Comma-separated CORS origins. Leave empty on first deploy; set to the
+      ALB DNS afterward and redeploy.
+
+  # ── Containers ──
+  ImageTag:
+    Type: String
+    Default: latest
+
+  TaskCpu:
+    Type: String
+    Default: '512'
+    AllowedValues: ['256', '512', '1024', '2048', '4096']
+
+  TaskMemory:
+    Type: String
+    Default: '1024'
+    AllowedValues: ['512', '1024', '2048', '3072', '4096', '8192']
+
+  # ── Observability ──
+  LogRetentionDays:
+    Type: Number
+    Default: 30
+    AllowedValues: [1, 3, 5, 7, 14, 30, 60, 90, 180, 365]
+
+# ── Resources ───────────────────────────────────────────────────────────────
+
+Resources:
+
+  # ── Networking: default VPC + 3 security groups ──
+
+  AlbSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-alb'
+      GroupDescription: Public HTTP(S) ingress for the ALB
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          CidrIp: 0.0.0.0/0
+          Description: HTTP from anywhere
+        - IpProtocol: tcp
+          FromPort: 443
+          ToPort: 443
+          CidrIp: 0.0.0.0/0
+          Description: HTTPS from anywhere (reserved for future TLS listener)
+
+  FargateSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-fargate'
+      GroupDescription: ALB → Fargate task ingress on port 80
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 80
+          ToPort: 80
+          SourceSecurityGroupId: !Ref AlbSecurityGroup
+          Description: HTTP from ALB only
+
+  AuroraSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupName: !Sub '${ProjectName}-aurora'
+      GroupDescription: Fargate → Aurora 5432 only
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 5432
+          ToPort: 5432
+          SourceSecurityGroupId: !Ref FargateSecurityGroup
+          Description: PostgreSQL from Fargate task
+
+  # ── ECR repositories ──
+
+  EcrBackend:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub '${ProjectName}-backend'
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: !Sub |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Expire untagged images older than 7 days",
+                "selection": { "tagStatus": "untagged", "countType": "sinceImagePushed", "countUnit": "days", "countNumber": 7 },
+                "action": { "type": "expire" }
+              },
+              {
+                "rulePriority": 2,
+                "description": "Keep only the 5 most recent tagged images",
+                "selection": { "tagStatus": "any", "countType": "imageCountMoreThan", "countNumber": 5 },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+
+  EcrFrontend:
+    Type: AWS::ECR::Repository
+    Properties:
+      RepositoryName: !Sub '${ProjectName}-frontend'
+      ImageScanningConfiguration:
+        ScanOnPush: true
+      LifecyclePolicy:
+        LifecyclePolicyText: !Sub |
+          {
+            "rules": [
+              {
+                "rulePriority": 1,
+                "description": "Expire untagged images older than 7 days",
+                "selection": { "tagStatus": "untagged", "countType": "sinceImagePushed", "countUnit": "days", "countNumber": 7 },
+                "action": { "type": "expire" }
+              },
+              {
+                "rulePriority": 2,
+                "description": "Keep only the 5 most recent tagged images",
+                "selection": { "tagStatus": "any", "countType": "imageCountMoreThan", "countNumber": 5 },
+                "action": { "type": "expire" }
+              }
+            ]
+          }
+
+  # ── CloudWatch log group ──
+
+  LogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub '/ecs/${ProjectName}'
+      RetentionInDays: !Ref LogRetentionDays
+
+  # ── IAM roles ──
+
+  TaskExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-task-execution'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AmazonECSTaskExecutionRolePolicy
+
+  TaskRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${ProjectName}-task'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: ecs-tasks.amazonaws.com
+            Action: sts:AssumeRole
+      Policies:
+        - PolicyName: rds-iam-auth
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: rds-db:connect
+                Resource: !Sub 'arn:aws:rds-db:${AWS::Region}:${AWS::AccountId}:dbuser:${AuroraCluster.DBClusterResourceId}/${DbAppUser}'
+
+  # ── Aurora Serverless v2 ──
+
+  AuroraSubnetGroup:
+    Type: AWS::RDS::DBSubnetGroup
+    Properties:
+      DBSubnetGroupName: !Sub '${ProjectName}-aurora-subnets'
+      DBSubnetGroupDescription: Subnets for Aurora Serverless cluster
+      SubnetIds: !Ref SubnetIds
+
+  AuroraCluster:
+    Type: AWS::RDS::DBCluster
+    Properties:
+      DBClusterIdentifier: !Sub '${ProjectName}-db'
+      Engine: aurora-postgresql
+      EngineVersion: '15.4'
+      DatabaseName: !Ref DbName
+      MasterUsername: !Ref DbMasterUsername
+      MasterUserPassword: !Ref DbMasterPassword
+      DBSubnetGroupName: !Ref AuroraSubnetGroup
+      VpcSecurityGroupIds:
+        - !Ref AuroraSecurityGroup
+      EnableIAMDatabaseAuthentication: true
+      StorageEncrypted: true
+      ServerlessV2ScalingConfiguration:
+        MinCapacity: !Ref MinAcu
+        MaxCapacity: !Ref MaxAcu
+      # Skip the final snapshot so `delete-stack` works without manual steps.
+      # Change in production.
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Delete
+
+  AuroraInstance:
+    Type: AWS::RDS::DBInstance
+    Properties:
+      DBInstanceIdentifier: !Sub '${ProjectName}-db-writer'
+      DBClusterIdentifier: !Ref AuroraCluster
+      DBInstanceClass: db.serverless
+      Engine: aurora-postgresql
+      PubliclyAccessible: false
+
+  # ── ALB ──
+
+  LoadBalancer:
+    Type: AWS::ElasticLoadBalancingV2::LoadBalancer
+    Properties:
+      Name: !Sub '${ProjectName}-alb'
+      Scheme: internet-facing
+      Type: application
+      SecurityGroups:
+        - !Ref AlbSecurityGroup
+      Subnets: !Ref SubnetIds
+
+  TargetGroup:
+    Type: AWS::ElasticLoadBalancingV2::TargetGroup
+    Properties:
+      Name: !Sub '${ProjectName}-frontend'
+      Port: 80
+      Protocol: HTTP
+      VpcId: !Ref VpcId
+      TargetType: ip
+      HealthCheckPath: /
+      HealthCheckIntervalSeconds: 30
+      HealthCheckTimeoutSeconds: 10
+      HealthyThresholdCount: 2
+      UnhealthyThresholdCount: 3
+      Matcher:
+        HttpCode: '200'
+      TargetGroupAttributes:
+        - Key: deregistration_delay.timeout_seconds
+          Value: '30'
+
+  HttpListener:
+    Type: AWS::ElasticLoadBalancingV2::Listener
+    Properties:
+      LoadBalancerArn: !Ref LoadBalancer
+      Port: 80
+      Protocol: HTTP
+      DefaultActions:
+        - Type: forward
+          TargetGroupArn: !Ref TargetGroup
+
+  # ── ECS cluster + task definition + service ──
+
+  EcsCluster:
+    Type: AWS::ECS::Cluster
+    Properties:
+      ClusterName: !Ref ProjectName
+      ClusterSettings:
+        - Name: containerInsights
+          Value: disabled
+      CapacityProviders:
+        - FARGATE
+
+  TaskDefinition:
+    Type: AWS::ECS::TaskDefinition
+    Properties:
+      Family: !Ref ProjectName
+      NetworkMode: awsvpc
+      RequiresCompatibilities:
+        - FARGATE
+      Cpu: !Ref TaskCpu
+      Memory: !Ref TaskMemory
+      ExecutionRoleArn: !GetAtt TaskExecutionRole.Arn
+      TaskRoleArn: !GetAtt TaskRole.Arn
+      ContainerDefinitions:
+        - Name: backend
+          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrBackend}:${ImageTag}'
+          Essential: true
+          Cpu: 256
+          PortMappings:
+            - ContainerPort: 8000
+              Protocol: tcp
+          Environment:
+            - Name: DB_INSTANCE
+              Value: aws_aurora_serverless
+            - Name: DB_HOST
+              Value: !GetAtt AuroraCluster.Endpoint.Address
+            - Name: DB_PORT
+              Value: '5432'
+            - Name: DB_USER
+              Value: !Ref DbAppUser
+            - Name: DB_NAME
+              Value: !Ref DbName
+            - Name: AWS_REGION
+              Value: !Ref AWS::Region
+            - Name: JWT_SECRET
+              Value: !Ref JwtSecret
+            - Name: TEST_MODE
+              Value: '0'
+            - Name: CORS_ORIGINS
+              Value: !Ref CorsOrigins
+          # python:3.11-slim has no curl — use python's stdlib for the health check.
+          HealthCheck:
+            Command:
+              - CMD-SHELL
+              - python -c "import urllib.request; urllib.request.urlopen('http://localhost:8000/ping')" || exit 1
+            Interval: 15
+            Timeout: 5
+            Retries: 3
+            StartPeriod: 10
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: backend
+        - Name: frontend
+          Image: !Sub '${AWS::AccountId}.dkr.ecr.${AWS::Region}.amazonaws.com/${EcrFrontend}:${ImageTag}'
+          Essential: true
+          Cpu: 256
+          PortMappings:
+            - ContainerPort: 80
+              Protocol: tcp
+          # frontend waits for backend HEALTHY so nginx never proxies to a dead upstream.
+          DependsOn:
+            - ContainerName: backend
+              Condition: HEALTHY
+          LogConfiguration:
+            LogDriver: awslogs
+            Options:
+              awslogs-group: !Ref LogGroup
+              awslogs-region: !Ref AWS::Region
+              awslogs-stream-prefix: frontend
+
+  EcsService:
+    Type: AWS::ECS::Service
+    # Listener must exist before the service tries to register targets.
+    DependsOn:
+      - HttpListener
+    Properties:
+      ServiceName: !Sub '${ProjectName}-svc'
+      Cluster: !Ref EcsCluster
+      TaskDefinition: !Ref TaskDefinition
+      DesiredCount: 1
+      LaunchType: FARGATE
+      DeploymentConfiguration:
+        DeploymentCircuitBreaker:
+          Enable: true
+          Rollback: true
+      NetworkConfiguration:
+        AwsvpcConfiguration:
+          Subnets: !Ref SubnetIds
+          SecurityGroups:
+            - !Ref FargateSecurityGroup
+          AssignPublicIp: ENABLED
+      LoadBalancers:
+        - ContainerName: frontend
+          ContainerPort: 80
+          TargetGroupArn: !Ref TargetGroup
+
+# ── Outputs ─────────────────────────────────────────────────────────────────
+
+Outputs:
+  AlbDnsName:
+    Description: Public DNS of the load balancer. Use for CORS_ORIGINS and browser verification.
+    Value: !GetAtt LoadBalancer.DNSName
+
+  EcrBackendUrl:
+    Description: Backend ECR repository URI. Pass to build-and-push.sh.
+    Value: !GetAtt EcrBackend.RepositoryUri
+
+  EcrFrontendUrl:
+    Description: Frontend ECR repository URI. Pass to build-and-push.sh.
+    Value: !GetAtt EcrFrontend.RepositoryUri
+
+  AuroraEndpoint:
+    Description: Aurora cluster writer endpoint. Connect to bootstrap the IAM user.
+    Value: !GetAtt AuroraCluster.Endpoint.Address
+
+  AuroraClusterResourceId:
+    Description: Aurora cluster resource ID — referenced in the rds-db:connect IAM policy ARN.
+    Value: !GetAtt AuroraCluster.DBClusterResourceId
+
+  EcsClusterName:
+    Value: !Ref EcsCluster
+
+  EcsServiceName:
+    Value: !Ref EcsService
+
+  TaskRoleArn:
+    Value: !GetAtt TaskRole.Arn

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from ..models import User, Tenant, Membership, MembershipRole, MembershipStatus, Account, AccountShare
 from ..schemas import TenantCreate, TenantRead, TenantUpdate, MembershipCreate, MembershipRead, MembershipUpdate, ActiveContext
 from ..deps import get_db, get_active_context, get_current_user, get_authenticated_user
-from ..auth import create_access_token
+from ..auth import create_access_token, assert_not_demo
 from ..seed_defaults import seed_tenant_defaults
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
@@ -150,7 +150,7 @@ async def update_tenant(tenant_id: UUID, payload: TenantUpdate, db: AsyncSession
     return tenant
 
 
-@router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(assert_not_demo)])
 async def delete_tenant(tenant_id: UUID, db: AsyncSession = Depends(get_db), active_context: ActiveContext = Depends(get_active_context)):
     """Delete a tenant. Only owners can delete their tenant.
 
@@ -244,7 +244,7 @@ from fastapi import Path
 
 # Note: this block assumes Membership, User, MembershipRole, MembershipStatus, and MembershipCreate/Read/Update schemas are imported
 
-@router.post("/{tenant_id}/members", response_model=MembershipRead)
+@router.post("/{tenant_id}/members", response_model=MembershipRead, dependencies=[Depends(assert_not_demo)])
 async def create_membership_for_tenant(
     tenant_id: UUID,
     payload: MembershipCreate, 
@@ -320,7 +320,7 @@ async def list_members_for_tenant(
     return membership_records
 
 
-@router.patch("/{tenant_id}/members/{membership_id}", response_model=MembershipRead)
+@router.patch("/{tenant_id}/members/{membership_id}", response_model=MembershipRead, dependencies=[Depends(assert_not_demo)])
 async def update_membership_for_tenant(
     tenant_id: UUID,
     membership_id: UUID,
@@ -364,7 +364,7 @@ async def update_membership_for_tenant(
     return membership_record
 
 
-@router.delete("/{tenant_id}/members/{membership_id}", status_code=status.HTTP_204_NO_CONTENT)
+@router.delete("/{tenant_id}/members/{membership_id}", status_code=status.HTTP_204_NO_CONTENT, dependencies=[Depends(assert_not_demo)])
 async def delete_membership_for_tenant(
     tenant_id: UUID,
     membership_id: UUID,

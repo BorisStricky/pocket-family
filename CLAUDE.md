@@ -6,10 +6,10 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 **IMPORTANT**: When starting work in this repository, ALWAYS read:
 1. [.claude/instructions.md](.claude/instructions.md) - Detailed workflow and coding standards
-2. [docs/active_context/frontend_roadmap.md](docs/active_context/frontend_roadmap.md) - Current sprint overview
-3. Files in `.active_context/sprint_N.md` - Active sprint checklist (where N is the current sprint)
+2. [docs/north_star.md](docs/north_star.md) - Product vision and domain model invariants
+3. [docs/SystemArchitecture.md](docs/SystemArchitecture.md) - Detailed system architecture
 
-These files contain critical context about the current work state, code quality standards, and task checklists.
+These files contain critical context about the project's goals, design decisions, and coding standards.
 
 ## Project Overview
 
@@ -418,19 +418,12 @@ For deeper understanding, refer to:
 - [docs/SystemArchitecture.md](docs/SystemArchitecture.md) - Detailed system architecture
 - [docs/repo-structure.md](docs/repo-structure.md) - Repository organization conventions
 - [docs/openAPI_spec.json](docs/openAPI_spec.json) - Complete API specification
-- [docs/spec_2_pages_inventory_and_sitemap.md](docs/spec_2_pages_inventory_and_sitemap.md) - Frontend pages and routing
-- [docs/spec_3_component_inventory.md](docs/spec_3_component_inventory.md) - UI component catalog
-- [docs/glossary.md](docs/glossary.md) - Domain terminology and concepts
 
 ## Development Workflow
 
-1. **Read active context**: Check `.active_context/sprint_N.md` for current tasks
-2. **Update checklist**: Mark tasks as in progress or complete
-3. **Write code**: Follow naming conventions, add inline comments explaining "why"
-4. **Update memory bank**: Track new components in `.memory_bank/components_used.md`
-5. **Update glossary**: Add new domain concepts to `docs/glossary.md`
-6. **Run tests**: Verify changes with `pytest` (backend) or `npm test` (frontend)
-7. **Commit with context**: Use descriptive commit messages
+1. **Write code**: Follow naming conventions, add inline comments explaining "why"
+2. **Run tests**: Verify changes with `pytest` (backend) or `npm test` (frontend)
+3. **Commit with context**: Use descriptive commit messages
 
 ## Testing Philosophy & Requirements
 
@@ -506,5 +499,3 @@ See [.claude/skills/orchestrate/SKILL.md](.claude/skills/orchestrate/SKILL.md) f
 2. **No Abbreviations**: Strict full variable naming policy (enforced in reviews)
 3. **Hybrid Structure**: Atomic design for shared UI, flat structure for feature code
 4. **Multi-Tenant First**: Every feature must respect tenant isolation from the start
-5. **Context Tracking**: Active context files (.active_context/) track sprint progress
-6. **Memory Bank**: Component usage tracked manually in .memory_bank/ for reuse visibility

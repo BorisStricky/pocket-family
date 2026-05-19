@@ -110,6 +110,26 @@ def is_test_mode() -> bool:
     return os.getenv("TEST_MODE", "0") == "1"
 
 
+# Demo instance flag: when DEMO_MODE=1, the API gates account creation and
+# destructive tenant operations to keep the public demo safe and predictable.
+def is_demo_mode() -> bool:
+    """Return True when running as a public demo instance (controlled by DEMO_MODE env var)."""
+    return os.getenv("DEMO_MODE", "0") == "1"
+
+
+def assert_not_demo() -> None:
+    """FastAPI dependency that 403s if the API is running in demo mode.
+
+    Attach to routes that must not be invoked on the public demo
+    (account creation, tenant deletion, invites, member management).
+    """
+    if is_demo_mode():
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Disabled on demo instance",
+        )
+
+
 def authenticate_token(token: str) -> Dict[str, Any]:
     """
     Decode and validate a JWT bearer token.

@@ -65,10 +65,10 @@ docker-compose -f docker-compose.dev.yml up
 **Backend:**
 ```bash
 cd backend
-pip install -r requirements.txt
+uv sync --all-extras   # install all dependencies (uses uv package manager)
 cd api
 alembic upgrade head
-uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
+uv run uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
 ```
 
 **Frontend:**
@@ -82,11 +82,11 @@ npm run dev
 ```bash
 # Backend tests
 cd backend
-pytest
+uv run pytest
 
 # Frontend tests
 cd frontend
-npm test
+npm run test:run
 ```
 
 ## Project Structure
@@ -113,11 +113,10 @@ pocket-family/
 ├── docs/                 # Comprehensive documentation
 │   ├── SystemArchitecture.md
 │   ├── openAPI_spec.json
-│   ├── glossary.md
-│   └── north_star.md
-├── .claude/              # AI assistant instructions
+│   ├── north_star.md
+│   └── ERD.plantuml
+├── .claude/              # AI assistant instructions (Claude Code)
 │   └── instructions.md
-├── .active_context/      # Sprint tracking and roadmap
 ├── docker-compose.dev.yml
 └── CLAUDE.md             # Project overview and coding standards
 ```
@@ -129,7 +128,6 @@ Comprehensive documentation is available in the `/docs` directory:
 - **[CLAUDE.md](CLAUDE.md)** - Getting started guide, common commands, architecture overview
 - **[docs/SystemArchitecture.md](docs/SystemArchitecture.md)** - Detailed system design and patterns
 - **[docs/openAPI_spec.json](docs/openAPI_spec.json)** - Complete API specification (OpenAPI 3.0)
-- **[docs/glossary.md](docs/glossary.md)** - Domain terminology and concepts
 - **[docs/north_star.md](docs/north_star.md)** - Product vision and invariants
 - **[.claude/instructions.md](.claude/instructions.md)** - Development workflow and coding standards
 
@@ -183,14 +181,8 @@ MIT License - See LICENSE file for details
 
 ## Project Status
 
-🚧 **Active Development** - This project is under active development as a learning exercise in building production-quality SaaS applications.
-
-Current focus areas:
-- Frontend component library expansion
-- Advanced data visualization features
-- Comprehensive test coverage
-- Performance optimization
+**Demo-complete** — The application is fully functional and has been deployed to AWS (ECS + RDS + ALB). It serves as a portfolio showcase for multi-tenant SaaS architecture, modern full-stack development, and cloud deployment patterns.
 
 ---
 
-Built with ❤️ as a learning project to master modern full-stack development
+Built as a learning project to master modern full-stack development
