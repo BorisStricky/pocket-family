@@ -139,8 +139,8 @@ async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depen
         key="refresh_token",
         value=raw_refresh_token,
         httponly=True,           # Prevent JavaScript access (XSS protection)
-        secure=False,            # Set to True in production with HTTPS
-        samesite="lax",          # CSRF protection (lax for dev, strict for prod)
+        secure=True,             # HTTPS-only; browser will not send over plain HTTP
+        samesite="lax",          # CSRF protection
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # seconds
     )
 
@@ -210,8 +210,8 @@ async def login(request: Request, payload: LoginIn, response: Response, db: Asyn
         key="refresh_token",
         value=raw_refresh_token,
         httponly=True,           # Prevent JavaScript access (XSS protection)
-        secure=False,            # Set to True in production with HTTPS
-        samesite="lax",          # CSRF protection (lax for dev, strict for prod)
+        secure=True,             # HTTPS-only; browser will not send over plain HTTP
+        samesite="lax",          # CSRF protection
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # seconds
     )
 
@@ -281,8 +281,8 @@ async def refresh(request: Request, response: Response, db: AsyncSession = Depen
         key="refresh_token",
         value=new_raw_refresh_token,
         httponly=True,           # Prevent JavaScript access (XSS protection)
-        secure=False,            # Set to True in production with HTTPS
-        samesite="lax",          # CSRF protection (lax for dev, strict for prod)
+        secure=True,             # HTTPS-only; browser will not send over plain HTTP
+        samesite="lax",          # CSRF protection
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # seconds
     )
 

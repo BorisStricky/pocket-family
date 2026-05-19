@@ -1,2 +1,0 @@
-- [ ] Change currency to R$ in the dashboard widgets
-- [ ] Family/accounts there is a share button that does not make sense
