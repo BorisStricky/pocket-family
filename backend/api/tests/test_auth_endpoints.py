@@ -2,8 +2,8 @@
 # Notes:
 # - This test suite targets the existing endpoints:
 #   POST /auth/signup, POST /auth/login, POST /auth/refresh
-# - The current API expects the refresh_token as a query parameter (not JSON body),
-#   so the refresh() helper sends it via params.
+# - The refresh endpoint reads the refresh_token from an HttpOnly cookie,
+#   so the refresh() helper sends it via cookies.
 # - TEST_MODE=1 is set in conftest so endpoints include refresh_token in responses.
 
 import pytest
@@ -31,8 +31,8 @@ def login(client, email="user@example.com", password="secret123", tenant_id: str
 
 
 def refresh(client, refresh_token):
-    # API expects refresh_token as a query parameter
-    refresh_client_response = client.post("/auth/refresh", params={"refresh_token": refresh_token})
+    # Refresh token is read from an HttpOnly cookie by the endpoint
+    refresh_client_response = client.post("/auth/refresh", cookies={"refresh_token": refresh_token})
     return refresh_client_response
 
 
@@ -326,8 +326,8 @@ def test_refresh_token_uses_preferred_tenant(client, db_session):
     })
     refresh_token = login_response.json()["refresh_token"]
 
-    # Call refresh endpoint
-    refresh_response = client.post("/auth/refresh", params={"refresh_token": refresh_token})
+    # Call refresh endpoint — token must be sent as a cookie, not a query param
+    refresh_response = client.post("/auth/refresh", cookies={"refresh_token": refresh_token})
     assert refresh_response.status_code == 200
 
     # Verify new access token contains preferred tenant
