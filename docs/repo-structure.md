@@ -45,11 +45,7 @@ This repository implements a multi-tenant SaaS personal finance application. The
   - repo-structure.md
   - requirements.md
   - requirements.yaml
-  - frontend/                 # frontend design & spec documents
-    - spec_1_frontend_design_plan.md
-    - spec_2_navigation_route_map.md
-    - spec_2_pages_inventory_and_sitemap.md
-    - spec_3_component_inventory.md
+  - Pull Requests/            # release notes for each sprint/milestone
 - frontend/
   - Dockerfile
   - nginx.conf

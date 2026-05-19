@@ -343,7 +343,7 @@ describe('Button', () => {
 });
 ```
 
-See [docs/frontend/sprint_0_summary.md](../../docs/frontend/sprint_0_summary.md) for detailed testing strategy.
+See [CLAUDE.md](../CLAUDE.md) for the full testing strategy and conventions.
 
 ## Component Development (Storybook)
 
@@ -494,17 +494,8 @@ npm install -D prettier
 
 ## License
 
-[Your License Here]
+MIT — see [LICENSE](../LICENSE) for details.
 
 ## Support
 
-For issues and questions:
-- Create an issue in the GitHub repository
-- Contact the development team
-- See [docs/glossary.md](../../docs/glossary.md) for term definitions
-
----
-
-**Status**: Sprint 0 Complete ✅
-**Version**: 0.1.0
-**Last Updated**: [Current Date]
+For issues and questions, open a [GitHub Issue](https://github.com/BorisStricky/pocket-family/issues).
