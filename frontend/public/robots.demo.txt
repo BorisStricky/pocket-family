@@ -1,0 +1,5 @@
+# Demo-instance robots policy. Tells well-behaved crawlers to skip every URL
+# on this host so the public demo doesn't appear in search results and
+# compete with the real marketing site.
+User-agent: *
+Disallow: /

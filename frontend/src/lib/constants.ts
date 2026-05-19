@@ -17,6 +17,30 @@ export const STORAGE_KEYS = {
 export const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000';
 
 /**
+ * True when this build is the public demo instance. Read at build time from
+ * VITE_DEMO_MODE so the Docker image can be reused — flip this and the
+ * frontend disables signup, shows the disclaimer banner, and surfaces the
+ * "Try the Demo" auto-login button.
+ */
+export const IS_DEMO_MODE = import.meta.env.VITE_DEMO_MODE === 'true';
+
+/**
+ * Credentials of the shared demo account. Kept here so the login page's
+ * one-click "Try the Demo" button can auto-fill them. Backend seeds the
+ * matching user on startup when DEMO_MODE=1.
+ */
+export const DEMO_CREDENTIALS = {
+  EMAIL: 'demo@pocket-family.com',
+  PASSWORD: 'demo123',
+} as const;
+
+/**
+ * LocalStorage key that records whether the user has acknowledged the
+ * demo disclaimer modal. Stored as an ISO timestamp.
+ */
+export const DEMO_ACK_STORAGE_KEY = 'pf_demo_acknowledged';
+
+/**
  * API endpoint paths (relative to VITE_API_URL)
  */
 export const API_ENDPOINTS = {
@@ -74,4 +98,5 @@ export const ROUTES = {
   SETTINGS: '/app/settings',
   FAMILIES: '/app/families',
   ACCEPT_INVITE: '/accept-invite',
+  LEGAL: '/legal',
 } as const;

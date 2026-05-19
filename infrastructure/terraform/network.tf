@@ -54,7 +54,7 @@ resource "aws_security_group" "alb" {
 
 resource "aws_security_group" "fargate" {
   name        = "${var.project_name}-fargate"
-  description = "ALB → Fargate task ingress on port 80"
+  description = "ALB to Fargate task ingress on port 80"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {
@@ -78,7 +78,7 @@ resource "aws_security_group" "fargate" {
 
 resource "aws_security_group" "aurora" {
   name        = "${var.project_name}-aurora"
-  description = "Fargate → Aurora 5432 only"
+  description = "Fargate to Aurora 5432 only"
   vpc_id      = data.aws_vpc.default.id
 
   ingress {

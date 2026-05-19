@@ -1,11 +1,32 @@
-import { defineConfig } from 'vite'
+import { defineConfig, type Plugin } from 'vite'
 import react from '@vitejs/plugin-react'
 import path from 'path'
+
+// Injects a noindex/nofollow meta tag and adjusts the title when this build
+// targets the public demo (VITE_DEMO_MODE=true). Search engines that respect
+// robots meta will then exclude the demo from their indexes, so it doesn't
+// compete with the real marketing site.
+function demoHtmlMeta(): Plugin {
+  return {
+    name: 'pocket-family-demo-html-meta',
+    transformIndexHtml: {
+      order: 'pre',
+      handler(html) {
+        const isDemo = process.env.VITE_DEMO_MODE === 'true'
+        if (!isDemo) return html
+        const noindex = '<meta name="robots" content="noindex,nofollow" />'
+        return html
+          .replace('</head>', `  ${noindex}\n  </head>`)
+          .replace('<title>Pocket Family</title>', '<title>Pocket Family — Demo</title>')
+      },
+    },
+  }
+}
 
 // https://vitejs.dev/config/
 export default defineConfig({
   envDir: path.resolve(__dirname, '..'),
-  plugins: [react()],
+  plugins: [react(), demoHtmlMeta()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src')

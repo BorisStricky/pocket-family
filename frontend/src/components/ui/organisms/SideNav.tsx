@@ -78,6 +78,9 @@ export default function SideNav({ open, onClose, isMobileViewport }: SideNavProp
       ModalProps={{ keepMounted: true }}
       role="navigation"
     >
+      {/* Matches the demo banner height so nav links start below both the banner and TopNav */}
+      <Box sx={{ height: 'var(--demo-banner-height, 0px)', flexShrink: 0 }} />
+
       {/* Toolbar area: spacer on desktop, close button on mobile */}
       <Toolbar
         sx={{

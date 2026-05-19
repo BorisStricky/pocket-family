@@ -17,7 +17,9 @@ from ..auth import (
     hash_token,
     REFRESH_TOKEN_EXPIRE_DAYS,
     is_test_mode,
+    assert_not_demo,
 )
+from ..rate_limit import limiter
 from ..seed_defaults import seed_tenant_defaults
 
 router = APIRouter()
@@ -68,7 +70,7 @@ async def get_membership_for_user(
     membership_query_result = await db.execute(membership_query)
     return membership_query_result.scalars().first()
 
-@router.post("/signup", response_model=TokenOut)
+@router.post("/signup", response_model=TokenOut, dependencies=[Depends(assert_not_demo)])
 async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depends(get_db)):
     """Register a new user, create a default tenant and return auth tokens.
 
@@ -149,7 +151,8 @@ async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depen
     }
 
 @router.post("/login", response_model=TokenOut)
-async def login(payload: LoginIn, response: Response, db: AsyncSession = Depends(get_db)):
+@limiter.limit("10/minute")
+async def login(request: Request, payload: LoginIn, response: Response, db: AsyncSession = Depends(get_db)):
     """Authenticate a user and issue access/refresh tokens.
 
     Args:
@@ -315,7 +318,7 @@ async def logout(request: Request, response: Response, db: AsyncSession = Depend
 
     return {"ok": True}
 
-@router.post("/tenants/{tenant_id}/invite")
+@router.post("/tenants/{tenant_id}/invite", dependencies=[Depends(assert_not_demo)])
 async def create_invite(
     tenant_id: str,
     payload: InviteCreate,

@@ -1,6 +1,13 @@
-# Aurora Serverless v2 with IAM database authentication.
+# Aurora Serverless v2 with IAM database authentication — CANONICAL config.
 #
-# Free-tier eligible up to 4 ACUs + 1 GiB storage per cluster (as of 2026).
+# Disabled (.tf.disabled extension) while AWS Free plan accounts require
+# WithExpressConfiguration=true on CreateDBCluster — a flag not yet exposed
+# by the Terraform AWS provider. See aurora_free.tf for the active workaround.
+#
+# Restore once the provider supports the flag:
+#   mv aurora.tf.disabled aurora.tf && mv aurora_free.tf aurora_free.tf.disabled
+#
+# Free-tier eligible up to 4 ACUs + 1 GiB storage per cluster.
 # min_acu = 0 scales the cluster to zero when idle — no charges between requests.
 #
 # The PostgreSQL-level setup (CREATE USER pf_iam_app_user; GRANT rds_iam ...;
@@ -44,10 +51,10 @@ resource "aws_rds_cluster" "main" {
 
 # At least one cluster instance is required even for Serverless v2.
 resource "aws_rds_cluster_instance" "writer" {
-  identifier         = "${var.project_name}-db-writer"
-  cluster_identifier = aws_rds_cluster.main.id
-  instance_class     = "db.serverless"
-  engine             = aws_rds_cluster.main.engine
-  engine_version     = aws_rds_cluster.main.engine_version
+  identifier          = "${var.project_name}-db-writer"
+  cluster_identifier  = aws_rds_cluster.main.id
+  instance_class      = "db.serverless"
+  engine              = aws_rds_cluster.main.engine
+  engine_version      = aws_rds_cluster.main.engine_version
   publicly_accessible = false
 }

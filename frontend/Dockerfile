@@ -22,6 +22,15 @@ COPY . .
 ARG VITE_API_URL=/api
 ENV VITE_API_URL=$VITE_API_URL
 
+# Demo build toggle. When VITE_DEMO_MODE=true the React bundle locks down
+# signup, surfaces the disclaimer banner + acknowledgement modal, and the
+# build step swaps in robots.demo.txt so crawlers skip the demo URL.
+ARG VITE_DEMO_MODE=false
+ENV VITE_DEMO_MODE=$VITE_DEMO_MODE
+RUN if [ "$VITE_DEMO_MODE" = "true" ]; then \
+      cp public/robots.demo.txt public/robots.txt; \
+    fi
+
 # Build the app (produces /app/dist)
 RUN npm run build
 

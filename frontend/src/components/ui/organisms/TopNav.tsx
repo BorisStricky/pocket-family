@@ -79,6 +79,9 @@ export default function TopNav({ user, globalMode = false, onMenuClick }: TopNav
       position="fixed"
       sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
+        // Shift down by the demo banner height (set dynamically via CSS var by DemoBanner.tsx).
+        // Defaults to 0 in non-demo builds where the var is never written.
+        top: 'var(--demo-banner-height, 0px)',
         bgcolor: 'white',
         color: 'text.primary',
         boxShadow: 1,

@@ -45,19 +45,46 @@ output "next_steps" {
   description = "Bootstrap commands to run after the first apply."
   value       = <<-EOT
 
-    1. Bootstrap the IAM-mapped PostgreSQL user (one-time, via CloudShell):
+    1. Bootstrap the database and IAM-mapped PostgreSQL user (one-time).
+       Aurora Free-plan / Express config is IAM-auth only and skips
+       `database_name` — so both the DB and the app user must be created
+       manually. Two paths:
 
-       export RDSHOST="${aws_rds_cluster.main.endpoint}"
-       psql "host=$RDSHOST port=5432 dbname=postgres user=${var.db_master_username} sslmode=require" \
-         <<EOSQL
-       CREATE USER ${var.db_app_user};
-       GRANT rds_iam TO ${var.db_app_user};
-       GRANT USAGE, CREATE ON SCHEMA public TO ${var.db_app_user};
-       GRANT ALL PRIVILEGES ON ALL TABLES    IN SCHEMA public TO ${var.db_app_user};
-       GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${var.db_app_user};
-       ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES    TO ${var.db_app_user};
-       ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${var.db_app_user};
-       EOSQL
+       OPTION A — RDS Console → Query Editor (easiest, no CLI):
+         a) Console → RDS → Query Editor
+         b) Database instance: pocket-family-db-instance-1
+         c) Connect with "Connect with a Secrets Manager ARN" (Express stored
+            the admin credentials there) OR via temporary credentials.
+         d) Run, in this exact order:
+              CREATE DATABASE ${var.db_name};
+              \\c ${var.db_name}
+              CREATE USER ${var.db_app_user};
+              GRANT rds_iam TO ${var.db_app_user};
+              GRANT USAGE, CREATE ON SCHEMA public TO ${var.db_app_user};
+              GRANT ALL PRIVILEGES ON ALL TABLES    IN SCHEMA public TO ${var.db_app_user};
+              GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${var.db_app_user};
+              ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES    TO ${var.db_app_user};
+              ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${var.db_app_user};
+
+       OPTION B — CloudShell + psql with IAM auth token:
+         export RDSHOST="${aws_rds_cluster.main.endpoint}"
+         export ADMIN_USER="<the admin user Express created — find in Console>"
+         export PGPASSWORD=$(aws rds generate-db-auth-token \
+           --hostname $RDSHOST --port 5432 \
+           --region ${var.aws_region} --username $ADMIN_USER)
+         psql "host=$RDSHOST port=5432 dbname=postgres user=$ADMIN_USER sslmode=require" \
+           -c "CREATE DATABASE ${var.db_name};"
+         # then reconnect to the new DB and run the GRANTs above
+         psql "host=$RDSHOST port=5432 dbname=${var.db_name} user=$ADMIN_USER sslmode=require" \
+           <<EOSQL
+         CREATE USER ${var.db_app_user};
+         GRANT rds_iam TO ${var.db_app_user};
+         GRANT USAGE, CREATE ON SCHEMA public TO ${var.db_app_user};
+         GRANT ALL PRIVILEGES ON ALL TABLES    IN SCHEMA public TO ${var.db_app_user};
+         GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO ${var.db_app_user};
+         ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES    TO ${var.db_app_user};
+         ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO ${var.db_app_user};
+         EOSQL
 
     2. Build and push images:
 

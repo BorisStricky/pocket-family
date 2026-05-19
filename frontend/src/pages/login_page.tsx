@@ -1,13 +1,16 @@
 // src/pages/login_page.tsx
-// Login page with AuthForm
+// Login page with AuthForm. On the demo instance an extra one-click button
+// auto-submits the shared demo credentials so showcase visitors don't have
+// to type anything to get into the app.
 
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Box, Container, Paper } from '@mui/material';
+import { Box, Button, Container, Divider, Paper, Typography } from '@mui/material';
 import { AuthForm } from '@/features/auth/components/AuthForm';
 import { useLogin } from '@/features/auth/hooks/useLogin';
 import { useAuth } from '@/features/auth/hooks/useAuth';
 import { getErrorMessage } from '@/lib/errorUtils';
+import { DEMO_CREDENTIALS, IS_DEMO_MODE } from '@/lib/constants';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -29,6 +32,15 @@ export default function LoginPage() {
     });
   };
 
+  // One-click demo login — fires the same mutation as the normal form but
+  // with the shared demo credentials. Disabled while a request is in flight.
+  const handleTryDemo = () => {
+    handleLogin({
+      email: DEMO_CREDENTIALS.EMAIL,
+      password: DEMO_CREDENTIALS.PASSWORD,
+    });
+  };
+
   return (
     <Box
       sx={{
@@ -41,6 +53,24 @@ export default function LoginPage() {
     >
       <Container maxWidth="sm">
         <Paper elevation={3} sx={{ p: 4 }}>
+          {IS_DEMO_MODE && (
+            <Box sx={{ mb: 3, display: 'flex', flexDirection: 'column', gap: 1, maxWidth: 400, mx: 'auto' }}>
+              <Button
+                variant="contained"
+                size="large"
+                onClick={handleTryDemo}
+                disabled={loginMutation.isPending}
+                fullWidth
+              >
+                Try the Demo
+              </Button>
+              <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
+                Signs you in as the shared demo account. Data resets daily.
+              </Typography>
+              <Divider sx={{ my: 2 }}>or sign in</Divider>
+            </Box>
+          )}
+
           <AuthForm
             mode="login"
             onSubmit={handleLogin}
