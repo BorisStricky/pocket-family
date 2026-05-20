@@ -65,6 +65,12 @@ variable "cors_origins" {
   default     = ""
 }
 
+variable "app_domain" {
+  description = "Custom domain (e.g. example.com). Derives CORS origins and ALB host-header allow-list. Leave empty to skip ALB filtering."
+  type        = string
+  default     = ""
+}
+
 # ── Container images ────────────────────────────────────────────────────────
 
 variable "image_tag" {

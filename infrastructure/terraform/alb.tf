@@ -39,7 +39,32 @@ resource "aws_lb_listener" "http" {
   port              = 80
   protocol          = "HTTP"
 
+  # Reject requests that don't match any listener rule — blocks direct ALB DNS
+  # access and unwanted scanners. The host_filter rule below is the only allowed path.
   default_action {
+    type = "fixed-response"
+    fixed_response {
+      content_type = "text/plain"
+      message_body = "Not found"
+      status_code  = "403"
+    }
+  }
+}
+
+# Forward requests whose Host header belongs to the custom domain and its subdomains.
+# count = 0 when app_domain is unset, making this a no-op in vanilla deployments.
+resource "aws_lb_listener_rule" "host_filter" {
+  count        = var.app_domain != "" ? 1 : 0
+  listener_arn = aws_lb_listener.http.arn
+  priority     = 100
+
+  condition {
+    host_header {
+      values = [var.app_domain, "*.${var.app_domain}"]
+    }
+  }
+
+  action {
     type             = "forward"
     target_group_arn = aws_lb_target_group.frontend.arn
   }
