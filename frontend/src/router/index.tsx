@@ -32,11 +32,8 @@ import {
 import { SettingsPage } from '@/features/settings/pages';
 import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import { BudgetsPage } from '@/features/budgets/pages';
-
-// Simple nested page placeholders (will be replaced with family-scoped versions)
-function Reports() {
-  return <div className="text-slate-700">Reports</div>;
-}
+import { ReportsPage } from '@/features/reports/pages';
+import { ImportCsvPage } from '@/features/transactions/pages';
 
 export default function AppRouter() {
   return (
@@ -121,7 +118,8 @@ export default function AppRouter() {
           </Route>
           <Route path="family" element={<Navigate to="../settings" replace />} />
           <Route path="budgets" element={<BudgetsPage />} />
-          <Route path="reports" element={<Reports />} />
+          <Route path="reports" element={<ReportsPage />} />
+          <Route path="import-csv" element={<ImportCsvPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
 

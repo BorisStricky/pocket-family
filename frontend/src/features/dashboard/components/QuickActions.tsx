@@ -38,8 +38,7 @@ export default function QuickActions() {
     {
       label: 'Import CSV',
       icon: <Upload />,
-      // CSV import is a future feature - button is shown but navigates to transactions
-      onClick: () => navigate(`/app/${familyId}/transactions`),
+      onClick: () => navigate(`/app/${familyId}/import-csv`),
       color: 'info' as const,
     },
   ];
