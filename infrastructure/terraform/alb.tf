@@ -1,6 +1,4 @@
 # Application Load Balancer in front of the Fargate service.
-#
-# HTTP only — HTTPS deferred until a custom domain + ACM certificate exists.
 # The free-tier covers 750 ALB-hours/month (one ALB 24/7 = 720h, fits).
 
 resource "aws_lb" "main" {
@@ -34,10 +32,31 @@ resource "aws_lb_target_group" "frontend" {
   deregistration_delay = 30
 }
 
+# Redirect all HTTP traffic to HTTPS. No host_filter rule is needed here —
+# domain enforcement is handled by the HTTPS listener below.
 resource "aws_lb_listener" "http" {
   load_balancer_arn = aws_lb.main.arn
   port              = 80
   protocol          = "HTTP"
+
+  default_action {
+    type = "redirect"
+    redirect {
+      port        = "443"
+      protocol    = "HTTPS"
+      status_code = "HTTP_301"
+    }
+  }
+}
+
+# HTTPS listener — only created when a custom domain and ACM cert are present.
+resource "aws_lb_listener" "https" {
+  count             = var.app_domain != "" ? 1 : 0
+  load_balancer_arn = aws_lb.main.arn
+  port              = 443
+  protocol          = "HTTPS"
+  ssl_policy        = "ELBSecurityPolicy-TLS13-1-2-2021-06"
+  certificate_arn   = data.aws_acm_certificate.main[0].arn
 
   # Reject requests that don't match any listener rule — blocks direct ALB DNS
   # access and unwanted scanners. The host_filter rule below is the only allowed path.
@@ -55,7 +74,7 @@ resource "aws_lb_listener" "http" {
 # count = 0 when app_domain is unset, making this a no-op in vanilla deployments.
 resource "aws_lb_listener_rule" "host_filter" {
   count        = var.app_domain != "" ? 1 : 0
-  listener_arn = aws_lb_listener.http.arn
+  listener_arn = aws_lb_listener.https[0].arn
   priority     = 100
 
   condition {
