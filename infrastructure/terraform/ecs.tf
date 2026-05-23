@@ -29,17 +29,26 @@ locals {
   backend_image  = "${aws_ecr_repository.backend.repository_url}:${var.image_tag}"
   frontend_image = "${aws_ecr_repository.frontend.repository_url}:${var.image_tag}"
 
+  # Append the canonical frontend origin when app_domain is configured.
+  # Handles empty cors_origins base gracefully.
+  cors_origins_computed = var.app_domain != "" ? (
+    var.cors_origins != ""
+      ? "${var.cors_origins},https://pocket-family-demo.${var.app_domain}"
+      : "https://pocket-family-demo.${var.app_domain}"
+  ) : var.cors_origins
+
   backend_environment = [
-    { name = "DB_INSTANCE", value = "aws_aurora_serverless" },
-    { name = "DB_HOST", value = aws_rds_cluster.main.endpoint },
-    { name = "DB_PORT", value = "5432" },
-    { name = "DB_USER", value = var.db_app_user },
-    { name = "DB_NAME", value = var.db_name },
-    { name = "AWS_REGION", value = var.aws_region },
-    { name = "JWT_SECRET", value = var.jwt_secret },
-    { name = "TEST_MODE", value = "0" },
-    { name = "DEMO_MODE", value = var.demo_mode ? "1" : "0" },
-    { name = "CORS_ORIGINS", value = var.cors_origins },
+    { name = "DB_INSTANCE",  value = "aws_aurora_serverless" },
+    { name = "DB_HOST",      value = aws_rds_cluster.main.endpoint },
+    { name = "DB_PORT",      value = "5432" },
+    { name = "DB_USER",      value = var.db_app_user },
+    { name = "DB_NAME",      value = var.db_name },
+    { name = "AWS_REGION",   value = var.aws_region },
+    { name = "JWT_SECRET",   value = var.jwt_secret },
+    { name = "TEST_MODE",    value = "0" },
+    { name = "DEMO_MODE",    value = var.demo_mode ? "1" : "0" },
+    { name = "CORS_ORIGINS", value = local.cors_origins_computed },
+    { name = "APP_DOMAIN",   value = var.app_domain },
   ]
 }
 
