@@ -140,10 +140,15 @@ async def _load_demo_context(session) -> tuple[User, Tenant, Membership]:
             f"Demo user {DEMO_EMAIL} not found — run ensure_demo_user first."
         )
 
+    # Join on Tenant.name to locate the canonical "Demo Family" tenant specifically,
+    # in case the demo user has created extra tenants (each gets an OWNER membership).
     membership_lookup = await session.execute(
-        select(Membership).where(
+        select(Membership)
+        .join(Tenant, Membership.tenant_id == Tenant.id)
+        .where(
             Membership.user_id == user.id,
             Membership.role == MembershipRole.OWNER,
+            Tenant.name == DEMO_TENANT_NAME,
         )
     )
     owner_membership = membership_lookup.scalars().first()
@@ -157,6 +162,44 @@ async def _load_demo_context(session) -> tuple[User, Tenant, Membership]:
         raise RuntimeError("Demo tenant row missing despite membership reference.")
 
     return user, tenant, owner_membership
+
+
+async def _delete_extra_demo_tenants(session, demo_user, main_tenant_id) -> None:
+    """Delete all tenants owned by the demo user except the canonical demo tenant.
+
+    Demo visitors can create new families via the API; this prevents them from
+    accumulating across daily resets. Deletion order follows FK constraints
+    exactly as _wipe_tenant_data does for the main tenant.
+    """
+    extra_membership_lookup = await session.execute(
+        select(Membership).where(
+            Membership.user_id == demo_user.id,
+            Membership.role == MembershipRole.OWNER,
+            Membership.tenant_id != main_tenant_id,
+        )
+    )
+    extra_memberships = extra_membership_lookup.scalars().all()
+
+    for extra_membership in extra_memberships:
+        extra_tenant_id = extra_membership.tenant_id
+        await session.execute(delete(Transaction).where(Transaction.tenant_id == extra_tenant_id))
+        await session.execute(delete(BudgetCategory).where(BudgetCategory.tenant_id == extra_tenant_id))
+        await session.execute(delete(Budget).where(Budget.tenant_id == extra_tenant_id))
+        await session.execute(
+            delete(Category).where(
+                Category.tenant_id == extra_tenant_id,
+                Category.parent_id.is_not(None),
+            )
+        )
+        await session.execute(delete(Category).where(Category.tenant_id == extra_tenant_id))
+        await session.execute(delete(AccountShare).where(AccountShare.tenant_id == extra_tenant_id))
+        await session.execute(delete(Invite).where(Invite.tenant_id == extra_tenant_id))
+        await session.execute(delete(Membership).where(Membership.tenant_id == extra_tenant_id))
+        await session.execute(delete(Tenant).where(Tenant.id == extra_tenant_id))
+        log.info("Deleted extra demo tenant %s", extra_tenant_id)
+
+    if extra_memberships:
+        await session.flush()
 
 
 async def _wipe_tenant_data(session, tenant_id, demo_user_id, owner_membership_id) -> None:
@@ -318,6 +361,15 @@ async def reset_demo_data() -> None:
 
     async with SessionLocal() as session:
         user, tenant, owner_membership = await _load_demo_context(session)
+
+        # Remove any extra tenants the demo user created during the session.
+        await _delete_extra_demo_tenants(session, user, tenant.id)
+
+        # If the demo user switched preferred tenant to an extra (now deleted) one,
+        # reset it back to the canonical demo tenant.
+        if user.preferred_tenant_id != tenant.id:
+            user.preferred_tenant_id = tenant.id
+            session.add(user)
 
         await _wipe_tenant_data(
             session=session,
