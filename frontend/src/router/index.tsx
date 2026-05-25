@@ -34,6 +34,7 @@ import DashboardPage from '@/features/dashboard/pages/DashboardPage';
 import { BudgetsPage } from '@/features/budgets/pages';
 import { ReportsPage } from '@/features/reports/pages';
 import { ImportCsvPage } from '@/features/transactions/pages';
+import { ImportHistoryPage } from '@/features/imports/pages/ImportHistoryPage';
 
 export default function AppRouter() {
   return (
@@ -120,6 +121,7 @@ export default function AppRouter() {
           <Route path="budgets" element={<BudgetsPage />} />
           <Route path="reports" element={<ReportsPage />} />
           <Route path="import-csv" element={<ImportCsvPage />} />
+          <Route path="imports" element={<ImportHistoryPage />} />
           <Route path="settings" element={<SettingsPage />} />
         </Route>
 

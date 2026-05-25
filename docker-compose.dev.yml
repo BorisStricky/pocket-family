@@ -42,6 +42,41 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - pgdata-dev:/var/lib/postgresql/data-dev
+    networks:
+      - pfin-dev-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # ── Redis — message broker + Celery result backend ─────────────────────────
+  # Used locally in place of SQS. The import worker reads tasks from Redis;
+  # the backend writes tasks to Redis and reads job status from Redis.
+  redis-dev:
+    image: redis:7-alpine
+    restart: unless-stopped
+    ports:
+      - "6379:6379"
+    networks:
+      - pfin-dev-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+
+  # NOTE: The import worker (Celery) is intentionally NOT containerized in dev.
+  # It runs on the host via `uv run celery -A app.celery_app worker`, launched
+  # by infrastructure/dev.sh together with the API and the Vite frontend, so
+  # all three iterated processes share the same hot-reload / debugger / log
+  # ergonomics. Postgres and Redis are the only services that stay in Docker
+  # because they are stateful infra you don't iterate on. In production the
+  # worker IS containerized — see `import-worker` in docker-compose.yaml.
 
 volumes:
   pgdata-dev:
+
+networks:
+  pfin-dev-net:
+    driver: bridge

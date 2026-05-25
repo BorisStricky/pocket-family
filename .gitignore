@@ -23,8 +23,23 @@ frontend/coverage/
 # Logs
 *.log
 
+# Local dev uploads (created by infrastructure/dev.sh — shared between API and worker)
+.dev-uploads/
+
 # IDE
 .vscode/settings.json
+.idea/
+
+# Dotfiles that belong in ~ not in the repo
+.bash_profile
+.bashrc
+.profile
+.zprofile
+.zshrc
+.gitconfig
+.gitmodules
+.mcp.json
+.ripgreprc
 
 # Obsidian config
 .obsidian
