@@ -19,7 +19,6 @@ from decimal import Decimal, InvalidOperation
 from typing import List
 from uuid import uuid4, UUID
 
-from celery.result import AsyncResult
 from dateutil.parser import parse as dateutil_parse, ParserError
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
@@ -190,6 +189,13 @@ async def upload_csv(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
             detail="Only .csv files are accepted",
+        )
+
+    # Validate content type to ensure the file is actually CSV data
+    if file.content_type not in ("text/csv", "application/csv", ""):
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail="Only CSV content type accepted",
         )
 
     # Read the file content with a hard cap to prevent memory exhaustion
@@ -477,11 +483,13 @@ async def execute_import(
 async def get_job_status(
     job_id: str,
     context: ActiveContext = Depends(get_active_context),
+    db: AsyncSession = Depends(get_db),
 ):
     """Poll the background import job for its current status and progress.
 
     Step 4 of the import wizard (polled repeatedly until done or failed).
     The frontend should poll every 2 seconds and stop when status is 'done' or 'failed'.
+    Reads status from the ImportJob table directly — no Celery result backend required.
     """
     if context.active_membership.role == MembershipRole.VIEWER:
         raise HTTPException(
@@ -489,36 +497,37 @@ async def get_job_status(
             detail="Viewers cannot access import jobs",
         )
 
-    try:
-        result = AsyncResult(job_id, app=celery_client)
-        state = result.state
-    except Exception:
-        # If Redis is unreachable we return 'unknown' rather than crashing the UI
-        return JobStatusResponse(job_id=job_id, status="unknown", error="Queue unavailable")
-
-    if state == "PENDING":
-        return JobStatusResponse(job_id=job_id, status="pending")
-
-    if state == "STARTED":
-        meta = result.info or {}
-        return JobStatusResponse(
-            job_id=job_id,
-            status="started",
-            imported=meta.get("imported"),
-            total=meta.get("total"),
+    # Fetch the full ImportJob row and enforce tenant ownership in one query.
+    # The celery_task_id is what the frontend received from /execute and uses
+    # as the polling key; mapping back through the DB ensures cross-tenant isolation.
+    job_result = await db.execute(
+        select(ImportJob).where(
+            ImportJob.celery_task_id == job_id,
+            ImportJob.tenant_id == context.active_tenant.id,
+        )
+    )
+    import_job = job_result.scalars().first()
+    if import_job is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this import job",
         )
 
-    if state == "SUCCESS":
-        info = result.result or {}
-        return JobStatusResponse(
-            job_id=job_id,
-            status="done",
-            imported=info.get("imported"),
-        )
+    status_map = {
+        ImportJobStatus.PENDING: "pending",
+        ImportJobStatus.STARTED: "started",
+        ImportJobStatus.DONE: "done",
+        ImportJobStatus.FAILED: "failed",
+    }
+    job_status = status_map.get(import_job.status, "pending")
 
-    # FAILURE or any other terminal state
-    error_message = str(result.result) if result.result else "Import failed"
-    return JobStatusResponse(job_id=job_id, status="failed", error=error_message)
+    return JobStatusResponse(
+        job_id=job_id,
+        status=job_status,
+        imported=import_job.imported_rows or None,
+        total=import_job.total_rows,
+        error=import_job.error_message,
+    )
 
 
 @router.get("/jobs", response_model=List[ImportJobRead])

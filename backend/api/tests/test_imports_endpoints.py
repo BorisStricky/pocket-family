@@ -14,8 +14,10 @@ Mocking strategy:
 - `app.routers.imports.celery_client.send_task` is monkeypatched to a fake
   that records the dispatched task and returns a stub task object — no Redis
   or worker is involved.
-- `app.routers.imports.AsyncResult` is monkeypatched per-test so we can drive
-  the four Celery states (PENDING / STARTED / SUCCESS / FAILURE) deterministically.
+- Job-status tests seed an `ImportJob` row via the `owner_job_id` fixture and
+  mutate `status` / `imported_rows` / `error_message` directly on that row
+  before calling the endpoint, since `GET /imports/jobs/{id}` reads state
+  from the `importjob` table and no longer consults Celery.
 
 Each endpoint test also validates multi-tenant isolation: requests for a
 tenant the user does not belong to, file_keys prefixed with a different
@@ -34,6 +36,7 @@ from uuid import UUID, uuid4
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models import (
@@ -42,6 +45,8 @@ from app.models import (
     Category,
     CategoryKind,
     Currency,
+    ImportJob,
+    ImportJobStatus,
     Membership,
     MembershipRole,
     MembershipStatus,
@@ -105,38 +110,6 @@ def fake_celery_dispatch(monkeypatch: pytest.MonkeyPatch):
     yield dispatched_tasks
 
 
-@pytest.fixture
-def fake_async_result(monkeypatch: pytest.MonkeyPatch):
-    """Provide a controllable replacement for celery.result.AsyncResult.
-
-    The fixture exposes a `set` callable that tests use to configure the next
-    AsyncResult(...) construction's `.state`, `.info`, and `.result` values.
-    The router code accesses these attributes; the fake mirrors that surface.
-    """
-    configuration: dict[str, Any] = {
-        "state": "PENDING",
-        "info": None,
-        "result": None,
-        "raise_on_construct": False,
-    }
-
-    class FakeAsyncResult:
-        def __init__(self, job_id: str, app=None):
-            if configuration["raise_on_construct"]:
-                raise RuntimeError("Queue unavailable")
-            self.id = job_id
-            self.state = configuration["state"]
-            self.info = configuration["info"]
-            self.result = configuration["result"]
-
-    monkeypatch.setattr(imports_module, "AsyncResult", FakeAsyncResult)
-
-    def _set(**overrides):
-        configuration.update(overrides)
-
-    yield _set
-
-
 @pytest_asyncio.fixture
 async def imported_account(
     async_session: AsyncSession, test_user: User, test_tenant: Tenant
@@ -156,6 +129,38 @@ async def imported_account(
     await async_session.commit()
     await async_session.refresh(account)
     return account
+
+
+@pytest_asyncio.fixture
+async def owner_job_id(
+    async_session: AsyncSession,
+    test_user: User,
+    test_tenant: Tenant,
+    imported_account: Account,
+) -> str:
+    """Persist a PENDING ImportJob for test_tenant and return its celery_task_id.
+
+    The job-status endpoint enforces tenant scoping by requiring an ImportJob
+    row whose celery_task_id matches the requested job_id and whose tenant_id
+    matches the caller. Tests that drive the Celery state machine need that
+    row to exist; otherwise they would get a 404 before the state mapping
+    code is reached.
+    """
+    job_id = str(uuid4())
+    import_job = ImportJob(
+        tenant_id=test_tenant.id,
+        account_id=imported_account.id,
+        created_by=test_user.id,
+        file_key=f"{test_tenant.id}/{uuid4()}.csv",
+        filename="statement.csv",
+        total_rows=10,
+        imported_rows=0,
+        status=ImportJobStatus.PENDING,
+        celery_task_id=job_id,
+    )
+    async_session.add(import_job)
+    await async_session.commit()
+    return job_id
 
 
 @pytest_asyncio.fixture
@@ -876,37 +881,45 @@ class TestJobStatusEndpoint:
         self,
         async_client: AsyncClient,
         owner_token: str,
-        fake_async_result,
+        owner_job_id: str,
     ):
-        """Celery state PENDING → status 'pending', no progress fields."""
-        fake_async_result(state="PENDING", info=None, result=None)
+        """ImportJob status PENDING → response status 'pending'.
 
+        `total` is set by the API at dispatch time (the planned row count) and
+        the endpoint returns it as soon as the row exists; `imported` is None
+        because the fixture seeds `imported_rows=0` and the endpoint maps
+        falsy → None for the progress field.
+        """
         response = await async_client.get(
-            f"/imports/jobs/{uuid4()}", headers=_bearer(owner_token)
+            f"/imports/jobs/{owner_job_id}", headers=_bearer(owner_token)
         )
 
         assert response.status_code == 200
         body = response.json()
         assert body["status"] == "pending"
         assert body["imported"] is None
-        assert body["total"] is None
+        assert body["total"] == 10
         assert body["error"] is None
 
     async def test_started_state_maps_to_started_with_progress(
         self,
         async_client: AsyncClient,
+        async_session: AsyncSession,
         owner_token: str,
-        fake_async_result,
+        owner_job_id: str,
     ):
-        """STARTED + meta dict → status 'started' with imported/total counts."""
-        fake_async_result(
-            state="STARTED",
-            info={"imported": 3, "total": 10},
-            result=None,
-        )
+        """ImportJob status STARTED with imported_rows → progress in response."""
+        import_job = (
+            await async_session.execute(
+                select(ImportJob).where(ImportJob.celery_task_id == owner_job_id)
+            )
+        ).scalar_one()
+        import_job.status = ImportJobStatus.STARTED
+        import_job.imported_rows = 3
+        await async_session.commit()
 
         response = await async_client.get(
-            f"/imports/jobs/{uuid4()}", headers=_bearer(owner_token)
+            f"/imports/jobs/{owner_job_id}", headers=_bearer(owner_token)
         )
 
         assert response.status_code == 200
@@ -918,18 +931,22 @@ class TestJobStatusEndpoint:
     async def test_success_state_maps_to_done(
         self,
         async_client: AsyncClient,
+        async_session: AsyncSession,
         owner_token: str,
-        fake_async_result,
+        owner_job_id: str,
     ):
-        """SUCCESS + result dict → status 'done' with final imported count."""
-        fake_async_result(
-            state="SUCCESS",
-            info=None,
-            result={"status": "done", "imported": 7},
-        )
+        """ImportJob status DONE → response status 'done' with final imported count."""
+        import_job = (
+            await async_session.execute(
+                select(ImportJob).where(ImportJob.celery_task_id == owner_job_id)
+            )
+        ).scalar_one()
+        import_job.status = ImportJobStatus.DONE
+        import_job.imported_rows = 7
+        await async_session.commit()
 
         response = await async_client.get(
-            f"/imports/jobs/{uuid4()}", headers=_bearer(owner_token)
+            f"/imports/jobs/{owner_job_id}", headers=_bearer(owner_token)
         )
 
         assert response.status_code == 200
@@ -940,18 +957,22 @@ class TestJobStatusEndpoint:
     async def test_failure_state_maps_to_failed_with_error(
         self,
         async_client: AsyncClient,
+        async_session: AsyncSession,
         owner_token: str,
-        fake_async_result,
+        owner_job_id: str,
     ):
-        """FAILURE + result → status 'failed' with error message."""
-        fake_async_result(
-            state="FAILURE",
-            info=None,
-            result=Exception("database is down"),
-        )
+        """ImportJob status FAILED + error_message → status 'failed' with error."""
+        import_job = (
+            await async_session.execute(
+                select(ImportJob).where(ImportJob.celery_task_id == owner_job_id)
+            )
+        ).scalar_one()
+        import_job.status = ImportJobStatus.FAILED
+        import_job.error_message = "database is down"
+        await async_session.commit()
 
         response = await async_client.get(
-            f"/imports/jobs/{uuid4()}", headers=_bearer(owner_token)
+            f"/imports/jobs/{owner_job_id}", headers=_bearer(owner_token)
         )
 
         assert response.status_code == 200
@@ -959,32 +980,53 @@ class TestJobStatusEndpoint:
         assert body["status"] == "failed"
         assert "database is down" in body["error"]
 
-    async def test_unreachable_queue_returns_unknown(
+    async def test_job_status_rejects_job_id_from_other_tenant(
         self,
         async_client: AsyncClient,
         owner_token: str,
-        fake_async_result,
+        other_tenant: Tenant,
+        other_tenant_owner: tuple,
+        other_tenant_account: Account,
+        async_session: AsyncSession,
     ):
-        """If AsyncResult construction fails (Redis down), status is 'unknown'.
+        """A user must not be able to poll a job_id owned by another tenant.
 
-        The router catches the construction error and returns a graceful
-        response so the frontend can render an error state rather than 500.
+        Returns 403 to deny access to cross-tenant jobs. The legitimate UI
+        never asks about another tenant's job_id, so 403 (authenticated but
+        unauthorized) is the correct semantic; a 404 would falsely imply the
+        ID could exist in the caller's tenant.
         """
-        fake_async_result(raise_on_construct=True)
+        # Persist an ImportJob in the other tenant with DONE status so that a
+        # leak would surface as a 200 with progress fields — making the
+        # assertion below unambiguous if the tenant check were missing.
+        other_user, _ = other_tenant_owner
+        cross_tenant_job_id = str(uuid4())
+        foreign_job = ImportJob(
+            tenant_id=other_tenant.id,
+            account_id=other_tenant_account.id,
+            created_by=other_user.id,
+            file_key=f"{other_tenant.id}/{uuid4()}.csv",
+            filename="foreign.csv",
+            total_rows=5,
+            imported_rows=5,
+            status=ImportJobStatus.DONE,
+            celery_task_id=cross_tenant_job_id,
+        )
+        async_session.add(foreign_job)
+        await async_session.commit()
 
         response = await async_client.get(
-            f"/imports/jobs/{uuid4()}", headers=_bearer(owner_token)
+            f"/imports/jobs/{cross_tenant_job_id}",
+            headers=_bearer(owner_token),
         )
 
-        assert response.status_code == 200
-        body = response.json()
-        assert body["status"] == "unknown"
-        assert "Queue unavailable" in body["error"]
+        assert response.status_code == 403
+        # Body must not leak the foreign job's progress
+        assert "imported" not in response.text or response.json().get("imported") is None
 
     async def test_job_status_requires_authentication(
         self,
         async_client: AsyncClient,
-        fake_async_result,
     ):
         """An unauthenticated request must be rejected with 401."""
         response = await async_client.get(f"/imports/jobs/{uuid4()}")
@@ -997,19 +1039,13 @@ class TestJobStatusEndpoint:
         viewer_token: str,
         viewer_membership: Membership,
         test_tenant: Tenant,
-        fake_async_result,
     ):
         """A user with VIEWER role must be denied job-status access with 403.
 
-        The fake_async_result is configured to PENDING so if the role check
-        were somehow bypassed the endpoint would still return 200 — confirming
-        that a 403 here must come from the role guard, not from the Celery
-        state mapping.
+        Even though no matching ImportJob exists for the requested id, the
+        role guard runs first and must short-circuit with 403 before the DB
+        lookup.
         """
-        # Set the fake Celery result to PENDING so we can distinguish a role
-        # rejection (403) from any accidental fall-through to state mapping.
-        fake_async_result(state="PENDING", info=None, result=None)
-
         response = await async_client.get(
             f"/imports/jobs/{uuid4()}", headers=_bearer(viewer_token)
         )

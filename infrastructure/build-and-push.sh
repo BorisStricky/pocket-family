@@ -17,6 +17,7 @@
 #   IMAGE_TAG        — tag applied to both images (default: latest)
 #   BUILD_BACKEND    — set to 0 to skip backend build (default: 1)
 #   BUILD_FRONTEND   — set to 0 to skip frontend build (default: 1)
+#   BUILD_IMPORT_WORKER — set to 0 to skip import worker build (default: 1)
 #   DEMO_MODE        — set to 1 to bake the demo build flag into the frontend
 #                      image (default: 0). The backend honours DEMO_MODE at
 #                      runtime via the ECS task definition; only the frontend
@@ -30,6 +31,7 @@
 #                      named below (override with ECS_CLUSTER / ECS_SERVICE).
 #   ECS_CLUSTER      — ECS cluster name for FORCE_NEW_DEPLOYMENT (default: pocket-family)
 #   ECS_SERVICE      — ECS service name for FORCE_NEW_DEPLOYMENT (default: pocket-family-svc)
+#   ECS_WORKER_SERVICE — Worker ECS service name (default: pocket-family-import-worker-svc)
 #
 # Usage:
 #   export AWS_ACCESS_KEY_ID=AKIA... AWS_SECRET_ACCESS_KEY=...   # if not using `aws configure`
@@ -43,10 +45,12 @@ set -euo pipefail
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 BUILD_BACKEND="${BUILD_BACKEND:-1}"
 BUILD_FRONTEND="${BUILD_FRONTEND:-1}"
+BUILD_IMPORT_WORKER="${BUILD_IMPORT_WORKER:-1}"
 DEMO_MODE="${DEMO_MODE:-0}"
 FORCE_NEW_DEPLOYMENT="${FORCE_NEW_DEPLOYMENT:-0}"
 ECS_CLUSTER="${ECS_CLUSTER:-pocket-family}"
 ECS_SERVICE="${ECS_SERVICE:-pocket-family-svc}"
+ECS_WORKER_SERVICE="${ECS_WORKER_SERVICE:-pocket-family-import-worker-svc}"
 
 # Map our 0/1 sh-friendly flag onto the "true"/"false" string the Vite build
 # expects via VITE_DEMO_MODE (compared directly in src/lib/constants.ts).
@@ -60,6 +64,7 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 BACKEND_REPO="${ECR_REGISTRY}/pocket-family-backend"
 FRONTEND_REPO="${ECR_REGISTRY}/pocket-family-frontend"
+IMPORT_WORKER_REPO="${ECR_REGISTRY}/pocket-family-import-worker"
 
 # Capture the current git SHA so we can also tag images with an immutable reference.
 # Falls back to "unknown" if not in a git repo (e.g. running from a tarball).
@@ -112,27 +117,57 @@ if [[ "$BUILD_BACKEND" == "1" ]]; then
   docker push "${BACKEND_REPO}:${GIT_SHA}"
 fi
 
+# Step 4 — build import worker (no build args; config is runtime via ECS task definition).
+if [[ "$BUILD_IMPORT_WORKER" == "1" ]]; then
+  echo
+  echo "==> Building import-worker image..."
+  docker build \
+    -t "pocket-family-import-worker:${IMAGE_TAG}" \
+    "$REPO_ROOT/import-service"
+
+  docker tag "pocket-family-import-worker:${IMAGE_TAG}" "${IMPORT_WORKER_REPO}:${IMAGE_TAG}"
+  docker tag "pocket-family-import-worker:${IMAGE_TAG}" "${IMPORT_WORKER_REPO}:${GIT_SHA}"
+
+  echo "==> Pushing import-worker image..."
+  docker push "${IMPORT_WORKER_REPO}:${IMAGE_TAG}"
+  docker push "${IMPORT_WORKER_REPO}:${GIT_SHA}"
+fi
+
 echo
 echo "==> Done. Image URIs:"
-[[ "$BUILD_FRONTEND" == "1" ]] && echo "    ${FRONTEND_REPO}:${IMAGE_TAG}"
-[[ "$BUILD_BACKEND"  == "1" ]] && echo "    ${BACKEND_REPO}:${IMAGE_TAG}"
+[[ "$BUILD_FRONTEND"      == "1" ]] && echo "    ${FRONTEND_REPO}:${IMAGE_TAG}"
+[[ "$BUILD_BACKEND"       == "1" ]] && echo "    ${BACKEND_REPO}:${IMAGE_TAG}"
+[[ "$BUILD_IMPORT_WORKER" == "1" ]] && echo "    ${IMPORT_WORKER_REPO}:${IMAGE_TAG}"
 echo
 
-# Step 4 — optionally trigger an ECS rollout so the running task picks up the
-# newly-pushed image. Required when the image tag is reused (e.g. `latest`)
-# because ECS otherwise sees no change and won't re-pull.
+# Step 5 — optionally trigger an ECS rollout so running tasks pick up the
+# newly-pushed images. Required when the image tag is reused (e.g. `latest`)
+# because ECS otherwise sees no change and won't re-pull. We force-deploy each
+# service whose image was rebuilt in this run.
 if [[ "$FORCE_NEW_DEPLOYMENT" == "1" ]]; then
-  echo "==> Forcing new ECS deployment on $ECS_CLUSTER/$ECS_SERVICE..."
-  aws ecs update-service \
-    --cluster "$ECS_CLUSTER" \
-    --service "$ECS_SERVICE" \
-    --force-new-deployment \
-    --region "$AWS_REGION" \
-    --no-cli-pager > /dev/null
-  echo "==> Deployment triggered. Watch progress with:"
-  echo "    aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --region $AWS_REGION --query 'services[0].deployments'"
+  if [[ "$BUILD_BACKEND" == "1" || "$BUILD_FRONTEND" == "1" ]]; then
+    echo "==> Forcing new ECS deployment on $ECS_CLUSTER/$ECS_SERVICE..."
+    aws ecs update-service \
+      --cluster "$ECS_CLUSTER" \
+      --service "$ECS_SERVICE" \
+      --force-new-deployment \
+      --region "$AWS_REGION" \
+      --no-cli-pager > /dev/null
+  fi
+  if [[ "$BUILD_IMPORT_WORKER" == "1" ]]; then
+    echo "==> Forcing new ECS deployment on $ECS_CLUSTER/$ECS_WORKER_SERVICE..."
+    aws ecs update-service \
+      --cluster "$ECS_CLUSTER" \
+      --service "$ECS_WORKER_SERVICE" \
+      --force-new-deployment \
+      --region "$AWS_REGION" \
+      --no-cli-pager > /dev/null
+  fi
+  echo "==> Deployment(s) triggered. Watch progress with:"
+  echo "    aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE $ECS_WORKER_SERVICE --region $AWS_REGION --query 'services[].deployments'"
 else
   echo "Force ECS to pick up the new images with:"
   echo "  aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment --region $AWS_REGION"
+  echo "  aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_WORKER_SERVICE --force-new-deployment --region $AWS_REGION"
   echo "  (or re-run this script with FORCE_NEW_DEPLOYMENT=1)"
 fi

@@ -80,6 +80,7 @@ class ActiveContext(SQLModel):
         Attributes:
             active_user: User record
             active_tenant: Tenant record
+            active_membership: Membership record
     """
     active_user: User
     active_tenant: Tenant

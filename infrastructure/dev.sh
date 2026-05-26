@@ -85,8 +85,10 @@ case "$ACTION" in
     start_infra
 
     # Env shared by API and worker. Each subshell picks the right DB driver.
+    # RESULT_BACKEND is intentionally unset — job status is read from the
+    # importjob PostgreSQL table, matching the AWS architecture (no Redis result
+    # backend). Redis is still used as the broker only.
     export BROKER_URL="redis://localhost:6379/0"
-    export RESULT_BACKEND="redis://localhost:6379/1"
     export STORAGE_BACKEND="local"
     export LOCAL_UPLOAD_DIR="$UPLOAD_DIR"
     # db-dev publishes 5432 → host 5433 (see docker-compose.dev.yml)

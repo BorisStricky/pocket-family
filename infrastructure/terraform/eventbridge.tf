@@ -28,9 +28,18 @@ resource "aws_ecs_task_definition" "demo_reset" {
       image     = local.backend_image
       essential = true
       # Override the default uvicorn entrypoint: this task is a one-shot
-      # Python script, not a long-running web server. `uv run` so the
-      # script picks up the same locked dependencies as the API.
-      command          = ["uv", "run", "python", "/app/scripts/seed_demo_data.py"]
+      # script chain, not a long-running web server. `uv run` so both steps
+      # pick up the same locked dependencies as the API.
+      #
+      # Step 1: `alembic upgrade head` is idempotent — a no-op once schema is
+      # at head. Folding it into the daily reset means every demo refresh
+      # also applies any new migration, so we don't maintain a separate
+      # migration task definition just for the demo environment.
+      # Step 2: re-seed the demo tenant.
+      command = [
+        "sh", "-c",
+        "uv run alembic upgrade head && uv run python /app/scripts/seed_demo_data.py"
+      ]
       workingDirectory = "/app"
       environment      = local.backend_environment
       logConfiguration = {

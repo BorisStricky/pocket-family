@@ -9,19 +9,18 @@ import os
 from celery import Celery
 
 _broker_url = os.getenv("BROKER_URL", "redis://localhost:6379/0")
-_result_backend = os.getenv("RESULT_BACKEND", "redis://localhost:6379/1")
+_default_queue = os.getenv("CELERY_DEFAULT_QUEUE", "celery")
 
 # Minimal Celery instance — no workers, no autodiscovery, dispatch only.
-# The broker and backend URLs are identical to those the import-service worker uses
-# so tasks dispatched here are picked up by the correct worker.
+# No result backend: the backend reads job status from the importjob PostgreSQL
+# table rather than Celery's result store, so no backend URL is needed here.
 celery_client = Celery(
     "import_dispatch",
     broker=_broker_url,
-    backend=_result_backend,
 )
 
 celery_client.conf.update(
     task_serializer="json",
-    result_serializer="json",
     accept_content=["json"],
+    task_default_queue=_default_queue,
 )

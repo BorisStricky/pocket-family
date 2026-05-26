@@ -20,6 +20,10 @@ from ..db import (
 )
 from ..storage import get_storage
 
+# Transaction source constants - must match PostgreSQL enum labels (uppercase)
+TRANSACTION_SOURCE_MANUAL = "MANUAL"
+TRANSACTION_SOURCE_RECURRING = "RECURRING"
+
 logger = logging.getLogger(__name__)
 
 
@@ -94,11 +98,11 @@ def execute_import(self, payload: dict) -> dict:
     rows = payload.get("rows", [])
     total = len(rows)
 
-    raw_job_id = payload.get("import_job_id")
-    import_job_id = UUID(raw_job_id) if raw_job_id else None
+    import_job_id_string = payload.get("import_job_id")
+    import_job_id = UUID(import_job_id_string) if import_job_id_string else None
 
-    # Notify the backend that processing has started so it can show progress
-    self.update_state(state="STARTED", meta={"imported": 0, "total": total})
+    # Signal STARTED in the importjob table — this is the sole status source on AWS
+    # where no Celery result backend is configured.
     _mark_import_job(import_job_id, status="STARTED")
 
     tenant_id = UUID(payload["tenant_id"])
@@ -140,7 +144,7 @@ def execute_import(self, payload: dict) -> dict:
                     "created_at": now,
                     "updated_at": now,
                     "reconciled": False,
-                    "source": "MANUAL",
+                    "source": TRANSACTION_SOURCE_MANUAL,
                 })
 
                 # Accumulate balance change to apply in a single UPDATE

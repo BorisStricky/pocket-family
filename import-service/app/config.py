@@ -13,9 +13,15 @@ class Settings(BaseSettings):
     # AWS SQS:    sqs://  (kombu reads AWS credentials from the environment)
     broker_url: str = "redis://localhost:6379/0"
 
-    # Where Celery stores task results so the backend can poll for status.
-    # Must be Redis for the current setup; DynamoDB is a possible AWS alternative.
-    result_backend: str = "redis://localhost:6379/1"
+    # Where Celery stores task results (optional).
+    # Leave empty (the default) on AWS — job status is read from the importjob
+    # PostgreSQL table instead, so no result backend is needed.
+    # Set to redis://... in local dev if you also want Celery's built-in result store.
+    result_backend: str = ""
+
+    # Celery default queue name. Must match the SQS queue name on AWS.
+    # Defaults to "celery" which is Kombu's built-in default.
+    celery_default_queue: str = "celery"
 
     # Synchronous PostgreSQL URL (psycopg2 driver) — Celery tasks run outside
     # asyncio so we cannot use the async asyncpg driver used by the main backend.

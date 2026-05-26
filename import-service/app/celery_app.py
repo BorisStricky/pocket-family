@@ -19,15 +19,13 @@ def make_celery() -> Celery:
     application = Celery("import_service", include=["app.tasks.import_csv"])
     application.conf.update(
         broker_url=settings.broker_url,
-        result_backend=settings.result_backend,
         # Use JSON serialization so tasks are readable in broker logs and
         # portable across Python versions without pickle security concerns.
         task_serializer="json",
-        result_serializer="json",
         accept_content=["json"],
-        # Track when tasks transition to STARTED state so the backend can
-        # report progress to the user during long-running imports.
-        task_track_started=True,
+        # Route tasks to the configured queue name so local Redis ("celery")
+        # and AWS SQS ("pocket-family-celery") both work without code changes.
+        task_default_queue=settings.celery_default_queue,
         # Acknowledge the task only after it completes (not when received).
         # This ensures a task is re-queued if the worker crashes mid-import.
         task_acks_late=True,
@@ -35,6 +33,12 @@ def make_celery() -> Celery:
         # CSV imports are not idempotent and should not run twice.
         task_reject_on_worker_lost=True,
     )
+    # Only enable the Celery result backend if a URL is explicitly configured.
+    # On AWS we skip it entirely — status is read from the importjob table instead.
+    if settings.result_backend:
+        application.conf.result_backend = settings.result_backend
+        application.conf.result_serializer = "json"
+        application.conf.task_track_started = True
     return application
 
 
