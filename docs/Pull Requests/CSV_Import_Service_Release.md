@@ -12,7 +12,7 @@ This branch delivers the end-to-end CSV transaction import feature: a 4-step fro
 - ✅ **4-Step Import Wizard**: Upload → Map Columns → Review & Edit → Import with real-time progress polling
 - ✅ **Duplicate Detection**: Analyze step flags rows already present in the target account (matching date + amount)
 - ✅ **Standalone Import Microservice**: `import-service/` Celery worker runs in its own container, keeping bulk inserts off the FastAPI async event loop
-- ✅ **Storage Abstraction**: `StorageAdapter` interface supports both local Docker volume (dev) and AWS S3 (prod) without code changes
+- ✅ **Storage Abstraction**: `StorageAdapter` interface supports both local Docker volume and AWS S3 without code changes
 - ✅ **SQS-Ready Queue**: Kombu's built-in SQS transport activates by setting `BROKER_URL=sqs://` — no code changes needed to switch queues
 - ✅ **Atomic Bulk Insert**: All transactions + account balance update committed in a single DB transaction; partial imports cannot occur
 - ✅ **Multi-Locale Amount Parsing**: Handles R$, $, €, accounting parentheses, European separators (1.234,56), English separators, and inferred type from sign
