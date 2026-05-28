@@ -55,6 +55,10 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       # Disable test mode so refresh tokens are stored as HttpOnly cookies
       TEST_MODE: "0"
+      # Cookie Secure flag. "0" lets the refresh_token cookie be sent over
+      # plain HTTP (LAN / Tailscale). Production HTTPS deployments must omit
+      # this (or set "1") so the cookie is HTTPS-only.
+      COOKIE_SECURE: "0"
       # Comma-separated list of origins the browser is allowed to call from.
       # Points to the frontend on the local network.
       CORS_ORIGINS: "http://192.168.1.101:3000"
