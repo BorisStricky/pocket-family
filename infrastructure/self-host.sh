@@ -11,14 +11,20 @@
 # Optional environment variables:
 #   ENV_FILE       — path to env file (default: <repo>/.env.production)
 #   COMPOSE_FILE   — path to compose file (default: <repo>/docker-compose.yaml)
-#   ACTION         — up | down | restart | logs | build (default: up)
+#   ACTION         — up | down | restart | logs | build | migrate (default: up)
 #   DETACH         — set to 0 to run in the foreground (default: 1)
 #
 # Usage:
-#   ./infrastructure/self-host.sh                    # build + start detached
+#   ./infrastructure/self-host.sh                    # build, migrate, start detached
+#   ACTION=migrate ./infrastructure/self-host.sh     # apply DB migrations only
 #   ACTION=logs    ./infrastructure/self-host.sh     # tail logs
 #   ACTION=down    ./infrastructure/self-host.sh     # stop and remove containers
-#   ACTION=restart ./infrastructure/self-host.sh     # rebuild and restart
+#   ACTION=restart ./infrastructure/self-host.sh     # rebuild, migrate, and restart
+#
+# Schema note: the backend no longer auto-creates tables on startup outside local
+# dev (AUTO_CREATE_SCHEMA=0 in .env.production), so `up`/`restart` run
+# `alembic upgrade head` before starting the services. Alembic is idempotent — a
+# no-op once the DB is already at head.
 
 set -euo pipefail
 
@@ -43,9 +49,9 @@ if [[ ! -f "$COMPOSE_FILE" ]]; then
   exit 1
 fi
 
-# The 'up' / 'build' / 'restart' paths need real secrets in the env file.
-# 'down' / 'logs' do not require it, so we only enforce when relevant.
-if [[ "$ACTION" =~ ^(up|build|restart)$ ]]; then
+# The 'up' / 'build' / 'restart' / 'migrate' paths need real secrets in the env file
+# ('migrate' connects to the DB). 'down' / 'logs' do not, so we only enforce when relevant.
+if [[ "$ACTION" =~ ^(up|build|restart|migrate)$ ]]; then
   if [[ ! -f "$ENV_FILE" ]]; then
     echo "ERROR: env file not found: $ENV_FILE" >&2
     echo "Copy .env.production.example to .env.production and fill in DB_PASSWORD + JWT_SECRET." >&2
@@ -68,6 +74,14 @@ fi
 COMPOSE_ARGS=(--file "$COMPOSE_FILE")
 [[ -f "$ENV_FILE" ]] && COMPOSE_ARGS+=(--env-file "$ENV_FILE")
 
+# Apply Alembic migrations in a throwaway backend container. `run --rm` starts the
+# backend's depends_on (db), runs the command, then removes the container. This is
+# the self-host counterpart of the one-off pocket-family-migrate ECS task on AWS.
+run_migrations() {
+  echo "==> Applying database migrations (alembic upgrade head)..."
+  "${COMPOSE[@]}" "${COMPOSE_ARGS[@]}" run --rm backend uv run alembic upgrade head
+}
+
 echo "==> Repo:       $REPO_ROOT"
 echo "==> Compose:    $COMPOSE_FILE"
 echo "==> Env file:   $ENV_FILE"
@@ -76,7 +90,11 @@ echo
 
 case "$ACTION" in
   up)
-    UP_FLAGS=(--build)
+    # Build first so run_migrations and the services use the freshly-built image,
+    # then apply migrations before the backend starts serving requests.
+    "${COMPOSE[@]}" "${COMPOSE_ARGS[@]}" build
+    run_migrations
+    UP_FLAGS=()
     [[ "$DETACH" == "1" ]] && UP_FLAGS+=(--detach)
     "${COMPOSE[@]}" "${COMPOSE_ARGS[@]}" up "${UP_FLAGS[@]}"
     if [[ "$DETACH" == "1" ]]; then
@@ -91,12 +109,17 @@ case "$ACTION" in
   build)
     "${COMPOSE[@]}" "${COMPOSE_ARGS[@]}" build
     ;;
+  migrate)
+    run_migrations
+    ;;
   down)
     "${COMPOSE[@]}" "${COMPOSE_ARGS[@]}" down
     ;;
   restart)
     "${COMPOSE[@]}" "${COMPOSE_ARGS[@]}" down
-    UP_FLAGS=(--build)
+    "${COMPOSE[@]}" "${COMPOSE_ARGS[@]}" build
+    run_migrations
+    UP_FLAGS=()
     [[ "$DETACH" == "1" ]] && UP_FLAGS+=(--detach)
     "${COMPOSE[@]}" "${COMPOSE_ARGS[@]}" up "${UP_FLAGS[@]}"
     ;;
@@ -104,7 +127,7 @@ case "$ACTION" in
     "${COMPOSE[@]}" "${COMPOSE_ARGS[@]}" logs --follow --tail=200
     ;;
   *)
-    echo "ERROR: unknown ACTION '$ACTION' (expected: up | down | restart | logs | build)" >&2
+    echo "ERROR: unknown ACTION '$ACTION' (expected: up | down | restart | logs | build | migrate)" >&2
     exit 1
     ;;
 esac

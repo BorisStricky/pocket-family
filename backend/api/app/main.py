@@ -47,6 +47,8 @@ async def on_startup():
     On demo instances (DEMO_MODE=1) also ensures the shared demo account
     exists so a fresh deploy is immediately usable.
     """
+    # No-op unless AUTO_CREATE_SCHEMA=1 (local dev). Everywhere else Alembic owns the
+    # schema — see init_db() in db.py for why create_all is gated out of production.
     await init_db()
 
     if is_demo_mode():
