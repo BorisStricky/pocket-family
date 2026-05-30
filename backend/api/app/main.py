@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from .db import init_db
-from .routers import auth, tenants, accounts, categories, transactions, budgets
+from .routers import auth, tenants, accounts, categories, transactions, budgets, imports
 from .auth import is_demo_mode
 from .rate_limit import limiter
 
@@ -88,3 +88,4 @@ app.include_router(accounts.router)
 app.include_router(categories.router)
 app.include_router(transactions.router)
 app.include_router(budgets.router)
+app.include_router(imports.router)

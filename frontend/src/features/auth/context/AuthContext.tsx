@@ -69,12 +69,18 @@ export function AuthProvider({ children }: AuthProviderProps) {
   }, []);
 
   /**
-   * Store tokens in localStorage
+   * Store tokens in localStorage and update in-memory user state.
+   * Decoding the new JWT here ensures role/tenant changes (e.g. family switch,
+   * login) are reflected immediately without waiting for the next page load.
    */
   const setTokens = useCallback((tokens: TokenResponse) => {
     localStorage.setItem(STORAGE_KEYS.ACCESS_TOKEN, tokens.access_token);
     if (tokens.refresh_token) {
       localStorage.setItem(STORAGE_KEYS.REFRESH_TOKEN, tokens.refresh_token);
+    }
+    const userFromToken = getUserFromToken(tokens.access_token);
+    if (userFromToken) {
+      setUser(userFromToken);
     }
   }, []);
 

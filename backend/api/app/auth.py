@@ -110,6 +110,12 @@ def is_test_mode() -> bool:
     return os.getenv("TEST_MODE", "0") == "1"
 
 
+def cookies_secure() -> bool:
+    # Default-secure. Set COOKIE_SECURE=0 only for plain-HTTP LAN/Tailscale access;
+    # browsers refuse to transmit Secure cookies over insecure origins.
+    return os.getenv("COOKIE_SECURE", "1") == "1"
+
+
 # Demo instance flag: when DEMO_MODE=1, the API gates account creation and
 # destructive tenant operations to keep the public demo safe and predictable.
 def is_demo_mode() -> bool:

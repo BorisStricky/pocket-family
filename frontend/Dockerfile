@@ -34,6 +34,12 @@ RUN if [ "$VITE_DEMO_MODE" = "true" ]; then \
 # Build the app (produces /app/dist)
 RUN npm run build
 
+# Normalise permissions on the build output so the non-root nginx worker in
+# the runtime image can read every asset. Without this, any file COPYed in
+# from the host with restrictive modes (e.g. 0660) stays unreadable to
+# others and nginx returns 403 for it.
+RUN chmod -R a+rX /app/dist
+
 # Serve via nginx
 FROM nginx:stable-alpine AS prod
 # NGINX_CONF selects which nginx config to copy into the image.

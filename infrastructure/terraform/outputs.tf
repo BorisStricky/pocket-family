@@ -41,6 +41,21 @@ output "task_role_arn" {
   value       = aws_iam_role.task.arn
 }
 
+output "ecr_import_worker_url" {
+  description = "Import worker ECR repository URI. Pass to build-and-push.sh."
+  value       = aws_ecr_repository.import_worker.repository_url
+}
+
+output "celery_sqs_queue_url" {
+  description = "SQS queue URL used as the Celery broker. Set as BROKER_URL in local overrides if needed."
+  value       = aws_sqs_queue.celery.url
+}
+
+output "csv_uploads_bucket_name" {
+  description = "S3 bucket name for CSV uploads. Used by STORAGE_BACKEND=s3 on both backend and worker."
+  value       = aws_s3_bucket.csv_uploads.bucket
+}
+
 output "next_steps" {
   description = "Bootstrap commands to run after the first apply."
   value       = <<-EOT
