@@ -18,6 +18,7 @@ from .models import (
     AccountType,
     Currency,
     ShareVisibility,
+    ImportJobStatus,
 )
 
 
@@ -79,6 +80,7 @@ class ActiveContext(SQLModel):
         Attributes:
             active_user: User record
             active_tenant: Tenant record
+            active_membership: Membership record
     """
     active_user: User
     active_tenant: Tenant
@@ -500,3 +502,197 @@ class BudgetUpdate(SQLModel):
     amount: Optional[Decimal] = Field(default=None, gt=0)
     currency: Optional[Currency] = None
     category_ids: Optional[List[UUID]] = None
+
+
+# -------------------------
+# CSV Import
+# -------------------------
+
+class ImportUploadResponse(SQLModel):
+    """Response returned after successfully uploading a CSV file.
+
+    Attributes:
+        file_key: Opaque storage key used to reference the file in subsequent steps.
+        filename: Original filename the user uploaded, preserved for the
+                  import history display.
+        detected_columns: Column names from the first (header) row of the CSV.
+        sample_rows: Up to 5 data rows as raw string dicts for preview.
+        row_count: Total number of data rows in the file.
+    """
+    file_key: str
+    filename: Optional[str] = None
+    detected_columns: List[str]
+    sample_rows: List[dict]
+    row_count: int
+
+
+class ColumnMapping(SQLModel):
+    """Maps CSV column names to transaction fields.
+
+    Only date_column and amount_column are required. When type_column is
+    omitted, the transaction type is inferred from the sign of the amount
+    (negative → expense, positive → income).
+
+    Args:
+        date_column: CSV column containing the transaction date.
+        amount_column: CSV column containing the monetary amount.
+        description_column: Optional column for the transaction description.
+        type_column: Optional column indicating expense/income (various values supported).
+    """
+    date_column: str
+    amount_column: str
+    description_column: Optional[str] = None
+    type_column: Optional[str] = None
+
+
+class AnalyzeRequest(SQLModel):
+    """Request body for the /imports/analyze endpoint.
+
+    Args:
+        file_key: Storage key returned by /imports/upload.
+        account_id: Target account UUID for the import.
+        column_mapping: How CSV columns map to transaction fields.
+        start_row: Zero-indexed row number of the header row (default 0).
+        currency: Currency to assign to all imported transactions.
+    """
+    file_key: str
+    account_id: UUID
+    column_mapping: ColumnMapping
+    start_row: int = 0
+    currency: Optional[Currency] = Currency.BRL
+
+
+class ParsedRow(SQLModel):
+    """A single transaction row parsed from the CSV during the analyze step.
+
+    Attributes:
+        row_index: Zero-indexed position within the data rows.
+        transaction_date: Parsed date in ISO format (YYYY-MM-DD).
+        amount: Absolute monetary amount as a decimal string.
+        transaction_type: "expense" or "income".
+        description: Extracted description text, or None.
+        is_duplicate: True when a matching transaction already exists in the DB.
+        matching_transaction_id: UUID of the matching transaction when is_duplicate=True.
+        parse_error: Human-readable error message when the row could not be parsed.
+    """
+    row_index: int
+    transaction_date: Optional[date] = None
+    amount: Optional[Decimal] = None
+    transaction_type: Optional[str] = None
+    description: Optional[str] = None
+    is_duplicate: bool = False
+    matching_transaction_id: Optional[UUID] = None
+    parse_error: Optional[str] = None
+
+
+class AnalyzeResponse(SQLModel):
+    """Response from /imports/analyze containing all parsed rows with duplicate flags.
+
+    Attributes:
+        rows: All data rows from the CSV with parse results and duplicate flags.
+        duplicate_count: Number of rows that match existing transactions.
+        parse_error_count: Number of rows that could not be parsed.
+        date_range_start: Earliest transaction date in the CSV.
+        date_range_end: Latest transaction date in the CSV.
+    """
+    rows: List[ParsedRow]
+    duplicate_count: int
+    parse_error_count: int
+    date_range_start: Optional[date] = None
+    date_range_end: Optional[date] = None
+
+
+class RowToImport(SQLModel):
+    """A single transaction row confirmed by the user for import.
+
+    The user may have edited the description or assigned a category
+    during the review step. Only non-skipped rows are included in the
+    ExecuteRequest.
+
+    Args:
+        row_index: Original zero-indexed row position (for traceability).
+        transaction_date: Date in YYYY-MM-DD format.
+        amount: Absolute monetary amount as a decimal string.
+        transaction_type: "expense" or "income".
+        description: Final description (may differ from CSV value).
+        category_id: Optional category UUID selected by the user.
+    """
+    row_index: int
+    transaction_date: date
+    amount: Decimal
+    transaction_type: str
+    description: Optional[str] = None
+    category_id: Optional[UUID] = None
+
+
+class ExecuteRequest(SQLModel):
+    """Request body for /imports/execute — triggers the background import job.
+
+    Args:
+        file_key: Storage key from the upload step (deleted after import).
+        filename: Original filename uploaded by the user (persisted to history).
+        account_id: Target account for all imported transactions.
+        currency: Currency assigned to all imported transactions.
+        rows: User-confirmed list of non-skipped rows with final field values.
+    """
+    file_key: str
+    filename: Optional[str] = None
+    account_id: UUID
+    currency: Optional[Currency] = Currency.BRL
+    rows: List[RowToImport]
+
+
+class ExecuteResponse(SQLModel):
+    """Response from /imports/execute containing the background job identifier.
+
+    Attributes:
+        job_id: Celery task ID used to poll /imports/jobs/{job_id} for status.
+    """
+    job_id: str
+
+
+class JobStatusResponse(SQLModel):
+    """Response from /imports/jobs/{job_id} describing current import progress.
+
+    Attributes:
+        job_id: The Celery task ID being polled.
+        status: One of pending / started / done / failed.
+        imported: Number of transactions imported so far (available after started).
+        total: Total rows to import (available after started).
+        error: Human-readable error message (only present when status=failed).
+    """
+    job_id: str
+    status: str
+    imported: Optional[int] = None
+    total: Optional[int] = None
+    error: Optional[str] = None
+
+
+class ImportJobRead(SQLModel):
+    """Read schema for a single historical import job.
+
+    Returned by GET /imports/jobs. The account_name is joined in at query time
+    so the history list can render without follow-up requests per row.
+
+    Attributes:
+        id: Import job identifier.
+        account_id: Target account UUID.
+        account_name: Display name of the target account.
+        filename: Original filename uploaded by the user, or None.
+        total_rows: Number of rows the user confirmed for import.
+        imported_rows: Number of rows actually committed to the DB.
+        status: Lifecycle status (pending/started/done/failed).
+        error_message: Failure reason (only when status=failed).
+        created_at: When the import was dispatched.
+        completed_at: When the worker finished (only when status in {done, failed}).
+    """
+    id: UUID
+    account_id: UUID
+    account_name: Optional[str] = None
+    filename: Optional[str] = None
+    total_rows: int
+    imported_rows: int
+    status: ImportJobStatus
+    error_message: Optional[str] = None
+    created_at: datetime
+    completed_at: Optional[datetime] = None

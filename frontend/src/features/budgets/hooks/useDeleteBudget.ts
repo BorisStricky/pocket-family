@@ -28,7 +28,7 @@ import { deleteBudget } from '../api/budgetsApi';
  *   });
  * };
  */
-export function useDeleteBudget(familyId: string) {
+export function useDeleteBudget(familyId: string, options?: { onSuccess?: () => void }) {
   const queryClient = useQueryClient();
 
   return useMutation({
@@ -36,12 +36,16 @@ export function useDeleteBudget(familyId: string) {
     // This allows the same hook instance to delete any budget in the family
     mutationFn: (budgetId: string) => deleteBudget(familyId, budgetId),
 
-    // On success, invalidate all budget queries for this family to trigger refetch
-    // This ensures the deleted budget disappears from all month/year views
+    // On success, invalidate all budget queries for this family to trigger refetch,
+    // then call the optional caller-supplied callback (e.g. closing a dialog).
+    // Keeping both callbacks here (hook level) guarantees they fire in TanStack
+    // Query v5 — call-site callbacks passed to mutate() can be dropped on
+    // concurrent re-renders.
     onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ['budgets', familyId],
       });
+      options?.onSuccess?.();
     },
   });
 }

@@ -66,6 +66,14 @@ export function BudgetsPage() {
   // Fetch all budgets for the current family (defaults to current month on backend)
   const { data: budgets = [], isLoading, error } = useBudgets(familyId!);
 
+  // Close the delete confirmation dialog — declared before useDeleteBudget so it
+  // can be passed as the hook-level onSuccess callback (TanStack Query v5 guarantees
+  // hook-level callbacks fire; call-site callbacks on mutate() can be skipped on
+  // concurrent re-renders).
+  const handleCloseDeleteConfirm = () => {
+    setBudgetToDelete(null);
+  };
+
   // Mutation hooks for CRUD operations
   // Each hook handles cache invalidation automatically on success
   const { mutate: createBudget, isPending: isCreating } = useCreateBudget(familyId!);
@@ -75,7 +83,9 @@ export function BudgetsPage() {
     familyId!,
     selectedBudget?.id ?? ''
   );
-  const { mutate: removeBudget, isPending: isDeleting } = useDeleteBudget(familyId!);
+  const { mutate: removeBudget, isPending: isDeleting } = useDeleteBudget(familyId!, {
+    onSuccess: handleCloseDeleteConfirm,
+  });
 
   // Open the create budget modal
   const handleOpenCreateForm = () => {
@@ -118,20 +128,11 @@ export function BudgetsPage() {
     setBudgetToDelete(budget);
   };
 
-  // Close the delete confirmation dialog
-  const handleCloseDeleteConfirm = () => {
-    setBudgetToDelete(null);
-  };
-
-  // Execute the delete operation and close the dialog on success
+  // Execute the delete operation; closing the dialog is handled by the hook-level
+  // onSuccess callback passed to useDeleteBudget above.
   const handleConfirmDelete = () => {
     if (!budgetToDelete) return;
-
-    removeBudget(budgetToDelete.id, {
-      onSuccess: () => {
-        handleCloseDeleteConfirm();
-      },
-    });
+    removeBudget(budgetToDelete.id);
   };
 
   return (

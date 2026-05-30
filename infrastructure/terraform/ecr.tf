@@ -60,3 +60,17 @@ resource "aws_ecr_lifecycle_policy" "frontend" {
   repository = aws_ecr_repository.frontend.name
   policy     = local.ecr_lifecycle_policy
 }
+
+resource "aws_ecr_repository" "import_worker" {
+  name                 = "${var.project_name}-import-worker"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+resource "aws_ecr_lifecycle_policy" "import_worker" {
+  repository = aws_ecr_repository.import_worker.name
+  policy     = local.ecr_lifecycle_policy
+}

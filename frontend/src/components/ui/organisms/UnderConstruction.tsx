@@ -37,7 +37,9 @@ export function UnderConstruction({ pageName }: UnderConstructionProps) {
         )}
       </Alert>
 
-      {/* Full-width illustration — fills the remaining content-area width */}
+      {/* Full-width illustration — fills the remaining content-area width.
+          height:auto is explicit so Tailwind preflight can't fight MUI's sx,
+          and objectFit is dropped because it's a no-op without a fixed height. */}
       <Box
         component="img"
         src="/d8956940-a4cb-4613-a1b0-0e6d59f1e492.jpg"
@@ -45,7 +47,8 @@ export function UnderConstruction({ pageName }: UnderConstructionProps) {
         sx={{
           display: 'block',
           width: '100%',
-          objectFit: 'cover',
+          maxWidth: '100%',
+          height: 'auto',
         }}
       />
     </Box>

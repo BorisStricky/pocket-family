@@ -75,6 +75,19 @@ class ShareVisibility(str, Enum):
     HIDDEN = "hidden"
     VISIBLE = "visible"
 
+class ImportJobStatus(str, Enum):
+    """Lifecycle status for a CSV import job.
+
+    PENDING: row inserted by the API, not yet picked up by a worker.
+    STARTED: the worker has begun processing the rows.
+    DONE: all rows committed successfully.
+    FAILED: the worker raised an exception; error_message holds the reason.
+    """
+    PENDING = "pending"
+    STARTED = "started"
+    DONE = "done"
+    FAILED = "failed"
+
 # --------------------
 # Models
 # --------------------
@@ -384,6 +397,63 @@ class RefreshToken(SQLModel, table=True):
     expires_at: datetime
     revoked: bool = Field(default=False)
     device_info: Optional[str] = None
+
+class ImportJob(SQLModel, table=True):
+    """Persistent record of a CSV import job dispatched to the background worker.
+
+    The API creates this row in PENDING state before dispatching the Celery task.
+    The worker updates it to STARTED on entry, then DONE or FAILED on exit. This
+    gives users a queryable history of past imports independent of Celery's
+    transient result backend.
+
+    Attributes:
+        id: ImportJob identifier (also passed to the worker in the task payload).
+        tenant_id: Tenant context for multi-tenant isolation.
+        account_id: Account the rows were imported into.
+        created_by: User who triggered the import.
+        file_key: Storage key of the uploaded CSV (deleted after success).
+        filename: Original filename as uploaded by the user, for display.
+        total_rows: Number of rows the user confirmed for import.
+        imported_rows: Number actually committed (equals total_rows on DONE).
+        status: Lifecycle status (PENDING/STARTED/DONE/FAILED).
+        error_message: Failure reason when status is FAILED.
+        celery_task_id: Celery task identifier returned at dispatch time.
+        created_at: When the API created this record.
+        updated_at: Last status transition timestamp.
+        completed_at: When the worker reached a terminal state (DONE or FAILED).
+    """
+    id: UUID = Field(default_factory=uuid4, primary_key=True)
+    tenant_id: UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("tenant.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
+    account_id: UUID = Field(
+        sa_column=Column(
+            PGUUID(as_uuid=True),
+            ForeignKey("account.id", ondelete="CASCADE"),
+            nullable=False,
+            index=True,
+        )
+    )
+    created_by: UUID = Field(foreign_key="user.id", nullable=False, index=True)
+    file_key: str = Field(nullable=False)
+    filename: Optional[str] = None
+    total_rows: int = Field(nullable=False, default=0)
+    imported_rows: int = Field(nullable=False, default=0)
+    status: ImportJobStatus = Field(
+        sa_column=Column(SAEnum(ImportJobStatus, name="import_job_status"), nullable=False),
+        default=ImportJobStatus.PENDING,
+    )
+    error_message: Optional[str] = None
+    celery_task_id: Optional[str] = Field(default=None, index=True)
+    created_at: datetime = Field(default_factory=datetime.utcnow)
+    updated_at: datetime = Field(default_factory=datetime.utcnow)
+    completed_at: Optional[datetime] = None
+
 
 class Invite(SQLModel, table=True):
     """Represents an outstanding invite to join a tenant.

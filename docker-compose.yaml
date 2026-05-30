@@ -55,13 +55,28 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       # Disable test mode so refresh tokens are stored as HttpOnly cookies
       TEST_MODE: "0"
+      # Cookie Secure flag. "0" lets the refresh_token cookie be sent over
+      # plain HTTP (LAN / Tailscale). Production HTTPS deployments must omit
+      # this (or set "1") so the cookie is HTTPS-only.
+      COOKIE_SECURE: "0"
       # Comma-separated list of origins the browser is allowed to call from.
       # Points to the frontend on the local network.
       CORS_ORIGINS: "http://192.168.1.101:3000"
+      # Import service queue and storage configuration
+      BROKER_URL: "redis://redis:6379/0"
+      RESULT_BACKEND: "redis://redis:6379/1"
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+      LOCAL_UPLOAD_DIR: "/uploads"
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+    volumes:
+      - csv-uploads:/uploads
     depends_on:
       db:
         # Use the healthcheck condition so the backend only starts
         # once Postgres is ready to accept connections.
+        condition: service_healthy
+      redis:
         condition: service_healthy
     ports:
       - "8000:8000"
@@ -77,6 +92,57 @@ services:
         limits:
           cpus: '0.5'
           memory: 512M
+
+  # ── Redis — message broker + Celery result backend ─────────────────────────
+  # SQS can replace Redis in production by changing BROKER_URL to sqs://
+  # in the backend and import-worker services. No code changes needed.
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    networks:
+      - pfin-net
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    deploy:
+      resources:
+        limits:
+          cpus: '0.25'
+          memory: 128M
+
+  # ── CSV Import Worker ──────────────────────────────────────────────────────
+  import-worker:
+    build:
+      context: ./import-service
+      dockerfile: Dockerfile
+    image: pocket-family-import-worker:latest
+    restart: unless-stopped
+    environment:
+      BROKER_URL: "redis://redis:6379/0"
+      RESULT_BACKEND: "redis://redis:6379/1"
+      STORAGE_BACKEND: ${STORAGE_BACKEND:-local}
+      LOCAL_UPLOAD_DIR: "/uploads"
+      DATABASE_URL: "postgresql+psycopg2://postgres:${DB_PASSWORD}@db:5432/pfinancedb"
+      # AWS S3 settings (used when STORAGE_BACKEND=s3)
+      S3_BUCKET: ${S3_BUCKET:-}
+      S3_REGION: ${S3_REGION:-us-east-1}
+    volumes:
+      - csv-uploads:/uploads
+    depends_on:
+      redis:
+        condition: service_healthy
+      db:
+        condition: service_healthy
+    networks:
+      - pfin-net
+    cpuset: "0,1"
+    deploy:
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
 
   # ── React frontend (served by nginx) ───────────────────────────────────────
   frontend:
@@ -106,6 +172,9 @@ services:
 
 volumes:
   pgdata:
+  # Shared volume between backend (write) and import-worker (read/delete)
+  # Replace with S3 bucket in production by setting STORAGE_BACKEND=s3
+  csv-uploads:
 
 networks:
   pfin-net:

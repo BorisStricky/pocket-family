@@ -119,6 +119,20 @@ variable "demo_mode" {
   default     = false
 }
 
+# ── Import worker ───────────────────────────────────────────────────────────
+
+variable "worker_task_cpu" {
+  description = "Fargate CPU units for the import worker task. 256 = 0.25 vCPU."
+  type        = string
+  default     = "256"
+}
+
+variable "worker_task_memory" {
+  description = "Fargate memory in MiB for the import worker task."
+  type        = string
+  default     = "512"
+}
+
 variable "demo_reset_cron" {
   description = "CloudWatch Events cron expression for the daily demo data reset. AWS cron uses 6 fields (min hour day month day-of-week year). Default 06:00 UTC daily."
   type        = string

@@ -1,10 +1,25 @@
 // src/features/transactions/pages/TransactionsPage.tsx
 // Main transactions list page with filtering, search, and bulk actions
 
-import React, { useState, useEffect } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
-import { Box, Button, Typography, CircularProgress, Paper, Stack } from '@mui/material';
-import { Add as AddIcon } from '@mui/icons-material';
+import {
+  Box,
+  Button,
+  ButtonGroup,
+  CircularProgress,
+  Menu,
+  MenuItem,
+  Paper,
+  Stack,
+  Typography,
+} from '@mui/material';
+import {
+  Add as AddIcon,
+  ArrowDropDown as ArrowDropDownIcon,
+  FileUpload as FileUploadIcon,
+  History as HistoryIcon,
+} from '@mui/icons-material';
 import { useTransactions } from '../hooks/useTransactions';
 import { useDeleteTransaction } from '../hooks/useDeleteTransaction';
 import { AgTransactionsGrid } from '@/components/domain/ag/AgTransactionsGrid';
@@ -78,6 +93,12 @@ export function TransactionsPage() {
   // Modal state for inline transaction creation
   const [addModalOpen, setAddModalOpen] = useState(false);
 
+  // Anchor for the Import CSV split-button's dropdown menu. The dropdown
+  // currently exposes a single action ("See previous imports") but is kept as
+  // a Menu so additional import-related actions can be added without rewiring.
+  const importMenuAnchorRef = useRef<HTMLDivElement>(null);
+  const [importMenuOpen, setImportMenuOpen] = useState(false);
+
   // Auto-open the Add Transaction modal when navigated here with a state flag
   // (e.g., from Dashboard QuickActions). Clear the state after reading it so
   // the modal does not reopen on browser back/forward navigation.
@@ -142,16 +163,53 @@ export function TransactionsPage() {
           Transactions
         </Typography>
 
-        {/* Viewers are read-only — hide the create button entirely */}
+        {/* Viewers are read-only — hide write actions entirely */}
         {!isViewer && (
-          <Button
-            variant="contained"
-            color="primary"
-            startIcon={<AddIcon />}
-            onClick={handleAddTransaction}
-          >
-            Add Transaction
-          </Button>
+          <Stack direction="row" spacing={1}>
+            {/* Split button: primary click runs a new import, the arrow opens
+                a menu with import-related actions (currently just history). */}
+            <ButtonGroup variant="outlined" ref={importMenuAnchorRef}>
+              <Button
+                startIcon={<FileUploadIcon />}
+                onClick={() => navigate(`/app/${familyId}/import-csv`)}
+              >
+                Import CSV
+              </Button>
+              <Button
+                size="small"
+                aria-label="more import options"
+                aria-haspopup="menu"
+                onClick={() => setImportMenuOpen((open) => !open)}
+              >
+                <ArrowDropDownIcon />
+              </Button>
+            </ButtonGroup>
+            <Menu
+              anchorEl={importMenuAnchorRef.current}
+              open={importMenuOpen}
+              onClose={() => setImportMenuOpen(false)}
+              anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
+              transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+            >
+              <MenuItem
+                onClick={() => {
+                  setImportMenuOpen(false);
+                  navigate(`/app/${familyId}/imports`);
+                }}
+              >
+                <HistoryIcon fontSize="small" sx={{ mr: 1 }} />
+                See previous imports
+              </MenuItem>
+            </Menu>
+            <Button
+              variant="contained"
+              color="primary"
+              startIcon={<AddIcon />}
+              onClick={handleAddTransaction}
+            >
+              Add Transaction
+            </Button>
+          </Stack>
         )}
       </Box>
 
