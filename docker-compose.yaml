@@ -55,6 +55,9 @@ services:
       JWT_SECRET: ${JWT_SECRET}
       # Disable test mode so refresh tokens are stored as HttpOnly cookies
       TEST_MODE: "0"
+      # Alembic owns the schema here — never auto-create from the models on startup
+      # (self-host.sh runs `alembic upgrade head` via the migrate action).
+      AUTO_CREATE_SCHEMA: "0"
       # Cookie Secure flag. "0" lets the refresh_token cookie be sent over
       # plain HTTP (LAN / Tailscale). Production HTTPS deployments must omit
       # this (or set "1") so the cookie is HTTPS-only.

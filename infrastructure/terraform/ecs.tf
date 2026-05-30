@@ -47,6 +47,10 @@ locals {
     { name = "AWS_REGION",   value = var.aws_region },
     { name = "JWT_SECRET",   value = var.jwt_secret },
     { name = "TEST_MODE",    value = "0" },
+    # Alembic owns the schema on AWS — never auto-create from the models on startup.
+    # Inherited by the main backend task plus the demo-reset and migrate tasks, all
+    # of which run `alembic upgrade head` rather than create_all.
+    { name = "AUTO_CREATE_SCHEMA", value = "0" },
     { name = "DEMO_MODE",    value = var.demo_mode ? "1" : "0" },
     { name = "CORS_ORIGINS", value = local.cors_origins_computed },
     { name = "APP_DOMAIN",        value = var.app_domain },

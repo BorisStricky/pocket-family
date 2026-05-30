@@ -32,6 +32,20 @@
 #   ECS_CLUSTER      — ECS cluster name for FORCE_NEW_DEPLOYMENT (default: pocket-family)
 #   ECS_SERVICE      — ECS service name for FORCE_NEW_DEPLOYMENT (default: pocket-family-svc)
 #   ECS_WORKER_SERVICE — Worker ECS service name (default: pocket-family-import-worker-svc)
+#   RUN_MIGRATIONS   — set to 0 to skip the DB migration step (default: 1). When 1
+#                      and the backend image was built, the script runs the
+#                      pocket-family-migrate ECS task and waits for it to finish
+#                      BEFORE any rollout. A failed migration aborts the script, so
+#                      the running services keep the old image + schema. Idempotent:
+#                      `alembic upgrade head` is a no-op when already at head.
+#   MIGRATE_TASK     — migrate task definition (default: pocket-family-migrate)
+#   MIGRATE_SUBNETS  — comma-separated subnet IDs for the migrate task's awsvpc config
+#                      (default: auto-discovered default-VPC subnets)
+#   MIGRATE_SECURITY_GROUPS — comma-separated SG IDs for the migrate task
+#                      (default: the ${ECS_CLUSTER}-fargate security group)
+#
+# IAM: credentials running this script need ecs:RunTask + iam:PassRole (task and
+# execution roles) on the migrate task, on top of the ECR push permissions.
 #
 # Usage:
 #   export AWS_ACCESS_KEY_ID=AKIA... AWS_SECRET_ACCESS_KEY=...   # if not using `aws configure`
@@ -51,6 +65,8 @@ FORCE_NEW_DEPLOYMENT="${FORCE_NEW_DEPLOYMENT:-0}"
 ECS_CLUSTER="${ECS_CLUSTER:-pocket-family}"
 ECS_SERVICE="${ECS_SERVICE:-pocket-family-svc}"
 ECS_WORKER_SERVICE="${ECS_WORKER_SERVICE:-pocket-family-import-worker-svc}"
+RUN_MIGRATIONS="${RUN_MIGRATIONS:-1}"
+MIGRATE_TASK="${MIGRATE_TASK:-pocket-family-migrate}"
 
 # Map our 0/1 sh-friendly flag onto the "true"/"false" string the Vite build
 # expects via VITE_DEMO_MODE (compared directly in src/lib/constants.ts).
@@ -140,7 +156,59 @@ echo "==> Done. Image URIs:"
 [[ "$BUILD_IMPORT_WORKER" == "1" ]] && echo "    ${IMPORT_WORKER_REPO}:${IMAGE_TAG}"
 echo
 
-# Step 5 — optionally trigger an ECS rollout so running tasks pick up the
+# Step 5 — apply database migrations before any service picks up the new image.
+# The migration runs INSIDE the VPC as a one-off ECS task (the operator's machine
+# can't reach Aurora directly), and must succeed before any rollout — a failed
+# migration aborts the script, leaving the running services on the old image+schema.
+if [[ "$RUN_MIGRATIONS" == "1" && "$BUILD_BACKEND" == "1" ]]; then
+  echo "==> Applying database migrations via ECS task '$MIGRATE_TASK'..."
+
+  # Resolve awsvpc network config (override with MIGRATE_SUBNETS / MIGRATE_SECURITY_GROUPS).
+  if [[ -z "${MIGRATE_SUBNETS:-}" ]]; then
+    MIGRATE_SUBNETS=$(aws ec2 describe-subnets --region "$AWS_REGION" \
+      --filters Name=default-for-az,Values=true \
+      --query 'Subnets[].SubnetId' --output text | tr '\t' ',')
+  fi
+  if [[ -z "${MIGRATE_SECURITY_GROUPS:-}" ]]; then
+    MIGRATE_SECURITY_GROUPS=$(aws ec2 describe-security-groups --region "$AWS_REGION" \
+      --filters "Name=group-name,Values=${ECS_CLUSTER}-fargate" \
+      --query 'SecurityGroups[0].GroupId' --output text)
+  fi
+  if [[ -z "$MIGRATE_SUBNETS" || -z "$MIGRATE_SECURITY_GROUPS" || "$MIGRATE_SECURITY_GROUPS" == "None" ]]; then
+    echo "ERROR: could not resolve migrate network config" >&2
+    echo "       (subnets='$MIGRATE_SUBNETS' security_groups='$MIGRATE_SECURITY_GROUPS')." >&2
+    echo "       Set MIGRATE_SUBNETS and MIGRATE_SECURITY_GROUPS explicitly and retry." >&2
+    exit 1
+  fi
+
+  NETWORK_CONFIG="awsvpcConfiguration={subnets=[$MIGRATE_SUBNETS],securityGroups=[$MIGRATE_SECURITY_GROUPS],assignPublicIp=ENABLED}"
+
+  TASK_ARN=$(aws ecs run-task --region "$AWS_REGION" --cluster "$ECS_CLUSTER" \
+    --task-definition "$MIGRATE_TASK" --launch-type FARGATE \
+    --network-configuration "$NETWORK_CONFIG" \
+    --query 'tasks[0].taskArn' --output text)
+  if [[ -z "$TASK_ARN" || "$TASK_ARN" == "None" ]]; then
+    echo "ERROR: failed to start migrate task '$MIGRATE_TASK'." >&2
+    exit 1
+  fi
+  echo "    Started $TASK_ARN — waiting for it to stop..."
+  aws ecs wait tasks-stopped --region "$AWS_REGION" --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN"
+
+  EXIT_CODE=$(aws ecs describe-tasks --region "$AWS_REGION" --cluster "$ECS_CLUSTER" \
+    --tasks "$TASK_ARN" --query 'tasks[0].containers[0].exitCode' --output text)
+  if [[ "$EXIT_CODE" != "0" ]]; then
+    echo "ERROR: migration task exited with code '$EXIT_CODE' — aborting before rollout." >&2
+    echo "       Inspect CloudWatch logs: group /ecs/$ECS_CLUSTER, stream prefix 'migrate'." >&2
+    exit 1
+  fi
+  echo "    Migrations applied (exit 0)."
+  echo
+elif [[ "$RUN_MIGRATIONS" == "1" ]]; then
+  echo "==> Skipping migrations (BUILD_BACKEND=0 — no new backend image)."
+  echo
+fi
+
+# Step 6 — optionally trigger an ECS rollout so running tasks pick up the
 # newly-pushed images. Required when the image tag is reused (e.g. `latest`)
 # because ECS otherwise sees no change and won't re-pull. We force-deploy each
 # service whose image was rebuilt in this run.
