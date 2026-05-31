@@ -433,41 +433,34 @@ All new features require tests BEFORE implementation:
 - Frontend: Write integration tests using Vitest + React Testing Library
 - Backend: Write tests using pytest
 
-### Test Writing Agents (CRITICAL RULE)
+### Test Conventions Live in Module CLAUDE.md (CRITICAL RULE)
 
-**NEVER write tests directly. ALWAYS delegate to specialized test agents:**
+Test conventions are defined in the **module-level `CLAUDE.md`** files, which auto-load when you work in that folder. Follow them exactly when writing or updating tests:
 
-- **Frontend tests** → Delegate to `frontend-test` agent
-  - Read `.claude/agents/frontend-test.md` for conventions
+- **Frontend tests** → [frontend/CLAUDE.md](frontend/CLAUDE.md)
   - Tests go in `src/__tests__/` (NOT co-located with source)
   - Integration-first approach (full page renders, user workflows)
   - Semantic queries only (`getByRole`, `getByText`, NOT `getByTestId`)
   - MSW for API mocking with in-memory stores
 
-- **Backend tests** → Delegate to `backend-test` agent
-  - Read `.claude/agents/backend-test.md` for conventions
+- **Backend tests** → [backend/CLAUDE.md](backend/CLAUDE.md)
   - Tests go in `backend/api/tests/`
-  - Use pytest fixtures for test isolation
-  - Validate multi-tenant data isolation
+  - Use pytest fixtures for test isolation; `TEST_MODE=1`
+  - Mandatory multi-tenant data isolation tests
 
-### When to Delegate Test Writing
+### When Tests Must Be Written or Updated
 
-**ALWAYS delegate to test agents when**:
-- Writing tests for a new feature
+Write or update tests (following the relevant module `CLAUDE.md`) when:
+- Writing tests for a new feature (tests first)
 - Updating tests after behavior changes
 - Fixing failing tests
 - Rewriting tests to follow project conventions
-- Refactoring test structure or organization
 
-**Exception**: Trivial assertion updates (e.g., changing expected text from "Welcome" to "Dashboard") may be done inline, but must still follow test agent conventions.
+**Exception**: Trivial assertion updates (e.g., changing expected text from "Welcome" to "Dashboard") may be done inline, but must still follow the module's test conventions.
 
-**Example**: If you implement a dashboard feature, delegate test writing to `frontend-test` agent with detailed context about:
-- The feature behavior and user workflows
-- Expected UI elements and interactions
-- Edge cases (empty states, loading states, errors)
-- Required MSW handler setup
+### Holistic Code Review
 
-See [.claude/agents/frontend-test.md](.claude/agents/frontend-test.md) and [.claude/agents/backend-test.md](.claude/agents/backend-test.md) for comprehensive testing patterns and conventions.
+Code review is **holistic** — it covers the whole implementation including infrastructure (Terraform, docker-compose, deploy scripts, env templates, Dockerfiles), not just application code, and uses the `code-review`, `security-review`, and `review` skills. See [.claude/agents/code-reviewer.md](.claude/agents/code-reviewer.md).
 
 ## Orchestration with the `/orchestrate` Command
 
@@ -484,12 +477,10 @@ For complex implementation work involving multiple milestones and specialized ag
 
 This command manages milestone-based workflows by:
 - Breaking plans into **test → implementation → review → documentation** phases
-- **Delegating test writing to specialized test agents** (frontend-test, backend-test)
-- Delegating implementation to specialized dev agents (frontend-dev, backend-dev)
-- Auto-retrying failures up to 3 times before escalating
-- Reporting progress after each milestone and waiting for user confirmation
-
-**Test agents are ALWAYS used for test writing** - implementation agents focus solely on feature code.
+- Running the implement → independent-review → iterate (≤3) loop as a saved **Dynamic Workflow** command, `/orchestrate-loop` in `.claude/workflows/` (Claude Code v2.1.154+), with the **human gate** and **PR** kept as separate stages in the skill (a Dynamic Workflow can't take mid-run input); falls back to an in-session loop where workflows are unavailable
+- Delegating backend/frontend implementation and test work to general-purpose agents that follow the relevant module `CLAUDE.md` ([backend/CLAUDE.md](backend/CLAUDE.md), [frontend/CLAUDE.md](frontend/CLAUDE.md))
+- Delegating review to `code-reviewer`, refactors to `refactor`, and docs to `documentation-writer`
+- Reporting progress and stopping at the human gate before any PR is opened
 
 See [.claude/skills/orchestrate/SKILL.md](.claude/skills/orchestrate/SKILL.md) for detailed orchestration rules, agent mappings, and validation criteria.
 
