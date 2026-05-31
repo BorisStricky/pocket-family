@@ -28,6 +28,29 @@ Review completed code against project standards for quality, consistency, securi
 3. **Type Safety** - TypeScript/Python type hints
 4. **Testing** - Coverage and test quality
 5. **Documentation** - Inline comments, docstrings
+6. **Holistic / whole implementation** - Infrastructure, deployment, and cross-stack consistency (see below)
+
+## Review Skills (use these as part of every review)
+
+This project has dedicated review skills available. Invoke them and fold their results into the report below rather than reinventing their checks:
+
+- **`security-review`** — run a security review of the pending changes on the current branch. Treat anything it surfaces (especially auth, secrets, injection, and multi-tenant boundary issues) as input to the **Security Review** section of your report.
+- **`code-review`** — review the current diff for correctness bugs and reuse/simplification/efficiency cleanups. Use it to catch logic bugs and duplication beyond the project-standards checklist.
+- **`review`** — when reviewing a full pull request (not just a local diff), run the end-to-end PR review and incorporate its findings.
+
+Run `security-review` and `code-review` for branch/diff reviews; add `review` when the unit under review is a PR. Always reconcile their output with the project-specific checklist (naming, multi-tenant `tenant_id` filtering, inline comments) — the skills complement these rules but do not replace them.
+
+## Holistic / Whole-Implementation Review (infra included)
+
+Code review is **not** application-code-only. When a change touches the wider system, review it as a whole and flag cross-stack drift:
+
+- **Infrastructure**: `infrastructure/terraform/*.tf` (ECS task definitions, IAM, ALB, Aurora, EventBridge), `docker-compose.yaml` / `docker-compose.dev.yml`, `infrastructure/*.sh` deploy scripts, and `backend/api/Dockerfile` / `frontend/Dockerfile`.
+- **Configuration drift**: a new/renamed env var in code must also appear in the `.env.example`, `.env.production.example`, and `.env.aws.production.example` templates, in `docker-compose.yaml`, and in the ECS task definition (`terraform/ecs.tf`). Missing in any of these is a finding.
+- **Demo-mode consistency**: `DEMO_MODE` (backend), `VITE_DEMO_MODE` (frontend build), and Terraform `demo_mode` must agree — flag any change that sets one without the others (see `infrastructure/CLAUDE.md`).
+- **Cross-service contracts**: changes to shared DB schema, enum casing, queue names, or storage keys must stay consistent between `backend/` and `import-service/`.
+- **Migrations vs. schema**: model changes require an Alembic migration; flag `AUTO_CREATE_SCHEMA` being relied on outside local dev.
+
+Read the relevant module `CLAUDE.md` (`backend/`, `frontend/`, `infrastructure/`, `import-service/`) to ground the review in that area's conventions.
 
 ## Review Checklist
 
@@ -483,14 +506,16 @@ async def test_list_transactions_filters_by_tenant(
 
 ## Review Process
 
-1. **Read all modified files**
+1. **Read all modified files** (app code AND any touched infra/config — see Holistic Review)
 2. **Run automated checks**:
    - `npm run build` (TypeScript errors)
    - `npm run test:run` (test failures)
    - `pytest -v` (backend tests)
-3. **Manual code review** against checklist
-4. **Generate report** (pass/fail with details)
-5. **Return report to orchestrator**
+3. **Run the review skills**: `security-review` and `code-review` (add `review` for full PRs)
+4. **Manual code review** against the project checklist
+5. **Holistic pass**: check infrastructure / config / cross-stack consistency
+6. **Generate report** (pass/fail with details, folding in skill findings)
+7. **Return report to orchestrator**
 
 ## Common Violations to Watch For
 
