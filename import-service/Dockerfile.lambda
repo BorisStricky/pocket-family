@@ -1,0 +1,34 @@
+# import-service/Dockerfile.lambda
+# Container-image Lambda for the CSV import worker on AWS.
+#
+# Unlike the Celery worker (see Dockerfile), this image excludes
+# celery/kombu/redis: on AWS the SQS poller is the Lambda service itself, and the
+# handler only needs the shared `process_import` core + DB/storage deps. Building
+# psycopg2 inside the official Linux Lambda base image avoids manylinux/platform
+# gymnastics for that native dependency.
+
+FROM public.ecr.aws/lambda/python:3.11
+
+# Copy the uv binary for fast, reproducible installs (same toolchain as Dockerfile).
+COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
+
+# Install the runtime dependencies the handler + core actually use, pinned to
+# match import-service/pyproject.toml. We deliberately OMIT celery, kombu and
+# redis (not needed without a Celery worker) and do NOT reinstall boto3 — the
+# Lambda runtime already ships it (db.py only imports boto3 lazily for IAM auth).
+# Installing into LAMBDA_TASK_ROOT (/var/task) is AWS's documented pattern for
+# Python container-image Lambdas, so the deps sit on the runtime import path
+# alongside app/. None of these four package names collide with our app modules
+# (app.lambda_handler / app.tasks.import_csv), so co-locating them is safe.
+RUN uv pip install --system --no-cache --target "${LAMBDA_TASK_ROOT}" \
+    "sqlalchemy==2.0.35" \
+    "psycopg2-binary>=2.9.9" \
+    "python-dateutil>=2.9.0" \
+    "pydantic-settings>=2.6.0"
+
+# Copy application code last for better layer caching.
+COPY app/ "${LAMBDA_TASK_ROOT}/app/"
+
+# The Lambda runtime invokes module.function — our handler decodes the kombu
+# envelope and delegates to the shared core.
+CMD ["app.lambda_handler.handler"]

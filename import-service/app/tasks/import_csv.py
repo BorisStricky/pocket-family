@@ -1,17 +1,23 @@
 # import-service/app/tasks/import_csv.py
-# The core Celery task that performs the atomic bulk CSV import.
+# The shared core that performs the atomic bulk CSV import.
 #
-# This task receives pre-parsed transaction rows from the backend's
-# /imports/execute endpoint. All CSV parsing and duplicate detection
-# happened in the backend; the task only needs to insert rows and
-# update the account balance.
+# This module holds the framework-agnostic import logic: `process_import()` and
+# its bookkeeping helper `_mark_import_job()`. It deliberately does NOT import
+# Celery so that the AWS Lambda image (which excludes celery/kombu/redis) can
+# import `process_import` directly. The Celery task that wraps this core lives in
+# a separate module (`app/tasks/celery_tasks.py`) which is the only place that
+# imports `celery_app`. See `import-service/CLAUDE.md` for the two-entry-point
+# design (local Celery task vs AWS Lambda handler, one shared core).
+#
+# This core receives pre-parsed transaction rows from the backend's
+# /imports/execute endpoint. All CSV parsing and duplicate detection happened in
+# the backend; this core only inserts rows and updates the account balance.
 
 import logging
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID, uuid4
 
-from ..celery_app import celery_app
 from ..db import (
     account_table,
     get_session,
@@ -37,9 +43,9 @@ def _mark_import_job(
 ) -> None:
     """Best-effort update of the ImportJob row owned by the API.
 
-    Failures here must not crash the task — the import itself either committed
+    Failures here must not crash the import — the import itself either committed
     or did not, independent of bookkeeping. We log and move on if the update
-    fails so the task's actual outcome is what gets reported back to Celery.
+    fails so the actual outcome is what gets reported back to the caller.
     """
     if not import_job_id:
         return
@@ -69,12 +75,52 @@ def _mark_import_job(
         )
 
 
-@celery_app.task(bind=True, name="import_service.execute_import")
-def execute_import(self, payload: dict) -> dict:
+def _claim_import_job(import_job_id: UUID) -> bool:
+    """Atomically claim a PENDING ImportJob by flipping it to STARTED.
+
+    This is the idempotency guard (plan A3). Both the Lambda (on retry) and the
+    Celery worker (on re-delivery) could be handed the same message twice. By
+    issuing a conditional UPDATE that only matches rows still in PENDING, exactly
+    one caller wins the claim; any later re-delivery sees rowcount == 0 and bails
+    out before inserting, so transactions are never double-inserted.
+
+    Returns True if this caller claimed the job (it should proceed with the
+    import), False if the job was already claimed/finished (it should no-op).
+
+    Note: a bookkeeping/DB error while claiming is treated as "not claimed" and
+    re-raised by get_session()'s rollback path is avoided here — we let the
+    exception propagate so SQS/Celery retries the message rather than silently
+    skipping a real import.
+    """
+    with get_session() as session:
+        result = session.execute(
+            import_job_table.update()
+            .where(import_job_table.c.id == import_job_id)
+            .where(import_job_table.c.status == "PENDING")
+            .values(status="STARTED", updated_at=datetime.utcnow())
+        )
+        session.commit()
+        # rowcount == 1 means we transitioned PENDING → STARTED and own the job.
+        # rowcount == 0 means another invocation already claimed/finished it.
+        return result.rowcount == 1
+
+
+def process_import(payload: dict) -> dict:
     """Atomically insert all pre-parsed transactions and update account balance.
+
+    This is the shared core invoked by BOTH entry points:
+      * the local/self-host Celery task (`app/tasks/celery_tasks.py`)
+      * the AWS Lambda handler (`app/lambda_handler.py`)
 
     Uses a single DB transaction so either all rows are committed or none are.
     The account balance update is included in the same commit for consistency.
+
+    Idempotency (plan A3): before inserting, the ImportJob is atomically claimed
+    via a conditional `UPDATE ... WHERE status='PENDING'`. A re-delivered message
+    (Lambda retry / Celery re-queue) for an already-claimed job returns early
+    without inserting. When `import_job_id` is None there is no job row to claim
+    (local/test invocations may omit it), so we simply proceed — preserving the
+    prior unconditional behavior for that case.
 
     Args:
         payload: dict with keys:
@@ -92,8 +138,9 @@ def execute_import(self, payload: dict) -> dict:
                            category_id       (UUID str or None)
 
     Returns:
-        dict with status="done" and imported=N on success.
-        Raises on failure (Celery marks the task as FAILURE automatically).
+        dict with status="done" and imported=N on success, or
+        status="skipped" when the job was already claimed (idempotent no-op).
+        Raises on failure (the caller marks the task/invocation as FAILURE).
     """
     rows = payload.get("rows", [])
     total = len(rows)
@@ -101,9 +148,20 @@ def execute_import(self, payload: dict) -> dict:
     import_job_id_string = payload.get("import_job_id")
     import_job_id = UUID(import_job_id_string) if import_job_id_string else None
 
-    # Signal STARTED in the importjob table — this is the sole status source on AWS
-    # where no Celery result backend is configured.
-    _mark_import_job(import_job_id, status="STARTED")
+    # Idempotency claim. When there is a job row, atomically transition it from
+    # PENDING → STARTED; if we don't win the claim, another invocation already
+    # handled (or is handling) this import, so we return without inserting.
+    # When there is no job row (import_job_id is None), there is nothing to claim
+    # and we fall through to the import — keeping prior local/test behavior.
+    if import_job_id is not None:
+        claimed = _claim_import_job(import_job_id)
+        if not claimed:
+            logger.info(
+                "ImportJob %s already claimed (not PENDING); skipping to avoid "
+                "duplicate insert.",
+                import_job_id,
+            )
+            return {"status": "skipped", "reason": "already-claimed"}
 
     tenant_id = UUID(payload["tenant_id"])
     account_id = UUID(payload["account_id"])
@@ -166,7 +224,7 @@ def execute_import(self, payload: dict) -> dict:
             session.commit()
             logger.info("Imported %d transactions for account %s", total, account_id)
     except Exception as task_error:
-        # Mark the history row as failed before re-raising so Celery sees the
+        # Mark the history row as failed before re-raising so the caller sees the
         # exception and the UI can render the failure reason.
         _mark_import_job(
             import_job_id,

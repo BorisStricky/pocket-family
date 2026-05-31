@@ -26,56 +26,59 @@ resource "aws_ecs_cluster_capacity_providers" "main" {
 # ── Task definition: backend (FastAPI, port 8000) + frontend (nginx, port 80) ──
 
 locals {
-  backend_image       = "${aws_ecr_repository.backend.repository_url}:${var.image_tag}"
-  frontend_image      = "${aws_ecr_repository.frontend.repository_url}:${var.image_tag}"
-  import_worker_image = "${aws_ecr_repository.import_worker.repository_url}:${var.image_tag}"
+  backend_image  = "${aws_ecr_repository.backend.repository_url}:${var.image_tag}"
+  frontend_image = "${aws_ecr_repository.frontend.repository_url}:${var.image_tag}"
 
   # Append the canonical frontend origin when app_domain is configured.
   # Handles empty cors_origins base gracefully.
   cors_origins_computed = var.app_domain != "" ? (
     var.cors_origins != ""
-      ? "${var.cors_origins},https://pocket-family-demo.${var.app_domain}"
-      : "https://pocket-family-demo.${var.app_domain}"
+    ? "${var.cors_origins},https://pocket-family-demo.${var.app_domain}"
+    : "https://pocket-family-demo.${var.app_domain}"
   ) : var.cors_origins
 
   backend_environment = [
-    { name = "DB_INSTANCE",  value = "aws_aurora_serverless" },
-    { name = "DB_HOST",      value = aws_rds_cluster.main.endpoint },
-    { name = "DB_PORT",      value = "5432" },
-    { name = "DB_USER",      value = var.db_app_user },
-    { name = "DB_NAME",      value = var.db_name },
-    { name = "AWS_REGION",   value = var.aws_region },
-    { name = "JWT_SECRET",   value = var.jwt_secret },
-    { name = "TEST_MODE",    value = "0" },
+    { name = "DB_INSTANCE", value = "aws_aurora_serverless" },
+    { name = "DB_HOST", value = aws_rds_cluster.main.endpoint },
+    { name = "DB_PORT", value = "5432" },
+    { name = "DB_USER", value = var.db_app_user },
+    { name = "DB_NAME", value = var.db_name },
+    { name = "AWS_REGION", value = var.aws_region },
+    { name = "JWT_SECRET", value = var.jwt_secret },
+    { name = "TEST_MODE", value = "0" },
     # Alembic owns the schema on AWS — never auto-create from the models on startup.
     # Inherited by the main backend task plus the demo-reset and migrate tasks, all
     # of which run `alembic upgrade head` rather than create_all.
     { name = "AUTO_CREATE_SCHEMA", value = "0" },
-    { name = "DEMO_MODE",    value = var.demo_mode ? "1" : "0" },
+    { name = "DEMO_MODE", value = var.demo_mode ? "1" : "0" },
     { name = "CORS_ORIGINS", value = local.cors_origins_computed },
-    { name = "APP_DOMAIN",        value = var.app_domain },
+    { name = "APP_DOMAIN", value = var.app_domain },
     # Import service: SQS broker + S3 storage (no RESULT_BACKEND — status is in importjob table)
-    { name = "BROKER_URL",        value = "sqs://" },
+    { name = "BROKER_URL", value = "sqs://" },
     { name = "CELERY_DEFAULT_QUEUE", value = aws_sqs_queue.celery.name },
-    { name = "STORAGE_BACKEND",   value = "s3" },
-    { name = "S3_BUCKET",         value = aws_s3_bucket.csv_uploads.bucket },
-    { name = "S3_REGION",         value = var.aws_region },
+    { name = "STORAGE_BACKEND", value = "s3" },
+    { name = "S3_BUCKET", value = aws_s3_bucket.csv_uploads.bucket },
+    { name = "S3_REGION", value = var.aws_region },
   ]
 
-  # Environment for the import worker. Mirrors the backend DB vars so the worker
-  # can use the same IAM token auth path (DB_INSTANCE=aws_aurora_serverless).
+  # Environment for the CSV import consumer. Mirrors the backend DB vars so the
+  # consumer can use the same IAM token auth path (DB_INSTANCE=aws_aurora_serverless).
+  # This list is the canonical source; lambda.tf derives the Lambda's environment
+  # from it by stripping the Celery broker vars (Lambda doesn't run Celery) and the
+  # AWS_REGION key (which the Lambda runtime sets automatically and forbids us from
+  # setting). The ECS Celery worker that previously consumed this was removed (B6).
   worker_environment = [
-    { name = "DB_INSTANCE",          value = "aws_aurora_serverless" },
-    { name = "DB_HOST",              value = aws_rds_cluster.main.endpoint },
-    { name = "DB_PORT",              value = "5432" },
-    { name = "DB_USER",              value = var.db_app_user },
-    { name = "DB_NAME",              value = var.db_name },
-    { name = "AWS_REGION",           value = var.aws_region },
-    { name = "BROKER_URL",           value = "sqs://" },
+    { name = "DB_INSTANCE", value = "aws_aurora_serverless" },
+    { name = "DB_HOST", value = aws_rds_cluster.main.endpoint },
+    { name = "DB_PORT", value = "5432" },
+    { name = "DB_USER", value = var.db_app_user },
+    { name = "DB_NAME", value = var.db_name },
+    { name = "AWS_REGION", value = var.aws_region },
+    { name = "BROKER_URL", value = "sqs://" },
     { name = "CELERY_DEFAULT_QUEUE", value = aws_sqs_queue.celery.name },
-    { name = "STORAGE_BACKEND",      value = "s3" },
-    { name = "S3_BUCKET",            value = aws_s3_bucket.csv_uploads.bucket },
-    { name = "S3_REGION",            value = var.aws_region },
+    { name = "STORAGE_BACKEND", value = "s3" },
+    { name = "S3_BUCKET", value = aws_s3_bucket.csv_uploads.bucket },
+    { name = "S3_REGION", value = var.aws_region },
   ]
 }
 
@@ -182,59 +185,10 @@ resource "aws_ecs_service" "main" {
   }
 }
 
-# ── Import worker task definition and service ────────────────────────────────
-# Persistent Celery worker that processes CSV import tasks from SQS.
-# No load balancer — the worker pulls tasks rather than receiving HTTP requests.
-
-resource "aws_ecs_task_definition" "import_worker" {
-  family                   = "${var.project_name}-import-worker"
-  network_mode             = "awsvpc"
-  requires_compatibilities = ["FARGATE"]
-  cpu                      = var.worker_task_cpu
-  memory                   = var.worker_task_memory
-  execution_role_arn       = aws_iam_role.task_execution.arn
-  task_role_arn            = aws_iam_role.worker_task.arn
-
-  container_definitions = jsonencode([
-    {
-      name        = "import-worker"
-      image       = local.import_worker_image
-      essential   = true
-      cpu         = tonumber(var.worker_task_cpu)
-      environment = local.worker_environment
-      logConfiguration = {
-        logDriver = "awslogs"
-        options = {
-          "awslogs-group"         = aws_cloudwatch_log_group.ecs.name
-          "awslogs-region"        = var.aws_region
-          "awslogs-stream-prefix" = "import-worker"
-        }
-      }
-    }
-  ])
-}
-
-resource "aws_ecs_service" "import_worker" {
-  name            = "${var.project_name}-import-worker-svc"
-  cluster         = aws_ecs_cluster.main.id
-  task_definition = aws_ecs_task_definition.import_worker.arn
-  desired_count   = 1
-  launch_type     = "FARGATE"
-
-  deployment_circuit_breaker {
-    enable   = true
-    rollback = true
-  }
-
-  network_configuration {
-    subnets          = data.aws_subnets.default.ids
-    security_groups  = [aws_security_group.fargate.id]
-    assign_public_ip = true
-  }
-
-  # No load_balancer block — the worker pulls tasks from SQS, not HTTP.
-
-  lifecycle {
-    ignore_changes = [desired_count]
-  }
-}
+# ── Import worker (REMOVED) ──────────────────────────────────────────────────
+# The always-on Celery worker that ran here as an ECS Fargate service has been
+# replaced on AWS by an SQS-triggered Lambda (see lambda.tf). The Lambda scales
+# to zero when idle, so we no longer pay for a 24/7 Fargate task that was almost
+# always polling an empty queue. The SQS queue, DLQ, and S3 bucket are unchanged
+# — only the consumer moved from ECS to Lambda. The Celery worker still runs for
+# local dev / self-host via docker-compose (unchanged).
