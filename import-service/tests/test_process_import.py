@@ -6,6 +6,9 @@
 #   * account balance updated (income adds, expense subtracts)
 #   * importjob status transitions PENDING → DONE with imported_rows set
 #   * idempotency: a second delivery for an already-DONE job no-ops (no dupes)
+#   * retry safety: STARTED (lost worker) and FAILED (errored attempt) jobs are
+#     re-claimable, and a mid-transaction failure rolls back the claim so the
+#     redelivered message retries instead of being silently skipped
 #
 # The patched_import_core fixture (conftest.py) swaps the core's get_session +
 # table objects for SQLite-backed equivalents and stubs storage cleanup.
@@ -138,13 +141,104 @@ def test_process_import_is_idempotent_on_already_done_job(patched_import_core):
     assert _count_transactions(import_csv_module) == 1
     assert _get_account_balance(import_csv_module) == Decimal("150.00")
 
-    # Second delivery of the SAME message: job is no longer PENDING, so the
-    # idempotency claim fails and the import is skipped — no new rows, balance
-    # unchanged.
+    # Second delivery of the SAME message: the job is now DONE, so the
+    # idempotency claim matches zero rows and the import is skipped — no new
+    # rows, balance unchanged.
     second_result = import_csv_module.process_import(payload)
-    assert second_result == {"status": "skipped", "reason": "already-claimed"}
+    assert second_result == {"status": "skipped", "reason": "already-done"}
     assert _count_transactions(import_csv_module) == 1
     assert _get_account_balance(import_csv_module) == Decimal("150.00")
+
+
+def test_started_job_is_reclaimable_after_lost_worker(patched_import_core):
+    """A STARTED job (worker died after claiming, before committing) re-runs.
+
+    The old separate-transaction claim committed PENDING → STARTED on its own,
+    so if the worker was then killed before the insert, the redelivered message
+    saw status='STARTED' (not PENDING) and was silently skipped — the import was
+    lost. Folding the claim into the insert transaction means a STARTED row is
+    still re-claimable (status != 'DONE'), so the retry actually imports.
+    """
+    import_csv_module = patched_import_core
+    # Simulate the leftover state of a worker that claimed then died: STARTED
+    # with zero rows inserted (the insert never committed).
+    _seed_account_and_job(import_csv_module, starting_balance="100.00", job_status="STARTED")
+
+    rows = [
+        {"transaction_date": "2026-04-01", "amount": "25.00", "transaction_type": "income", "description": "Refund", "category_id": None},
+    ]
+    result = import_csv_module.process_import(_make_payload(rows))
+
+    assert result == {"status": "done", "imported": 1}
+    assert _count_transactions(import_csv_module) == 1
+    assert _get_account_balance(import_csv_module) == Decimal("125.00")
+    status, imported_rows = _get_job_status(import_csv_module)
+    assert status == "DONE"
+    assert imported_rows == 1
+
+
+def test_failed_job_is_reclaimable_on_redelivery(patched_import_core):
+    """A FAILED job is re-claimable so a transient error can retry to success.
+
+    A prior attempt marked the job FAILED (best-effort, after its transaction
+    rolled back). Because FAILED is still != 'DONE', a redelivered message must
+    re-claim and import rather than being skipped — otherwise the very first
+    transient error would be permanent and never reach the DLQ.
+    """
+    import_csv_module = patched_import_core
+    _seed_account_and_job(import_csv_module, starting_balance="100.00", job_status="FAILED")
+
+    rows = [
+        {"transaction_date": "2026-04-02", "amount": "10.00", "transaction_type": "expense", "description": "Coffee", "category_id": None},
+    ]
+    result = import_csv_module.process_import(_make_payload(rows))
+
+    assert result == {"status": "done", "imported": 1}
+    assert _count_transactions(import_csv_module) == 1
+    assert _get_account_balance(import_csv_module) == Decimal("90.00")
+    status, _imported_rows = _get_job_status(import_csv_module)
+    assert status == "DONE"
+
+
+def test_transient_failure_rolls_back_claim_then_retry_succeeds(patched_import_core):
+    """A mid-transaction failure rolls back the claim, and a retry imports.
+
+    The first delivery raises *after* the claim ran but before commit (here via
+    a malformed transaction_date). The whole transaction — including the
+    PENDING → STARTED claim — must roll back, leaving no rows. The job is marked
+    FAILED best-effort. A second delivery (the SQS retry) with a valid payload
+    must then import successfully, proving the claim was not committed
+    independently of the work.
+    """
+    import_csv_module = patched_import_core
+    _seed_account_and_job(import_csv_module, starting_balance="100.00")
+
+    bad_rows = [
+        {"transaction_date": "not-a-real-date", "amount": "10.00", "transaction_type": "expense", "description": None, "category_id": None},
+    ]
+    # The malformed date raises inside the import transaction, after the claim.
+    with pytest.raises(ValueError):
+        import_csv_module.process_import(_make_payload(bad_rows))
+
+    # Nothing was inserted and the balance is untouched (transaction rolled back).
+    assert _count_transactions(import_csv_module) == 0
+    assert _get_account_balance(import_csv_module) == Decimal("100.00")
+    # Best-effort bookkeeping recorded the failure for the UI.
+    status, _imported_rows = _get_job_status(import_csv_module)
+    assert status == "FAILED"
+
+    # The SQS retry delivers the same job with a valid payload — it must import,
+    # not skip (FAILED is re-claimable).
+    good_rows = [
+        {"transaction_date": "2026-04-03", "amount": "10.00", "transaction_type": "expense", "description": None, "category_id": None},
+    ]
+    retry_result = import_csv_module.process_import(_make_payload(good_rows))
+    assert retry_result == {"status": "done", "imported": 1}
+    assert _count_transactions(import_csv_module) == 1
+    assert _get_account_balance(import_csv_module) == Decimal("90.00")
+    status, imported_rows = _get_job_status(import_csv_module)
+    assert status == "DONE"
+    assert imported_rows == 1
 
 
 def test_process_import_without_job_id_still_imports(patched_import_core):

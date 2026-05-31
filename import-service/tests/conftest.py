@@ -41,8 +41,8 @@ class UUIDString(TypeDecorator):
 
     Why this exists: the production core builds `uuid.UUID` objects (uuid4() for new
     rows, UUID(...) parsed from the payload) and uses them both as INSERT values and
-    in the `_claim_import_job` WHERE clause. Postgres' UUID columns accept them
-    natively, but SQLite does not. Crucially, if a bare `UUID` reaches SQLite it gets
+    in the idempotency-claim `WHERE id = :id` clause. Postgres' UUID columns accept
+    them natively, but SQLite does not. Crucially, if a bare `UUID` reaches SQLite it gets
     rendered **without hyphens** (`111…` 32-char hex) — which would NOT match the
     hyphenated id strings the tests seed, so the claim's `WHERE id = UUID(...)` would
     silently match zero rows and the import would wrongly report "skipped".
