@@ -42,8 +42,18 @@ output "task_role_arn" {
 }
 
 output "ecr_import_worker_url" {
-  description = "Import worker ECR repository URI. Pass to build-and-push.sh."
+  description = "Import worker (local/self-host Celery image) ECR repository URI. Pass to build-and-push.sh."
   value       = aws_ecr_repository.import_worker.repository_url
+}
+
+output "ecr_import_lambda_url" {
+  description = "Import Lambda container image ECR repository URI. Pass to build-and-push.sh; the Lambda pulls its image from here."
+  value       = aws_ecr_repository.import_lambda.repository_url
+}
+
+output "import_lambda_function_name" {
+  description = "CSV import Lambda function name. Used by build-and-push.sh for `aws lambda update-function-code`."
+  value       = aws_lambda_function.import.function_name
 }
 
 output "celery_sqs_queue_url" {

@@ -74,3 +74,20 @@ resource "aws_ecr_lifecycle_policy" "import_worker" {
   repository = aws_ecr_repository.import_worker.name
   policy     = local.ecr_lifecycle_policy
 }
+
+# Dedicated repo for the CSV-import Lambda container image. Kept separate from
+# the import_worker repo so the two image types (Celery worker for local/self-host
+# vs. the AWS Lambda handler) stay distinct and their lifecycle/tags don't collide.
+resource "aws_ecr_repository" "import_lambda" {
+  name                 = "${var.project_name}-import-lambda"
+  image_tag_mutability = "MUTABLE"
+
+  image_scanning_configuration {
+    scan_on_push = true
+  }
+}
+
+resource "aws_ecr_lifecycle_policy" "import_lambda" {
+  repository = aws_ecr_repository.import_lambda.name
+  policy     = local.ecr_lifecycle_policy
+}

@@ -20,4 +20,8 @@ dependencies = [
 ]
 
 [tool.uv]
-dev-dependencies = []
+# pytest is the only dev dependency: it runs the import-service unit tests
+# (envelope decoder + process_import against in-memory SQLite). uv installs
+# dev-dependencies by default, so `uv run pytest` (or `uv sync --dev`) pulls it
+# in — there are no optional extras here.
+dev-dependencies = ["pytest>=8.0.0"]

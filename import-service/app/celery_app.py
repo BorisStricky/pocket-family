@@ -15,8 +15,12 @@ def make_celery() -> Celery:
     # @celery_app.task decorators run and register the tasks. We don't rely
     # on autodiscover_tasks here because it expects a submodule literally
     # named `tasks` inside each package — but our tasks live in submodules
-    # like app.tasks.import_csv, which autodiscover would silently skip.
-    application = Celery("import_service", include=["app.tasks.import_csv"])
+    # like app.tasks.celery_tasks, which autodiscover would silently skip.
+    #
+    # The task wrapper lives in app.tasks.celery_tasks (not import_csv) so the
+    # framework-agnostic core in app.tasks.import_csv stays celery-free and the
+    # AWS Lambda image can import it without celery installed.
+    application = Celery("import_service", include=["app.tasks.celery_tasks"])
     application.conf.update(
         broker_url=settings.broker_url,
         # Use JSON serialization so tasks are readable in broker logs and
