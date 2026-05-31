@@ -36,6 +36,11 @@ resource "aws_s3_bucket_lifecycle_configuration" "csv_uploads" {
     id     = "expire-uploads"
     status = "Enabled"
 
+    # Empty filter = apply to every object in the bucket. Required by the
+    # provider: a rule must specify exactly one of `filter` or `prefix`, or it
+    # warns now and errors in a future provider version.
+    filter {}
+
     expiration {
       days = 1
     }

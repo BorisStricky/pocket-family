@@ -51,9 +51,13 @@ resource "aws_lambda_function" "import" {
   timeout     = 300
   memory_size = 512
 
-  # Cap concurrent invocations to protect Aurora's connection count (mirrors the
-  # old worker's --concurrency intent, with headroom).
-  reserved_concurrent_executions = 5
+  # NOTE: we intentionally do NOT set reserved_concurrent_executions. Concurrency
+  # is capped at the SQS event source mapping instead (scaling_config.
+  # maximum_concurrency below), which protects Aurora's connection count without
+  # carving capacity out of the account's reserved pool. Reserving here fails on
+  # accounts with a low total concurrency limit ("decreases UnreservedConcurrent
+  # Execution below its minimum value of [10]"), and the mapping-level cap is the
+  # right knob for an SQS-driven function anyway.
 
   # In-VPC so it can reach the private Aurora cluster. Reuses the Fargate SG,
   # which Aurora's inbound rule already trusts (network.tf), so no SG change is

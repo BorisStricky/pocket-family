@@ -168,7 +168,13 @@ fi
 if [[ "$BUILD_IMPORT_LAMBDA" == "1" ]]; then
   echo
   echo "==> Building import-lambda image..."
-  docker build \
+  # DOCKER_BUILDKIT=0 forces the legacy builder, which produces a Docker Image
+  # Manifest V2 Schema 2 image. AWS Lambda rejects the OCI manifest that BuildKit
+  # / the containerd image store emit by default ("The image manifest, config or
+  # layer media type for the source image ... is not supported"), so the Lambda
+  # image specifically must be built this way. The other images are pushed to ECR
+  # only (ECS/ECR accept OCI), so they are left on the default builder.
+  DOCKER_BUILDKIT=0 docker build \
     -t "pocket-family-import-lambda:${IMAGE_TAG}" \
     --file "$REPO_ROOT/import-service/Dockerfile.lambda" \
     "$REPO_ROOT/import-service"
