@@ -59,24 +59,32 @@ resource "aws_lambda_function" "import" {
   # Execution below its minimum value of [10]"), and the mapping-level cap is the
   # right knob for an SQS-driven function anyway.
 
-  # In-VPC so it can reach the private Aurora cluster. Reuses the Fargate SG,
-  # which Aurora's inbound rule already trusts (network.tf), so no SG change is
-  # needed. S3 egress is served by the S3 gateway endpoint (network.tf).
-  vpc_config {
-    subnet_ids         = data.aws_subnets.default.ids
-    security_group_ids = [aws_security_group.fargate.id]
-  }
+  # NO vpc_config — the Lambda runs OUTSIDE the VPC, and that is deliberate.
+  #
+  # The Aurora "Free plan / Express" cluster (aurora_free.tf) has VPC networking
+  # DISABLED: it is reachable only over a PUBLIC IAM-authenticated gateway
+  # endpoint (the `*.apgpxy.*.rdsrelay.aws.dev` relay), not via a private in-VPC
+  # ENI or a security group. The ECS backend connects to it over the public
+  # endpoint precisely because its tasks get a public IP (assignPublicIp=ENABLED).
+  #
+  # A VPC-attached Lambda gets NO public IP and there is no NAT gateway in this
+  # (default) VPC, so attaching the function to the VPC left it with no route to
+  # Aurora's public endpoint — every connection timed out after 30s. Running the
+  # Lambda WITHOUT a vpc_config gives it AWS-managed internet egress, so it reaches
+  # both the public Aurora endpoint (like Fargate) and S3 directly. No SG is
+  # needed because Aurora's relay authenticates with IAM + TLS, not a VPC SG. The
+  # S3 gateway endpoint (network.tf) is consequently unused by this function.
 
   environment {
     variables = local.import_lambda_environment
   }
 
   # Ensure the log group exists (and is owned by Terraform with our retention)
-  # before the function can write to it.
+  # before the function can write to it. No VPC-access role dependency: the
+  # function is not in a VPC, so AWSLambdaVPCAccessExecutionRole is not required.
   depends_on = [
     aws_cloudwatch_log_group.import_lambda,
     aws_iam_role_policy_attachment.import_lambda_basic,
-    aws_iam_role_policy_attachment.import_lambda_vpc,
   ]
 }
 
