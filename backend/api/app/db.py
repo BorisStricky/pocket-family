@@ -204,16 +204,32 @@ async def get_db() -> AsyncGenerator[AsyncSession, None]:
         yield session
 
 
-# Initialize DB schema (dev/test only). Production deployments should use Alembic migrations instead.
+# Initialize DB schema (dev/test only). Production deployments use Alembic migrations instead.
 async def init_db() -> None:
-    """Create DB tables from SQLModel metadata.
+    """Create DB tables from SQLModel metadata — gated on AUTO_CREATE_SCHEMA=1.
 
-    This is appropriate for development and tests. Production deploys should prefer Alembic migrations.
+    Only runs when AUTO_CREATE_SCHEMA=1 (set in local dev's .env). In every other
+    environment Alembic is the single source of truth for the schema, so this is a
+    no-op. The gate is deliberately a dedicated flag rather than TEST_MODE: it keeps
+    "auto-build schema" independent of the auth/test relaxations TEST_MODE controls,
+    so a future local staging env can run production-like auth (TEST_MODE=0) while
+    still choosing its own schema behaviour.
+
+    Why gate it at all: create_all() only ever *creates missing whole tables* — it
+    never stamps alembic_version and never applies ALTER-style migrations. If it ran
+    in production it could create a new table (e.g. importjob) out-of-band, which
+    then makes a subsequent `alembic upgrade head` fail with "relation already
+    exists" and silently masks schema drift. So outside dev we let Alembic own it.
+
     The function uses the async engine to run create_all synchronously via run_sync.
 
     Raises:
         Exception: propagates underlying DB connection errors during startup.
     """
+    if os.getenv("AUTO_CREATE_SCHEMA", "0") != "1":
+        log.info("AUTO_CREATE_SCHEMA != 1 — skipping create_all (Alembic owns the schema)")
+        return
+
     async with async_engine.begin() as conn:
         # use SQLModel.metadata.create_all(conn) via run_sync to create tables
         await conn.run_sync(SQLModel.metadata.create_all)

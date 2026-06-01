@@ -4,7 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from .db import init_db
-from .routers import auth, tenants, accounts, categories, transactions, budgets
+from .routers import auth, tenants, accounts, categories, transactions, budgets, imports
 from .auth import is_demo_mode
 from .rate_limit import limiter
 
@@ -47,6 +47,8 @@ async def on_startup():
     On demo instances (DEMO_MODE=1) also ensures the shared demo account
     exists so a fresh deploy is immediately usable.
     """
+    # No-op unless AUTO_CREATE_SCHEMA=1 (local dev). Everywhere else Alembic owns the
+    # schema — see init_db() in db.py for why create_all is gated out of production.
     await init_db()
 
     if is_demo_mode():
@@ -86,3 +88,4 @@ app.include_router(accounts.router)
 app.include_router(categories.router)
 app.include_router(transactions.router)
 app.include_router(budgets.router)
+app.include_router(imports.router)

@@ -200,30 +200,30 @@ If context fills up, **prioritize keeping**:
 
 ## 9. Testing Requirements (CRITICAL RULE)
 
-### Test Writing - ALWAYS Delegate to Test Agents
+### Test Conventions Live in Module CLAUDE.md
 
-**NEVER write tests directly. ALWAYS delegate to specialized test agents:**
+Test conventions are defined in the **module-level `CLAUDE.md`** files (auto-loaded when working in that folder). Follow them exactly:
 
-- **Frontend tests** → Use `frontend-test` agent (see `.claude/agents/frontend-test.md`)
+- **Frontend tests** → see `frontend/CLAUDE.md`
   - Tests go in `src/__tests__/` (NOT co-located with source files)
   - Integration-first approach (full page workflows, not unit tests)
   - Semantic queries only (`getByRole`, `getByText`)
   - MSW for API mocking
 
-- **Backend tests** → Use `backend-test` agent (see `.claude/agents/backend-test.md`)
+- **Backend tests** → see `backend/CLAUDE.md`
   - Tests go in `backend/api/tests/`
-  - pytest fixtures for isolation
-  - Multi-tenant validation
+  - pytest fixtures for isolation; `TEST_MODE=1`
+  - Mandatory multi-tenant isolation validation
 
-### When to Delegate
+### When to Write or Update Tests
 
-**ALWAYS delegate when**:
-- Writing tests for new features
+Write/update tests (following the module `CLAUDE.md`) when:
+- Writing tests for new features (tests first)
 - Updating tests after behavior changes
 - Fixing failing tests
 - Rewriting tests to follow conventions
 
-**Exception**: Trivial assertion updates (e.g., changing "Welcome" to "Dashboard") may be done inline, but must follow test agent conventions.
+**Exception**: Trivial assertion updates (e.g., changing "Welcome" to "Dashboard") may be done inline, but must follow the module's test conventions.
 
 ### Manual Verification
 
@@ -263,7 +263,7 @@ To verify:
 - [ ] Use full variable names (no abbreviations)
 - [ ] Add new concepts to glossary
 - [ ] Update components_used.md if applicable
-- [ ] **Delegate test writing to test agents** (NEVER write tests directly)
+- [ ] **Write/update tests following the module `CLAUDE.md`** (frontend/backend)
 - [ ] Mark task as `[x]` complete in sprint checklist
 - [ ] Ask approval if architecture/structure change needed
 - [ ] Summarize what was built in chat

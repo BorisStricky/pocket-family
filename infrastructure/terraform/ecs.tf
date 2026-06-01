@@ -33,22 +33,52 @@ locals {
   # Handles empty cors_origins base gracefully.
   cors_origins_computed = var.app_domain != "" ? (
     var.cors_origins != ""
-      ? "${var.cors_origins},https://pocket-family-demo.${var.app_domain}"
-      : "https://pocket-family-demo.${var.app_domain}"
+    ? "${var.cors_origins},https://pocket-family-demo.${var.app_domain}"
+    : "https://pocket-family-demo.${var.app_domain}"
   ) : var.cors_origins
 
   backend_environment = [
-    { name = "DB_INSTANCE",  value = "aws_aurora_serverless" },
-    { name = "DB_HOST",      value = aws_rds_cluster.main.endpoint },
-    { name = "DB_PORT",      value = "5432" },
-    { name = "DB_USER",      value = var.db_app_user },
-    { name = "DB_NAME",      value = var.db_name },
-    { name = "AWS_REGION",   value = var.aws_region },
-    { name = "JWT_SECRET",   value = var.jwt_secret },
-    { name = "TEST_MODE",    value = "0" },
-    { name = "DEMO_MODE",    value = var.demo_mode ? "1" : "0" },
+    { name = "DB_INSTANCE", value = "aws_aurora_serverless" },
+    { name = "DB_HOST", value = aws_rds_cluster.main.endpoint },
+    { name = "DB_PORT", value = "5432" },
+    { name = "DB_USER", value = var.db_app_user },
+    { name = "DB_NAME", value = var.db_name },
+    { name = "AWS_REGION", value = var.aws_region },
+    { name = "JWT_SECRET", value = var.jwt_secret },
+    { name = "TEST_MODE", value = "0" },
+    # Alembic owns the schema on AWS — never auto-create from the models on startup.
+    # Inherited by the main backend task plus the demo-reset and migrate tasks, all
+    # of which run `alembic upgrade head` rather than create_all.
+    { name = "AUTO_CREATE_SCHEMA", value = "0" },
+    { name = "DEMO_MODE", value = var.demo_mode ? "1" : "0" },
     { name = "CORS_ORIGINS", value = local.cors_origins_computed },
-    { name = "APP_DOMAIN",   value = var.app_domain },
+    { name = "APP_DOMAIN", value = var.app_domain },
+    # Import service: SQS broker + S3 storage (no RESULT_BACKEND — status is in importjob table)
+    { name = "BROKER_URL", value = "sqs://" },
+    { name = "CELERY_DEFAULT_QUEUE", value = aws_sqs_queue.celery.name },
+    { name = "STORAGE_BACKEND", value = "s3" },
+    { name = "S3_BUCKET", value = aws_s3_bucket.csv_uploads.bucket },
+    { name = "S3_REGION", value = var.aws_region },
+  ]
+
+  # Environment for the CSV import consumer. Mirrors the backend DB vars so the
+  # consumer can use the same IAM token auth path (DB_INSTANCE=aws_aurora_serverless).
+  # This list is the canonical source; lambda.tf derives the Lambda's environment
+  # from it by stripping the Celery broker vars (Lambda doesn't run Celery) and the
+  # AWS_REGION key (which the Lambda runtime sets automatically and forbids us from
+  # setting). The ECS Celery worker that previously consumed this was removed (B6).
+  worker_environment = [
+    { name = "DB_INSTANCE", value = "aws_aurora_serverless" },
+    { name = "DB_HOST", value = aws_rds_cluster.main.endpoint },
+    { name = "DB_PORT", value = "5432" },
+    { name = "DB_USER", value = var.db_app_user },
+    { name = "DB_NAME", value = var.db_name },
+    { name = "AWS_REGION", value = var.aws_region },
+    { name = "BROKER_URL", value = "sqs://" },
+    { name = "CELERY_DEFAULT_QUEUE", value = aws_sqs_queue.celery.name },
+    { name = "STORAGE_BACKEND", value = "s3" },
+    { name = "S3_BUCKET", value = aws_s3_bucket.csv_uploads.bucket },
+    { name = "S3_REGION", value = var.aws_region },
   ]
 }
 
@@ -154,3 +184,11 @@ resource "aws_ecs_service" "main" {
     ignore_changes = [desired_count]
   }
 }
+
+# ── Import worker (REMOVED) ──────────────────────────────────────────────────
+# The always-on Celery worker that ran here as an ECS Fargate service has been
+# replaced on AWS by an SQS-triggered Lambda (see lambda.tf). The Lambda scales
+# to zero when idle, so we no longer pay for a 24/7 Fargate task that was almost
+# always polling an empty queue. The SQS queue, DLQ, and S3 bucket are unchanged
+# — only the consumer moved from ECS to Lambda. The Celery worker still runs for
+# local dev / self-host via docker-compose (unchanged).

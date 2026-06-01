@@ -17,6 +17,7 @@ from ..auth import (
     hash_token,
     REFRESH_TOKEN_EXPIRE_DAYS,
     is_test_mode,
+    cookies_secure,
     assert_not_demo,
 )
 from ..rate_limit import limiter
@@ -139,7 +140,7 @@ async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depen
         key="refresh_token",
         value=raw_refresh_token,
         httponly=True,           # Prevent JavaScript access (XSS protection)
-        secure=True,             # HTTPS-only; browser will not send over plain HTTP
+        secure=cookies_secure(), # HTTPS-only when COOKIE_SECURE=1 (default); browser will not send Secure cookies over plain HTTP
         samesite="lax",          # CSRF protection
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # seconds
     )
@@ -210,7 +211,7 @@ async def login(request: Request, payload: LoginIn, response: Response, db: Asyn
         key="refresh_token",
         value=raw_refresh_token,
         httponly=True,           # Prevent JavaScript access (XSS protection)
-        secure=True,             # HTTPS-only; browser will not send over plain HTTP
+        secure=cookies_secure(), # HTTPS-only when COOKIE_SECURE=1 (default); browser will not send Secure cookies over plain HTTP
         samesite="lax",          # CSRF protection
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # seconds
     )
@@ -281,7 +282,7 @@ async def refresh(request: Request, response: Response, db: AsyncSession = Depen
         key="refresh_token",
         value=new_raw_refresh_token,
         httponly=True,           # Prevent JavaScript access (XSS protection)
-        secure=True,             # HTTPS-only; browser will not send over plain HTTP
+        secure=cookies_secure(), # HTTPS-only when COOKIE_SECURE=1 (default); browser will not send Secure cookies over plain HTTP
         samesite="lax",          # CSRF protection
         max_age=REFRESH_TOKEN_EXPIRE_DAYS * 24 * 60 * 60,  # seconds
     )
@@ -313,8 +314,15 @@ async def logout(request: Request, response: Response, db: AsyncSession = Depend
             refresh_token_record.revoked = True
             await db.commit()
 
-    # Delete the refresh_token cookie
-    response.delete_cookie(key="refresh_token")
+    # Delete the refresh_token cookie. Attributes must match the Set-Cookie on
+    # signup/login/refresh so the browser treats this as the same cookie and
+    # actually clears it.
+    response.delete_cookie(
+        key="refresh_token",
+        httponly=True,
+        secure=cookies_secure(),
+        samesite="lax",
+    )
 
     return {"ok": True}
 

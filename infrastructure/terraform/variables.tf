@@ -119,6 +119,11 @@ variable "demo_mode" {
   default     = false
 }
 
+# ── Import worker ───────────────────────────────────────────────────────────
+# The worker_task_cpu / worker_task_memory variables were removed when the ECS
+# Fargate import worker was replaced by an SQS-triggered Lambda (see lambda.tf).
+# The Lambda's memory/timeout are set directly in lambda.tf, not via variables.
+
 variable "demo_reset_cron" {
   description = "CloudWatch Events cron expression for the daily demo data reset. AWS cron uses 6 fields (min hour day month day-of-week year). Default 06:00 UTC daily."
   type        = string

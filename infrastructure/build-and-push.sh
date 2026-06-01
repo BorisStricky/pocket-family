@@ -17,6 +17,15 @@
 #   IMAGE_TAG        — tag applied to both images (default: latest)
 #   BUILD_BACKEND    — set to 0 to skip backend build (default: 1)
 #   BUILD_FRONTEND   — set to 0 to skip frontend build (default: 1)
+#   BUILD_IMPORT_WORKER — set to 0 to skip import worker build (default: 1).
+#                      This is the Celery worker image used by local/self-host
+#                      docker-compose; it is NOT deployed on AWS anymore (the AWS
+#                      import path is the Lambda below). Kept so the same script
+#                      can still build/push it if you mirror it to ECR.
+#   BUILD_IMPORT_LAMBDA — set to 0 to skip the import Lambda image build (default: 1).
+#                      Builds import-service/Dockerfile.lambda, pushes it to the
+#                      import-lambda ECR repo, then calls `aws lambda
+#                      update-function-code` so the function picks up the new image.
 #   DEMO_MODE        — set to 1 to bake the demo build flag into the frontend
 #                      image (default: 0). The backend honours DEMO_MODE at
 #                      runtime via the ECS task definition; only the frontend
@@ -30,6 +39,23 @@
 #                      named below (override with ECS_CLUSTER / ECS_SERVICE).
 #   ECS_CLUSTER      — ECS cluster name for FORCE_NEW_DEPLOYMENT (default: pocket-family)
 #   ECS_SERVICE      — ECS service name for FORCE_NEW_DEPLOYMENT (default: pocket-family-svc)
+#   IMPORT_LAMBDA_FUNCTION — name of the import Lambda to update after pushing its
+#                      image (default: pocket-family-import). Set to empty to skip
+#                      the `aws lambda update-function-code` call.
+#   RUN_MIGRATIONS   — set to 0 to skip the DB migration step (default: 1). When 1
+#                      and the backend image was built, the script runs the
+#                      pocket-family-migrate ECS task and waits for it to finish
+#                      BEFORE any rollout. A failed migration aborts the script, so
+#                      the running services keep the old image + schema. Idempotent:
+#                      `alembic upgrade head` is a no-op when already at head.
+#   MIGRATE_TASK     — migrate task definition (default: pocket-family-migrate)
+#   MIGRATE_SUBNETS  — comma-separated subnet IDs for the migrate task's awsvpc config
+#                      (default: auto-discovered default-VPC subnets)
+#   MIGRATE_SECURITY_GROUPS — comma-separated SG IDs for the migrate task
+#                      (default: the ${ECS_CLUSTER}-fargate security group)
+#
+# IAM: credentials running this script need ecs:RunTask + iam:PassRole (task and
+# execution roles) on the migrate task, on top of the ECR push permissions.
 #
 # Usage:
 #   export AWS_ACCESS_KEY_ID=AKIA... AWS_SECRET_ACCESS_KEY=...   # if not using `aws configure`
@@ -43,10 +69,15 @@ set -euo pipefail
 IMAGE_TAG="${IMAGE_TAG:-latest}"
 BUILD_BACKEND="${BUILD_BACKEND:-1}"
 BUILD_FRONTEND="${BUILD_FRONTEND:-1}"
+BUILD_IMPORT_WORKER="${BUILD_IMPORT_WORKER:-1}"
+BUILD_IMPORT_LAMBDA="${BUILD_IMPORT_LAMBDA:-1}"
 DEMO_MODE="${DEMO_MODE:-0}"
 FORCE_NEW_DEPLOYMENT="${FORCE_NEW_DEPLOYMENT:-0}"
 ECS_CLUSTER="${ECS_CLUSTER:-pocket-family}"
 ECS_SERVICE="${ECS_SERVICE:-pocket-family-svc}"
+IMPORT_LAMBDA_FUNCTION="${IMPORT_LAMBDA_FUNCTION:-pocket-family-import}"
+RUN_MIGRATIONS="${RUN_MIGRATIONS:-1}"
+MIGRATE_TASK="${MIGRATE_TASK:-pocket-family-migrate}"
 
 # Map our 0/1 sh-friendly flag onto the "true"/"false" string the Vite build
 # expects via VITE_DEMO_MODE (compared directly in src/lib/constants.ts).
@@ -60,6 +91,8 @@ REPO_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ECR_REGISTRY="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
 BACKEND_REPO="${ECR_REGISTRY}/pocket-family-backend"
 FRONTEND_REPO="${ECR_REGISTRY}/pocket-family-frontend"
+IMPORT_WORKER_REPO="${ECR_REGISTRY}/pocket-family-import-worker"
+IMPORT_LAMBDA_REPO="${ECR_REGISTRY}/pocket-family-import-lambda"
 
 # Capture the current git SHA so we can also tag images with an immutable reference.
 # Falls back to "unknown" if not in a git repo (e.g. running from a tarball).
@@ -112,25 +145,149 @@ if [[ "$BUILD_BACKEND" == "1" ]]; then
   docker push "${BACKEND_REPO}:${GIT_SHA}"
 fi
 
+# Step 4 — build import worker (no build args; config is runtime via ECS task definition).
+if [[ "$BUILD_IMPORT_WORKER" == "1" ]]; then
+  echo
+  echo "==> Building import-worker image..."
+  docker build \
+    -t "pocket-family-import-worker:${IMAGE_TAG}" \
+    "$REPO_ROOT/import-service"
+
+  docker tag "pocket-family-import-worker:${IMAGE_TAG}" "${IMPORT_WORKER_REPO}:${IMAGE_TAG}"
+  docker tag "pocket-family-import-worker:${IMAGE_TAG}" "${IMPORT_WORKER_REPO}:${GIT_SHA}"
+
+  echo "==> Pushing import-worker image..."
+  docker push "${IMPORT_WORKER_REPO}:${IMAGE_TAG}"
+  docker push "${IMPORT_WORKER_REPO}:${GIT_SHA}"
+fi
+
+# Step 4b — build the import Lambda image (Dockerfile.lambda) and push it to its
+# dedicated ECR repo. This is the AWS import consumer (SQS -> Lambda); it replaces
+# the always-on ECS worker. After pushing, point the function at the new image so
+# it actually rolls (a reused tag like `latest` won't redeploy on its own).
+if [[ "$BUILD_IMPORT_LAMBDA" == "1" ]]; then
+  echo
+  echo "==> Building import-lambda image..."
+  # AWS Lambda only accepts a SINGLE-platform image manifest (Docker schema 2 or a
+  # plain OCI image manifest). It rejects an OCI image *index* (manifest list)
+  # with "The image manifest, config or layer media type ... is not supported".
+  #
+  # The old `DOCKER_BUILDKIT=0 docker build` no longer works on Docker 23+: the
+  # classic builder is gone, so BuildKit runs regardless and — with provenance
+  # attestation on by default — pushes an OCI index, which Lambda refuses. We
+  # therefore build explicitly with buildx, pinned to one platform, with
+  # provenance DISABLED (that attestation is what turns the result into an index),
+  # and `--load` it into the local daemon as a Docker schema-2 image. The existing
+  # `docker tag` + `docker push` below then push that single manifest unchanged.
+  # The other images go to ECR only (ECS/ECR accept OCI), so they are untouched.
+  docker buildx build \
+    --provenance=false \
+    --platform linux/amd64 \
+    --load \
+    -t "pocket-family-import-lambda:${IMAGE_TAG}" \
+    --file "$REPO_ROOT/import-service/Dockerfile.lambda" \
+    "$REPO_ROOT/import-service"
+
+  docker tag "pocket-family-import-lambda:${IMAGE_TAG}" "${IMPORT_LAMBDA_REPO}:${IMAGE_TAG}"
+  docker tag "pocket-family-import-lambda:${IMAGE_TAG}" "${IMPORT_LAMBDA_REPO}:${GIT_SHA}"
+
+  echo "==> Pushing import-lambda image..."
+  docker push "${IMPORT_LAMBDA_REPO}:${IMAGE_TAG}"
+  docker push "${IMPORT_LAMBDA_REPO}:${GIT_SHA}"
+
+  # Update the function so it pulls the freshly-pushed image. Lambda resolves the
+  # tag to an image digest at update time, so reusing `latest` still rolls.
+  if [[ -n "$IMPORT_LAMBDA_FUNCTION" ]]; then
+    echo "==> Updating Lambda '$IMPORT_LAMBDA_FUNCTION' to the new image..."
+    aws lambda update-function-code \
+      --function-name "$IMPORT_LAMBDA_FUNCTION" \
+      --image-uri "${IMPORT_LAMBDA_REPO}:${IMAGE_TAG}" \
+      --region "$AWS_REGION" \
+      --no-cli-pager > /dev/null
+  else
+    echo "==> IMPORT_LAMBDA_FUNCTION empty — skipping lambda update-function-code."
+  fi
+fi
+
 echo
 echo "==> Done. Image URIs:"
-[[ "$BUILD_FRONTEND" == "1" ]] && echo "    ${FRONTEND_REPO}:${IMAGE_TAG}"
-[[ "$BUILD_BACKEND"  == "1" ]] && echo "    ${BACKEND_REPO}:${IMAGE_TAG}"
+[[ "$BUILD_FRONTEND"      == "1" ]] && echo "    ${FRONTEND_REPO}:${IMAGE_TAG}"
+[[ "$BUILD_BACKEND"       == "1" ]] && echo "    ${BACKEND_REPO}:${IMAGE_TAG}"
+[[ "$BUILD_IMPORT_WORKER" == "1" ]] && echo "    ${IMPORT_WORKER_REPO}:${IMAGE_TAG}"
+[[ "$BUILD_IMPORT_LAMBDA" == "1" ]] && echo "    ${IMPORT_LAMBDA_REPO}:${IMAGE_TAG}"
 echo
 
-# Step 4 — optionally trigger an ECS rollout so the running task picks up the
-# newly-pushed image. Required when the image tag is reused (e.g. `latest`)
-# because ECS otherwise sees no change and won't re-pull.
+# Step 5 — apply database migrations before any service picks up the new image.
+# The migration runs INSIDE the VPC as a one-off ECS task (the operator's machine
+# can't reach Aurora directly), and must succeed before any rollout — a failed
+# migration aborts the script, leaving the running services on the old image+schema.
+if [[ "$RUN_MIGRATIONS" == "1" && "$BUILD_BACKEND" == "1" ]]; then
+  echo "==> Applying database migrations via ECS task '$MIGRATE_TASK'..."
+
+  # Resolve awsvpc network config (override with MIGRATE_SUBNETS / MIGRATE_SECURITY_GROUPS).
+  if [[ -z "${MIGRATE_SUBNETS:-}" ]]; then
+    MIGRATE_SUBNETS=$(aws ec2 describe-subnets --region "$AWS_REGION" \
+      --filters Name=default-for-az,Values=true \
+      --query 'Subnets[].SubnetId' --output text | tr '\t' ',')
+  fi
+  if [[ -z "${MIGRATE_SECURITY_GROUPS:-}" ]]; then
+    MIGRATE_SECURITY_GROUPS=$(aws ec2 describe-security-groups --region "$AWS_REGION" \
+      --filters "Name=group-name,Values=${ECS_CLUSTER}-fargate" \
+      --query 'SecurityGroups[0].GroupId' --output text)
+  fi
+  if [[ -z "$MIGRATE_SUBNETS" || -z "$MIGRATE_SECURITY_GROUPS" || "$MIGRATE_SECURITY_GROUPS" == "None" ]]; then
+    echo "ERROR: could not resolve migrate network config" >&2
+    echo "       (subnets='$MIGRATE_SUBNETS' security_groups='$MIGRATE_SECURITY_GROUPS')." >&2
+    echo "       Set MIGRATE_SUBNETS and MIGRATE_SECURITY_GROUPS explicitly and retry." >&2
+    exit 1
+  fi
+
+  NETWORK_CONFIG="awsvpcConfiguration={subnets=[$MIGRATE_SUBNETS],securityGroups=[$MIGRATE_SECURITY_GROUPS],assignPublicIp=ENABLED}"
+
+  TASK_ARN=$(aws ecs run-task --region "$AWS_REGION" --cluster "$ECS_CLUSTER" \
+    --task-definition "$MIGRATE_TASK" --launch-type FARGATE \
+    --network-configuration "$NETWORK_CONFIG" \
+    --query 'tasks[0].taskArn' --output text)
+  if [[ -z "$TASK_ARN" || "$TASK_ARN" == "None" ]]; then
+    echo "ERROR: failed to start migrate task '$MIGRATE_TASK'." >&2
+    exit 1
+  fi
+  echo "    Started $TASK_ARN — waiting for it to stop..."
+  aws ecs wait tasks-stopped --region "$AWS_REGION" --cluster "$ECS_CLUSTER" --tasks "$TASK_ARN"
+
+  EXIT_CODE=$(aws ecs describe-tasks --region "$AWS_REGION" --cluster "$ECS_CLUSTER" \
+    --tasks "$TASK_ARN" --query 'tasks[0].containers[0].exitCode' --output text)
+  if [[ "$EXIT_CODE" != "0" ]]; then
+    echo "ERROR: migration task exited with code '$EXIT_CODE' — aborting before rollout." >&2
+    echo "       Inspect CloudWatch logs: group /ecs/$ECS_CLUSTER, stream prefix 'migrate'." >&2
+    exit 1
+  fi
+  echo "    Migrations applied (exit 0)."
+  echo
+elif [[ "$RUN_MIGRATIONS" == "1" ]]; then
+  echo "==> Skipping migrations (BUILD_BACKEND=0 — no new backend image)."
+  echo
+fi
+
+# Step 6 — optionally trigger an ECS rollout so running tasks pick up the
+# newly-pushed images. Required when the image tag is reused (e.g. `latest`)
+# because ECS otherwise sees no change and won't re-pull. We force-deploy each
+# service whose image was rebuilt in this run.
+# The import worker no longer has an ECS service to roll — on AWS it runs as a
+# Lambda, which is updated above via `aws lambda update-function-code`. Only the
+# main backend/frontend service needs an ECS force-new-deployment.
 if [[ "$FORCE_NEW_DEPLOYMENT" == "1" ]]; then
-  echo "==> Forcing new ECS deployment on $ECS_CLUSTER/$ECS_SERVICE..."
-  aws ecs update-service \
-    --cluster "$ECS_CLUSTER" \
-    --service "$ECS_SERVICE" \
-    --force-new-deployment \
-    --region "$AWS_REGION" \
-    --no-cli-pager > /dev/null
+  if [[ "$BUILD_BACKEND" == "1" || "$BUILD_FRONTEND" == "1" ]]; then
+    echo "==> Forcing new ECS deployment on $ECS_CLUSTER/$ECS_SERVICE..."
+    aws ecs update-service \
+      --cluster "$ECS_CLUSTER" \
+      --service "$ECS_SERVICE" \
+      --force-new-deployment \
+      --region "$AWS_REGION" \
+      --no-cli-pager > /dev/null
+  fi
   echo "==> Deployment triggered. Watch progress with:"
-  echo "    aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --region $AWS_REGION --query 'services[0].deployments'"
+  echo "    aws ecs describe-services --cluster $ECS_CLUSTER --services $ECS_SERVICE --region $AWS_REGION --query 'services[].deployments'"
 else
   echo "Force ECS to pick up the new images with:"
   echo "  aws ecs update-service --cluster $ECS_CLUSTER --service $ECS_SERVICE --force-new-deployment --region $AWS_REGION"

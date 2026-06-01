@@ -11,7 +11,7 @@
 # Optional environment variables:
 #   ENV_FILE       — path to env file (default: <repo>/.env.production)
 #   COMPOSE_FILE   — path to compose file (default: <repo>/docker-compose.yaml)
-#   ACTION         — up | down | restart | logs | build (default: up)
+#   ACTION         — up | down | restart | logs | build | migrate (default: up)
 #   DETACH         — set to 0 to run in the foreground (default: 1)
 #
 # Usage:
@@ -19,6 +19,7 @@
 #   ACTION=logs    ./infrastructure/self-host.sh     # tail logs
 #   ACTION=down    ./infrastructure/self-host.sh     # stop and remove containers
 #   ACTION=restart ./infrastructure/self-host.sh     # rebuild and restart
+#   ACTION=migrate ./infrastructure/self-host.sh     # run alembic upgrade head inside backend
 
 set -euo pipefail
 
@@ -102,6 +103,11 @@ case "$ACTION" in
     ;;
   logs)
     "${COMPOSE[@]}" "${COMPOSE_ARGS[@]}" logs --follow --tail=200
+    ;;
+  migrate)
+    # Run alembic inside the already-running backend container — the DB port
+    # isn't published to the host, so a host-side alembic can't reach it.
+    "${COMPOSE[@]}" "${COMPOSE_ARGS[@]}" exec backend uv run alembic upgrade head
     ;;
   *)
     echo "ERROR: unknown ACTION '$ACTION' (expected: up | down | restart | logs | build)" >&2
