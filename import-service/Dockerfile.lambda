@@ -29,6 +29,14 @@ RUN uv pip install --system --no-cache --target "${LAMBDA_TASK_ROOT}" \
 # Copy application code last for better layer caching.
 COPY app/ "${LAMBDA_TASK_ROOT}/app/"
 
+# The host source tree can carry restrictive group permissions (drwxrws---, i.e.
+# no access for "other"), and COPY preserves them. The Lambda runtime runs as a
+# NON-root user, so without this it cannot traverse app/ subdirectories and the
+# handler import fails at cold start with "No module named 'app.tasks.import_csv'".
+# Normalize to world-readable/traversable: a+rX adds read for all and execute
+# ONLY on directories (and already-executable files), so .py files stay non-exec.
+RUN chmod -R a+rX "${LAMBDA_TASK_ROOT}/app"
+
 # The Lambda runtime invokes module.function — our handler decodes the kombu
 # envelope and delegates to the shared core.
 CMD ["app.lambda_handler.handler"]
