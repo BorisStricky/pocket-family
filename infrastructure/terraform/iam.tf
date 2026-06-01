@@ -59,8 +59,16 @@ resource "aws_iam_role_policy" "task_rds_connect" {
 # The backend API sends tasks to SQS and writes/reads CSV files from S3.
 
 data "aws_iam_policy_document" "backend_sqs_send" {
+  # kombu's SQS transport declares the queue before publishing, which calls
+  # GetQueueAttributes (to read the queue's attributes/size) in addition to the
+  # actual SendMessage. GetQueueUrl resolves the URL from the name. All three are
+  # queue-scoped, so they target the celery queue ARN.
   statement {
-    actions   = ["sqs:SendMessage", "sqs:GetQueueUrl"]
+    actions = [
+      "sqs:SendMessage",
+      "sqs:GetQueueUrl",
+      "sqs:GetQueueAttributes",
+    ]
     resources = [aws_sqs_queue.celery.arn]
   }
 

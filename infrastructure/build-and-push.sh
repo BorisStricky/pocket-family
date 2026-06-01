@@ -168,13 +168,22 @@ fi
 if [[ "$BUILD_IMPORT_LAMBDA" == "1" ]]; then
   echo
   echo "==> Building import-lambda image..."
-  # DOCKER_BUILDKIT=0 forces the legacy builder, which produces a Docker Image
-  # Manifest V2 Schema 2 image. AWS Lambda rejects the OCI manifest that BuildKit
-  # / the containerd image store emit by default ("The image manifest, config or
-  # layer media type for the source image ... is not supported"), so the Lambda
-  # image specifically must be built this way. The other images are pushed to ECR
-  # only (ECS/ECR accept OCI), so they are left on the default builder.
-  DOCKER_BUILDKIT=0 docker build \
+  # AWS Lambda only accepts a SINGLE-platform image manifest (Docker schema 2 or a
+  # plain OCI image manifest). It rejects an OCI image *index* (manifest list)
+  # with "The image manifest, config or layer media type ... is not supported".
+  #
+  # The old `DOCKER_BUILDKIT=0 docker build` no longer works on Docker 23+: the
+  # classic builder is gone, so BuildKit runs regardless and — with provenance
+  # attestation on by default — pushes an OCI index, which Lambda refuses. We
+  # therefore build explicitly with buildx, pinned to one platform, with
+  # provenance DISABLED (that attestation is what turns the result into an index),
+  # and `--load` it into the local daemon as a Docker schema-2 image. The existing
+  # `docker tag` + `docker push` below then push that single manifest unchanged.
+  # The other images go to ECR only (ECS/ECR accept OCI), so they are untouched.
+  docker buildx build \
+    --provenance=false \
+    --platform linux/amd64 \
+    --load \
     -t "pocket-family-import-lambda:${IMAGE_TAG}" \
     --file "$REPO_ROOT/import-service/Dockerfile.lambda" \
     "$REPO_ROOT/import-service"
