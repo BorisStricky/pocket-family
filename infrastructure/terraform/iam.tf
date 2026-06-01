@@ -63,6 +63,16 @@ data "aws_iam_policy_document" "backend_sqs_send" {
     actions   = ["sqs:SendMessage", "sqs:GetQueueUrl"]
     resources = [aws_sqs_queue.celery.arn]
   }
+
+  # kombu's SQS transport calls ListQueues (with a name prefix) to populate its
+  # queue cache before publishing, so SendMessage alone is not enough — without
+  # this the backend's celery_client.send_task(...) fails with AccessDenied on
+  # sqs:ListQueues. ListQueues does NOT support resource-level permissions, so it
+  # must be granted on "*" (a queue-specific ARN is rejected by IAM).
+  statement {
+    actions   = ["sqs:ListQueues"]
+    resources = ["*"]
+  }
 }
 
 resource "aws_iam_role_policy" "backend_sqs_send" {
