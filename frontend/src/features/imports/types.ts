@@ -32,6 +32,10 @@ export interface AnalyzeRequest {
   column_mapping: ColumnMapping;
   start_row?: number;
   currency?: string;
+  // When true, flips sign-based classification: positive amounts become expenses
+  // and negative amounts income (credit-card statement convention). Defaults to
+  // false on the backend (bank/debit convention).
+  positive_amounts_are_expenses?: boolean;
 }
 
 /**

@@ -554,12 +554,18 @@ class AnalyzeRequest(SQLModel):
         column_mapping: How CSV columns map to transaction fields.
         start_row: Zero-indexed row number of the header row (default 0).
         currency: Currency to assign to all imported transactions.
+        positive_amounts_are_expenses: When True, flips sign-based type inference so
+            positive amounts become expenses and negative amounts income. This matches
+            credit-card statements (purchases positive, payments negative). Defaults to
+            False (bank/debit convention). Only affects rows whose type is inferred from
+            the amount sign — an explicit type_column still takes precedence.
     """
     file_key: str
     account_id: UUID
     column_mapping: ColumnMapping
     start_row: int = 0
     currency: Optional[Currency] = Currency.BRL
+    positive_amounts_are_expenses: bool = False
 
 
 class ParsedRow(SQLModel):
