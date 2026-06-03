@@ -235,11 +235,13 @@ export function TransactionsPage() {
           {/* Period filter: month picker is the primary control; "Custom range" reveals
               the free-form date range for arbitrary spans. */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            {/* No label: the `< Month Year >` control is self-explanatory, and omitting
+                it keeps the picker a single row so it stays vertically centered with the
+                "Custom range" button beside it. */}
             <MonthPicker
               year={selectedMonth.year}
               month={selectedMonth.month}
               onChange={handleMonthChange}
-              label="Filter by month"
             />
             <Button
               size="small"

@@ -1,0 +1,22 @@
+# Keep the Docker build context small and avoid sending host-only artifacts.
+#
+# The frontend image installs its own dependencies (npm ci) and runs its own
+# `npm run build` inside the container, so none of these local directories are
+# needed. Excluding node_modules also sidesteps "error from sender ...
+# permission denied" failures when the local Vite cache (node_modules/.vite)
+# was written by a different host user and isn't world-readable.
+
+node_modules
+dist
+.vite
+
+# Local env files must never leak into the image. The frontend gets its
+# config (VITE_API_URL etc.) via Docker build args, not bundled .env files.
+.env
+.env.*
+
+# Misc local artifacts
+coverage
+storybook-static
+*.log
+.DS_Store
