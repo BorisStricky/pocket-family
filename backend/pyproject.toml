@@ -16,13 +16,13 @@ dependencies = [
     # Migrations
     "alembic==1.13.3",
     # Environment and config
-    "python-dotenv==1.0.1",
+    "python-dotenv==1.2.2",
     # Background tasks
     "celery==5.4.0",
     "redis==5.1.1",
     # Security & password hashing
     "passlib[argon2]==1.7.4",
-    "PyJWT==2.10.1",
+    "PyJWT==2.13.0",
     "argon2-cffi",
     # AWS (lazy-imported only when DB_INSTANCE=aws_aurora_serverless)
     "boto3>=1.34.0",
