@@ -135,6 +135,46 @@ class TestParseAmount:
             _parse_amount("R$")
 
 
+class TestParseAmountCreditCardConvention:
+    """Tests for _parse_amount with positive_is_expense=True (credit-card statements).
+
+    Credit-card exports report purchases (expenses) as positive amounts and
+    payments to the card (income, from the account's perspective) as negative.
+    The flag flips the sign-to-type mapping so the importer classifies these
+    correctly. The absolute value must be identical regardless of the flag.
+    """
+
+    def test_positive_becomes_expense(self):
+        """With the flag on, a positive amount (a card purchase) is an expense."""
+        absolute_value, transaction_type = _parse_amount("150", positive_is_expense=True)
+
+        assert absolute_value == Decimal("150")
+        assert transaction_type == "expense"
+
+    def test_negative_becomes_income(self):
+        """With the flag on, a negative amount (a card payment) is income."""
+        absolute_value, transaction_type = _parse_amount("-150", positive_is_expense=True)
+
+        assert absolute_value == Decimal("150")
+        assert transaction_type == "income"
+
+    def test_accounting_parentheses_becomes_income(self):
+        """Accounting-negative '(150)' flips to income under the credit convention."""
+        absolute_value, transaction_type = _parse_amount("(150)", positive_is_expense=True)
+
+        assert absolute_value == Decimal("150")
+        assert transaction_type == "income"
+
+    def test_default_argument_keeps_bank_convention(self):
+        """Omitting the flag must preserve the original bank convention (regression guard)."""
+        # Same inputs, default flag → unchanged behavior.
+        assert _parse_amount("150")[1] == "income"
+        assert _parse_amount("-150")[1] == "expense"
+        # Explicit False must match the default.
+        assert _parse_amount("150", positive_is_expense=False)[1] == "income"
+        assert _parse_amount("-150", positive_is_expense=False)[1] == "expense"
+
+
 class TestNormalizeType:
     """Tests for _normalize_type — mapping bank type column values to canonical types."""
 

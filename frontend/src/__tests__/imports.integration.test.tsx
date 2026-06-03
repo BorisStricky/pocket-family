@@ -379,6 +379,78 @@ describe('ImportWizard Integration', () => {
         start_row: 0,
       });
     });
+
+    it('defaults the "Use positive values as expenses" checkbox on for a credit account and sends the flag', async () => {
+      const user = userEvent.setup();
+
+      // Credit-card statements use the inverted sign convention, so selecting a
+      // credit account must pre-check the classification box and send the flag.
+      server.use(
+        http.get(`${API_BASE}/accounts`, () =>
+          HttpResponse.json([
+            createMockAccount({ id: 'account-credit-1', name: 'My Credit Card', type: 'credit' }),
+          ])
+        )
+      );
+
+      let capturedRequestBody: Record<string, unknown> | null = null;
+      server.use(
+        http.post(`${API_BASE}/imports/analyze`, async ({ request }) => {
+          capturedRequestBody = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json(defaultAnalyzeResponse);
+        })
+      );
+
+      renderImportWizard();
+
+      // Upload and land on the mapping step
+      const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]')!;
+      await user.upload(fileInput, buildCsvFile());
+      await user.click(screen.getByRole('button', { name: /^upload$/i }));
+      const analyzeButton = await screen.findByRole('button', { name: /analyze csv/i });
+
+      // Selecting the credit account should flip the checkbox on automatically
+      const accountCombobox = getSelectByLabel(/^account$/i);
+      await user.click(accountCombobox);
+      await user.click(await screen.findByRole('option', { name: /My Credit Card/i }));
+
+      const classificationCheckbox = screen.getByRole('checkbox', {
+        name: /use positive values as expenses/i,
+      });
+      await waitFor(() => expect(classificationCheckbox).toBeChecked());
+
+      // The flag must be carried into the analyze request payload
+      await user.click(analyzeButton);
+      await waitFor(() => {
+        expect(screen.getByText(/of \d+ rows will be imported/i)).toBeInTheDocument();
+      });
+      expect(capturedRequestBody).toMatchObject({
+        account_id: 'account-credit-1',
+        positive_amounts_are_expenses: true,
+      });
+    });
+
+    it('leaves the classification checkbox off for a debit account and sends the flag as false', async () => {
+      const user = userEvent.setup();
+
+      // The seeded "Test Account" is a debit account (the bank convention), so
+      // the box stays unchecked and the flag is sent false.
+      let capturedRequestBody: Record<string, unknown> | null = null;
+      server.use(
+        http.post(`${API_BASE}/imports/analyze`, async ({ request }) => {
+          capturedRequestBody = (await request.json()) as Record<string, unknown>;
+          return HttpResponse.json(defaultAnalyzeResponse);
+        })
+      );
+
+      renderImportWizard();
+      await advanceWizardToReviewStep(user);
+
+      expect(capturedRequestBody).toMatchObject({
+        account_id: 'account-uuid-1',
+        positive_amounts_are_expenses: false,
+      });
+    });
   });
 
   // ── Step 2: ReviewStep ────────────────────────────────────────────────────

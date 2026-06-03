@@ -97,7 +97,7 @@ def _parse_csv(text: str, start_row: int) -> tuple[list[str], list[dict]]:
     return headers, data_rows
 
 
-def _parse_amount(raw: str) -> tuple[Decimal, str]:
+def _parse_amount(raw: str, positive_is_expense: bool = False) -> tuple[Decimal, str]:
     """Parse an amount string into (absolute_value, inferred_transaction_type).
 
     Handles:
@@ -105,6 +105,13 @@ def _parse_amount(raw: str) -> tuple[Decimal, str]:
     - Currency symbols: R$, $, €, £
     - Negative sign and accounting parentheses: "-150" or "(150)"
     - Plain positive/negative numbers
+
+    Sign-to-type inference depends on the statement convention:
+    - Default bank/debit convention (``positive_is_expense=False``):
+      negative → expense, positive → income.
+    - Credit-card convention (``positive_is_expense=True``): the sign is flipped,
+      because card purchases (expenses) are reported as positive amounts and
+      payments to the card (income, from the account's perspective) as negative.
     """
     raw = raw.strip()
 
@@ -133,7 +140,12 @@ def _parse_amount(raw: str) -> tuple[Decimal, str]:
     except InvalidOperation:
         raise ValueError(f"Cannot parse amount: {raw!r}")
 
-    transaction_type = "expense" if is_negative else "income"
+    # Map the sign to a transaction type. For credit-card statements the
+    # convention is inverted, so a positive amount is an expense.
+    if positive_is_expense:
+        transaction_type = "income" if is_negative else "expense"
+    else:
+        transaction_type = "expense" if is_negative else "income"
     return abs(value), transaction_type
 
 
@@ -299,7 +311,10 @@ async def analyze_csv(
             raw_amount = row.get(mapping.amount_column, "").strip()
             if not raw_amount:
                 raise ValueError("Empty amount value")
-            abs_amount, inferred_type = _parse_amount(raw_amount)
+            abs_amount, inferred_type = _parse_amount(
+                raw_amount,
+                positive_is_expense=request.positive_amounts_are_expenses,
+            )
 
             # --- Type ---
             if mapping.type_column:

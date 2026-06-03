@@ -5,18 +5,22 @@
 // The user can override any auto-proposed mapping via dropdowns.
 // Clicking "Analyze" calls the backend to parse rows and flag duplicates.
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Alert,
   Box,
   Button,
+  Checkbox,
   CircularProgress,
   Divider,
+  FormControlLabel,
   MenuItem,
   Stack,
   TextField,
+  Tooltip,
   Typography,
 } from '@mui/material';
+import { InfoOutlined as InfoOutlinedIcon } from '@mui/icons-material';
 import { useAccounts } from '@/features/accounts/hooks/useAccounts';
 import { useAnalyzeCsv } from '../../hooks/useAnalyzeCsv';
 import type { AnalyzeResponse, ColumnMapping, WizardState } from '../../types';
@@ -72,8 +76,25 @@ export function MapColumnsStep({
   const [currency, setCurrency] = useState(wizardState.currency ?? 'BRL');
   const [startRow, setStartRow] = useState(wizardState.startRow ?? 0);
 
+  // Controls how the amount sign is classified. Credit-card statements report
+  // purchases (expenses) as positive and payments as negative — the opposite of
+  // a bank statement — so this defaults on for credit accounts (see the effect
+  // below). We track whether the user has manually toggled it so the per-account
+  // default never clobbers an explicit choice.
+  const [positiveAmountsAreExpenses, setPositiveAmountsAreExpenses] = useState(false);
+  const userToggledClassification = useRef(false);
+
   const { data: accountsResponse, isLoading: isLoadingAccounts } = useAccounts(familyId);
   const accounts = Array.isArray(accountsResponse) ? accountsResponse : [];
+
+  // Default the classification to the selected account's convention: credit-card
+  // accounts use positive = expense, while cash/debit keep the bank convention.
+  // Skipped once the user has toggled the checkbox themselves.
+  useEffect(() => {
+    if (userToggledClassification.current) return;
+    const selectedAccount = accounts.find((account) => account.id === accountId);
+    setPositiveAmountsAreExpenses(selectedAccount?.type === 'credit');
+  }, [accountId, accounts]);
 
   const { mutate: analyze, isPending, error } = useAnalyzeCsv();
 
@@ -106,6 +127,10 @@ export function MapColumnsStep({
         column_mapping: mapping,
         start_row: startRow,
         currency,
+        // When a Type column is mapped the checkbox is disabled and sign-based
+        // classification is irrelevant, so send false to keep the request value
+        // consistent with the (greyed-out) control rather than leaking a stale flag.
+        positive_amounts_are_expenses: typeColumn ? false : positiveAmountsAreExpenses,
       },
       {
         onSuccess: (result) => onAnalyzed(result, mapping, accountId, currency, startRow),
@@ -223,6 +248,35 @@ export function MapColumnsStep({
         >
           {optionalColumnItems}
         </TextField>
+
+        {/* Sign-classification control. The full explanation lives in the hover
+            tooltip on the info icon rather than as a helper line, keeping the
+            row compact. Disabled when a Type column is mapped, since an explicit
+            type takes precedence over sign-based inference. */}
+        <FormControlLabel
+          control={
+            <Checkbox
+              checked={positiveAmountsAreExpenses}
+              disabled={Boolean(typeColumn)}
+              onChange={(event) => {
+                // Mark as user-controlled so the per-account default stops overriding it
+                userToggledClassification.current = true;
+                setPositiveAmountsAreExpenses(event.target.checked);
+              }}
+            />
+          }
+          label={
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              Use positive values as expenses
+              <Tooltip
+                title="Controls how the sign of the amount is classified. When on, positive amounts are expenses and negative amounts are income — the convention for credit-card statements. When off, negative = expense and positive = income (bank/debit statements). Only applies when no Type column is mapped."
+                arrow
+              >
+                <InfoOutlinedIcon fontSize="small" color="action" aria-label="info" />
+              </Tooltip>
+            </Box>
+          }
+        />
 
         <TextField
           label="Header row index"
