@@ -1,6 +1,9 @@
 export { default as DateRangePicker } from "./DateRangePicker";
 export type { DateRangePickerProps } from "./DateRangePicker";
 
+export { default as MonthPicker, getMonthRange, getCurrentYearMonth } from "./MonthPicker";
+export type { MonthPickerProps } from "./MonthPicker";
+
 export { default as SearchInput } from "./SearchInput";
 export type { SearchInputProps } from "./SearchInput";
 

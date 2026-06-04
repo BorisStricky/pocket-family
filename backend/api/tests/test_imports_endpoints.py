@@ -439,6 +439,137 @@ class TestAnalyzeEndpoint:
         assert body["date_range_start"] == "2024-01-01"
         assert body["date_range_end"] == "2024-01-02"
 
+    async def test_analyze_flips_sign_classification_for_credit_card_convention(
+        self,
+        async_client: AsyncClient,
+        owner_token: str,
+        test_tenant: Tenant,
+        imported_account: Account,
+        patched_storage: LocalAdapter,
+    ):
+        """positive_amounts_are_expenses=True flips sign-based inference.
+
+        Credit-card exports list purchases (expenses) as positive and payments
+        as negative. With the flag set, a positive amount must come back as an
+        expense and a negative amount as income — the opposite of the default
+        bank convention validated in the test above.
+        """
+        csv_text = (
+            "date,amount,description\n"
+            "2024-01-01,150.00,Card purchase\n"   # positive → expense under credit convention
+            "2024-01-02,-500.00,Card payment\n"   # negative → income under credit convention
+        )
+        file_key = await self._upload_csv(async_client, owner_token, csv_text)
+
+        response = await async_client.post(
+            "/imports/analyze",
+            json={
+                "file_key": file_key,
+                "account_id": str(imported_account.id),
+                "column_mapping": {
+                    "date_column": "date",
+                    "amount_column": "amount",
+                    "description_column": "description",
+                },
+                "positive_amounts_are_expenses": True,
+            },
+            headers=_bearer(owner_token),
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        rows_by_index = {row["row_index"]: row for row in body["rows"]}
+
+        # Positive purchase classified as an expense; value stays absolute
+        assert rows_by_index[0]["transaction_type"] == "expense"
+        assert rows_by_index[0]["amount"] == "150.00"
+        # Negative payment classified as income
+        assert rows_by_index[1]["transaction_type"] == "income"
+        assert rows_by_index[1]["amount"] == "500.00"
+
+    async def test_analyze_defaults_to_bank_convention_when_flag_omitted(
+        self,
+        async_client: AsyncClient,
+        owner_token: str,
+        test_tenant: Tenant,
+        imported_account: Account,
+        patched_storage: LocalAdapter,
+    ):
+        """Omitting positive_amounts_are_expenses keeps the bank convention (regression guard).
+
+        A positive amount must remain income and a negative amount an expense,
+        exactly as before the credit-card feature was added.
+        """
+        csv_text = (
+            "date,amount,description\n"
+            "2024-01-01,150.00,Deposit\n"
+            "2024-01-02,-500.00,Withdrawal\n"
+        )
+        file_key = await self._upload_csv(async_client, owner_token, csv_text)
+
+        response = await async_client.post(
+            "/imports/analyze",
+            json={
+                "file_key": file_key,
+                "account_id": str(imported_account.id),
+                "column_mapping": {
+                    "date_column": "date",
+                    "amount_column": "amount",
+                    "description_column": "description",
+                },
+            },
+            headers=_bearer(owner_token),
+        )
+
+        assert response.status_code == 200, response.text
+        rows_by_index = {row["row_index"]: row for row in response.json()["rows"]}
+        assert rows_by_index[0]["transaction_type"] == "income"
+        assert rows_by_index[1]["transaction_type"] == "expense"
+
+    async def test_analyze_credit_flag_governs_rows_with_empty_type_cell(
+        self,
+        async_client: AsyncClient,
+        owner_token: str,
+        test_tenant: Tenant,
+        imported_account: Account,
+        patched_storage: LocalAdapter,
+    ):
+        """An explicit type cell wins; an empty type cell falls back to the flipped sign.
+
+        When a Type column is mapped, a populated cell drives classification, but a
+        blank cell falls back to sign-based inference — which the credit-card flag
+        flips. This locks in the fallback path so the two behaviors stay consistent.
+        """
+        csv_text = (
+            "date,amount,type,description\n"
+            "2024-01-01,150.00,credit,Refund\n"   # explicit type wins → income
+            "2024-01-02,150.00,,Card purchase\n"  # empty type → flipped sign → expense
+        )
+        file_key = await self._upload_csv(async_client, owner_token, csv_text)
+
+        response = await async_client.post(
+            "/imports/analyze",
+            json={
+                "file_key": file_key,
+                "account_id": str(imported_account.id),
+                "column_mapping": {
+                    "date_column": "date",
+                    "amount_column": "amount",
+                    "type_column": "type",
+                    "description_column": "description",
+                },
+                "positive_amounts_are_expenses": True,
+            },
+            headers=_bearer(owner_token),
+        )
+
+        assert response.status_code == 200, response.text
+        rows_by_index = {row["row_index"]: row for row in response.json()["rows"]}
+        # Explicit 'credit' type cell wins regardless of the flag
+        assert rows_by_index[0]["transaction_type"] == "income"
+        # Empty type cell falls back to sign inference, flipped by the credit flag
+        assert rows_by_index[1]["transaction_type"] == "expense"
+
     async def test_analyze_flags_duplicates_against_existing_transactions(
         self,
         async_client: AsyncClient,

@@ -8,6 +8,7 @@ import {
   Button,
   ButtonGroup,
   CircularProgress,
+  Collapse,
   Menu,
   MenuItem,
   Paper,
@@ -24,6 +25,7 @@ import { useTransactions } from '../hooks/useTransactions';
 import { useDeleteTransaction } from '../hooks/useDeleteTransaction';
 import { AgTransactionsGrid } from '@/components/domain/ag/AgTransactionsGrid';
 import { DateRangePicker } from '@/components/molecules/DateRangePicker';
+import { MonthPicker, getMonthRange, getCurrentYearMonth } from '@/components/molecules/MonthPicker';
 import { SearchInput } from '@/components/molecules/SearchInput';
 import { BulkActions } from '../components/BulkActions';
 import { AddTransactionModal } from '../components/AddTransactionModal';
@@ -62,19 +64,20 @@ export function TransactionsPage() {
   const currentRole = useCurrentRole();
   const isViewer = currentRole === 'viewer';
 
+  // Most browsing happens one month at a time, so the month picker is the primary period
+  // control and defaults to the current month. The free-form date range is kept as a
+  // secondary "Custom range" option for arbitrary spans.
+  const [selectedMonth, setSelectedMonth] = useState(getCurrentYearMonth());
+  const [useCustomRange, setUseCustomRange] = useState(false);
+
   // Default date range to current month (1st to last day) for faster loading on large datasets
-  const currentMonthStart = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
-    .toISOString()
-    .split('T')[0];
-  const currentMonthEnd = new Date(new Date().getFullYear(), new Date().getMonth() + 1, 0)
-    .toISOString()
-    .split('T')[0];
+  const currentMonthRange = getMonthRange(selectedMonth.year, selectedMonth.month);
 
   // Separate local state for immediate UI updates from debounced state for API calls
   // This prevents API call on every keystroke while keeping UI responsive
   const [localSearchQuery, setLocalSearchQuery] = useState('');
-  const [localStartDate, setLocalStartDate] = useState<string | null>(currentMonthStart);
-  const [localEndDate, setLocalEndDate] = useState<string | null>(currentMonthEnd);
+  const [localStartDate, setLocalStartDate] = useState<string | null>(currentMonthRange.startDate);
+  const [localEndDate, setLocalEndDate] = useState<string | null>(currentMonthRange.endDate);
 
   // Debounce search and date inputs to reduce API calls
   // Only triggers API call 500ms after user stops typing/selecting
@@ -145,6 +148,15 @@ export function TransactionsPage() {
   // Handle date range filter change (updates local state immediately)
   // Debounced values will trigger API call 500ms after user stops selecting dates
   const handleDateRangeChange = (startDate: string | null, endDate: string | null) => {
+    setLocalStartDate(startDate);
+    setLocalEndDate(endDate);
+  };
+
+  // Stepping the month picker updates the selected month and snaps the filter dates to
+  // that month's bounds. The debounced filters then drive the transactions query.
+  const handleMonthChange = (year: number, month: number) => {
+    setSelectedMonth({ year, month });
+    const { startDate, endDate } = getMonthRange(year, month);
     setLocalStartDate(startDate);
     setLocalEndDate(endDate);
   };
@@ -220,14 +232,36 @@ export function TransactionsPage() {
         </Typography>
 
         <Stack spacing={2}>
-          {/* Date Range Filter */}
-          {/* Uses local state for immediate UI updates, debounced for API calls */}
-          <DateRangePicker
-            startDate={localStartDate}
-            endDate={localEndDate}
-            onChange={handleDateRangeChange}
-            label="Filter by date"
-          />
+          {/* Period filter: month picker is the primary control; "Custom range" reveals
+              the free-form date range for arbitrary spans. */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 2, flexWrap: 'wrap' }}>
+            {/* No label: the `< Month Year >` control is self-explanatory, and omitting
+                it keeps the picker a single row so it stays vertically centered with the
+                "Custom range" button beside it. */}
+            <MonthPicker
+              year={selectedMonth.year}
+              month={selectedMonth.month}
+              onChange={handleMonthChange}
+            />
+            <Button
+              size="small"
+              variant="text"
+              onClick={() => setUseCustomRange((open) => !open)}
+            >
+              {useCustomRange ? 'Hide custom range' : 'Custom range'}
+            </Button>
+          </Box>
+
+          {/* Custom date range (secondary). When the user picks a custom range it drives
+              the filter dates directly, independent of the month picker. */}
+          <Collapse in={useCustomRange} unmountOnExit>
+            <DateRangePicker
+              startDate={localStartDate}
+              endDate={localEndDate}
+              onChange={handleDateRangeChange}
+              label="Filter by date"
+            />
+          </Collapse>
 
           {/* Search Filter */}
           {/* Uses local state for immediate UI updates, debounced for API calls */}
