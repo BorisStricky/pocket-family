@@ -14,6 +14,8 @@ import {
 import { Edit as EditIcon } from '@mui/icons-material';
 import type { AccountRead, AccountType } from '@/types/account';
 import { formatDisplayDate } from '@/lib/dateUtils';
+import { Icon } from '@/components/atoms/Icon';
+import type { IconName } from '@/components/atoms/Icon';
 
 /**
  * Props for AccountSummary component
@@ -116,9 +118,36 @@ export function AccountSummary({
       <CardContent>
         {/* Header with Account Name and Edit Button */}
         <Box display="flex" justifyContent="space-between" alignItems="flex-start" mb={2}>
-          <Typography variant="h5" component="h2" gutterBottom>
-            {account.name}
-          </Typography>
+          <Box display="flex" alignItems="center" gap={1}>
+            {/* Colored circle with optional icon — only rendered when at least one is set */}
+            {(account.icon || account.color) && (
+              <Box
+                sx={{
+                  width: 32,
+                  height: 32,
+                  borderRadius: '50%',
+                  backgroundColor: account.color ?? 'transparent',
+                  border: account.color ? 'none' : '1px dashed',
+                  borderColor: 'divider',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {account.icon && (
+                  <Icon
+                    name={account.icon as IconName}
+                    size={18}
+                    style={{ color: account.color ? '#fff' : 'inherit' }}
+                  />
+                )}
+              </Box>
+            )}
+            <Typography variant="h5" component="h2" gutterBottom sx={{ mb: 0 }}>
+              {account.name}
+            </Typography>
+          </Box>
           {showEditButton && onEdit && (
             <Button
               variant="outlined"

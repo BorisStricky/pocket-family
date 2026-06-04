@@ -40,6 +40,8 @@ function createDefaultBudgets(): BudgetRead[] {
       spent: 250,
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
+      icon: null,
+      color: null,
       created_at: '2026-01-15T10:00:00Z',
       updated_at: '2026-01-15T10:00:00Z',
     },
@@ -53,6 +55,8 @@ function createDefaultBudgets(): BudgetRead[] {
       spent: 850,
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
+      icon: null,
+      color: null,
       created_at: '2026-01-15T10:00:00Z',
       updated_at: '2026-01-15T10:00:00Z',
     },
@@ -66,6 +70,8 @@ function createDefaultBudgets(): BudgetRead[] {
       spent: 2100,
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
+      icon: null,
+      color: null,
       created_at: '2026-01-15T10:00:00Z',
       updated_at: '2026-01-15T10:00:00Z',
     },
@@ -187,6 +193,8 @@ export const budgetHandlers = [
       spent: 0,
       month: new Date().getMonth() + 1,
       year: new Date().getFullYear(),
+      icon: body.icon ?? null,
+      color: body.color ?? null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };
@@ -238,12 +246,15 @@ export const budgetHandlers = [
     }
 
     // Merge updates into the existing budget, preserving unchanged fields
+    // icon/color use ?? to allow explicit null (clearing) while keeping existing when not provided
     const updatedBudget: BudgetRead = {
       ...existingBudget,
       name: body.name ?? existingBudget.name,
       amount: body.amount ?? existingBudget.amount,
       currency: body.currency ?? existingBudget.currency,
       categories: updatedCategories,
+      icon: 'icon' in body ? (body.icon ?? null) : existingBudget.icon,
+      color: 'color' in body ? (body.color ?? null) : existingBudget.color,
       updated_at: new Date().toISOString(),
     };
 

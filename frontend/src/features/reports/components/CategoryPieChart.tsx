@@ -91,7 +91,8 @@ export default function CategoryPieChart({
                 {data.map((slice, index) => (
                   <Cell
                     key={`cell-${slice.id}`}
-                    fill={CHART_COLORS[index % CHART_COLORS.length]}
+                    // Use the category's assigned color when set; fall back to the positional palette
+                    fill={slice.color ?? CHART_COLORS[index % CHART_COLORS.length]}
                     // Dim non-selected slices once a category is selected.
                     opacity={!activeCategoryId || activeCategoryId === slice.id ? 1 : 0.3}
                   />

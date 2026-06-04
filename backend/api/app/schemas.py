@@ -181,12 +181,16 @@ class AccountCreate(SQLModel):
         currency: Optional currency (defaults to BRL).
         balance: Optional starting balance.
         share_with: Optional tenant to share account with atomically during creation.
+        icon: Optional lucide-react icon name for visual identity.
+        color: Optional hex color string (#RRGGBB) for visual identity.
     """
     name: str
     type: AccountType
     currency: Optional[Currency] = Currency.BRL
     balance: Optional[Decimal] = Decimal("0.00")
     share_with: Optional[AccountShareWith] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
 
 
 class AccountRead(SQLModel):
@@ -199,6 +203,8 @@ class AccountRead(SQLModel):
         type: Account type.
         currency: Currency code.
         balance: Monetary balance or None when masked.
+        icon: Optional lucide-react icon name.
+        color: Optional hex color string (#RRGGBB).
         created_at: Creation timestamp.
         updated_at: Last update timestamp.
     """
@@ -209,6 +215,8 @@ class AccountRead(SQLModel):
     type: AccountType
     currency: Currency
     balance: Optional[Decimal]  # None when masked/hidden for the requester
+    icon: Optional[str] = None
+    color: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -221,11 +229,15 @@ class AccountUpdate(SQLModel):
         type: New account type.
         currency: New currency code.
         balance: New balance value.
+        icon: New icon name (pass None to clear).
+        color: New hex color (pass None to clear).
     """
     name: Optional[str] = None
     type: Optional[AccountType] = None
     currency: Optional[Currency] = None
     balance: Optional[Decimal] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
 
 
 # -------------------------
@@ -238,10 +250,14 @@ class CategoryCreate(SQLModel):
         name: Category name.
         kind: Category kind (expense/income).
         parent_id: Optional parent category id.
+        icon: Optional lucide-react icon name for visual identity.
+        color: Optional hex color string (#RRGGBB) for visual identity.
     """
     name: str
     kind: CategoryKind
     parent_id: Optional[UUID] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
 
 
 class CategoryRead(SQLModel):
@@ -253,6 +269,8 @@ class CategoryRead(SQLModel):
         name: Category name.
         kind: Category kind.
         parent_id: Optional parent id.
+        icon: Optional lucide-react icon name.
+        color: Optional hex color string (#RRGGBB).
         created_at: Creation timestamp.
         updated_at: Last update timestamp.
     """
@@ -262,6 +280,8 @@ class CategoryRead(SQLModel):
     kind: CategoryKind
     parent_id: Optional[UUID] = None
     parent_name: Optional[str] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -273,10 +293,14 @@ class CategoryUpdate(SQLModel):
         name: New name (optional).
         kind: New kind (optional).
         parent_id: New parent id (optional).
+        icon: New icon name (pass None to clear).
+        color: New hex color (pass None to clear).
     """
     name: Optional[str] = None
     kind: Optional[CategoryKind] = None
     parent_id: Optional[UUID] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
 
 
 # -------------------------
@@ -447,11 +471,15 @@ class BudgetCreate(SQLModel):
         amount: Spending limit (must be > 0).
         currency: Currency code for the budget (defaults to BRL).
         category_ids: Optional list of category UUIDs to associate.
+        icon: Optional lucide-react icon name for visual identity.
+        color: Optional hex color string (#RRGGBB) for visual identity.
     """
     name: str
     amount: Decimal = Field(gt=0)
     currency: Optional[Currency] = Currency.BRL
     category_ids: Optional[List[UUID]] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
 
 
 class BudgetRead(SQLModel):
@@ -470,6 +498,8 @@ class BudgetRead(SQLModel):
         spent: Total expenses in the budget's categories for the month.
         month: Calendar month the spent calculation covers.
         year: Calendar year the spent calculation covers.
+        icon: Optional lucide-react icon name.
+        color: Optional hex color string (#RRGGBB).
         created_at: Creation timestamp.
         updated_at: Last update timestamp.
     """
@@ -482,6 +512,8 @@ class BudgetRead(SQLModel):
     spent: Decimal = Decimal("0.00")
     month: int
     year: int
+    icon: Optional[str] = None
+    color: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
@@ -497,11 +529,15 @@ class BudgetUpdate(SQLModel):
         amount: New spending limit (optional, must be > 0).
         currency: New currency code (optional).
         category_ids: Optional list replacing the entire category set.
+        icon: New icon name (pass None to clear).
+        color: New hex color (pass None to clear).
     """
     name: Optional[str] = None
     amount: Optional[Decimal] = Field(default=None, gt=0)
     currency: Optional[Currency] = None
     category_ids: Optional[List[UUID]] = None
+    icon: Optional[str] = None
+    color: Optional[str] = None
 
 
 # -------------------------

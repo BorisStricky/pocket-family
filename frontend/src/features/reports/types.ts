@@ -23,11 +23,14 @@ export interface ReportSelection {
 /**
  * A single aggregated slice for a pie/donut chart (category, user, or account).
  * `id` is the stable key used to match a click against a ReportSelection.
+ * `color` is the user-assigned hex color for categories/accounts — null falls back
+ * to the positional CHART_COLORS palette in the chart component.
  */
 export interface ReportSlice {
   id: string;
   label: string;
   total: number;
+  color: string | null;
 }
 
 /** Per-day income and expense totals for the daily bar chart. */

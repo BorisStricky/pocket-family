@@ -7,6 +7,8 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Box, Chip, Typography } from '@mui/material';
 import type { AccountRead, AccountType } from '@/types/account';
+import { Icon } from '@/components/atoms/Icon';
+import type { IconName } from '@/components/atoms/Icon';
 
 /**
  * Props for AgAccountsGrid component
@@ -80,6 +82,43 @@ export function AgAccountsGrid({
     );
   };
 
+  // Cell renderer for account name that prepends the icon/color circle when set
+  const AccountNameRenderer = (params: ICellRendererParams<AccountRead>) => {
+    const account = params.data;
+    if (!account) return <span>{params.value}</span>;
+
+    return (
+      <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, height: '100%' }}>
+        {/* Only render the colored circle when at least one of icon/color is set */}
+        {(account.icon || account.color) && (
+          <Box
+            sx={{
+              width: 20,
+              height: 20,
+              borderRadius: '50%',
+              backgroundColor: account.color ?? 'transparent',
+              border: account.color ? 'none' : '1px dashed',
+              borderColor: 'divider',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              flexShrink: 0,
+            }}
+          >
+            {account.icon && (
+              <Icon
+                name={account.icon as IconName}
+                size={11}
+                style={{ color: account.color ? '#fff' : 'inherit' }}
+              />
+            )}
+          </Box>
+        )}
+        <span>{account.name}</span>
+      </Box>
+    );
+  };
+
   // Define column configurations with formatters and custom renderers
   // These columns match the AccountRead interface and provide proper display
   const columnDefinitions: ColDef<AccountRead>[] = useMemo(() => [
@@ -90,6 +129,7 @@ export function AgAccountsGrid({
       sort: 'asc', // Default sort alphabetically by name
       flex: 1, // Allow this column to grow and fill available space
       minWidth: 200,
+      cellRenderer: AccountNameRenderer,
     },
     {
       field: 'type',

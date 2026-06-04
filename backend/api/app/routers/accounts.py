@@ -52,6 +52,8 @@ async def _serialize_account(session: AsyncSession, account: Account, requestor)
         "type": account.type,
         "currency": account.currency,
         "balance": balance_decimal,
+        "icon": account.icon,
+        "color": account.color,
         "created_at": account.created_at,
         "updated_at": account.updated_at,
     }
@@ -147,7 +149,9 @@ async def create_account(payload: AccountCreate, db: AsyncSession = Depends(get_
             name=payload.name,
             type=payload.type,
             currency=payload.currency,
-            balance=payload.balance or 0
+            balance=payload.balance or 0,
+            icon=payload.icon,
+            color=payload.color,
         )
         db.add(account_record)
         await db.flush()  # Flush to get account ID without committing transaction
@@ -391,14 +395,10 @@ async def update_account(account_id: UUID, payload: AccountUpdate, db: AsyncSess
         raise HTTPException(status_code=404)
     if account_record.user_id != user.id:
         raise HTTPException(status_code=403, detail="only owner can update account")
-    if payload.name is not None:
-        account_record.name = payload.name
-    if payload.type is not None:
-        account_record.type = payload.type
-    if payload.currency is not None:
-        account_record.currency = payload.currency
-    if payload.balance is not None:
-        account_record.balance = payload.balance
+    # Use exclude_unset so fields absent from the request body are not touched,
+    # while fields explicitly set to None (e.g. clearing an icon) are applied.
+    for field_name, field_value in payload.model_dump(exclude_unset=True).items():
+        setattr(account_record, field_name, field_value)
     db.add(account_record)
     await db.commit()
     await db.refresh(account_record)

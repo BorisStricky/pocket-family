@@ -8,7 +8,7 @@ from decimal import Decimal
 from enum import Enum
 
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, Enum as SAEnum, Numeric, UniqueConstraint, ForeignKey
+from sqlalchemy import Column, Enum as SAEnum, Numeric, UniqueConstraint, ForeignKey, String
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
 # --------------------
@@ -182,6 +182,8 @@ class Account(SQLModel, table=True):
         default=Decimal("0.00"),
         sa_column=Column(Numeric(18, 2), nullable=False),
     )
+    icon: Optional[str] = Field(default=None, sa_column=Column(String(64), nullable=True))
+    color: Optional[str] = Field(default=None, sa_column=Column(String(7), nullable=True))
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -209,6 +211,8 @@ class Category(SQLModel, table=True):
     kind: CategoryKind = Field(
         sa_column=Column(SAEnum(CategoryKind, name="category_kind"), nullable=False),
     )
+    icon: Optional[str] = Field(default=None, sa_column=Column(String(64), nullable=True))
+    color: Optional[str] = Field(default=None, sa_column=Column(String(7), nullable=True))
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
@@ -326,6 +330,8 @@ class Budget(SQLModel, table=True):
         sa_column=Column(SAEnum(Currency, name="account_currency", create_constraint=False), nullable=False),
         default=Currency.BRL,
     )
+    icon: Optional[str] = Field(default=None, sa_column=Column(String(64), nullable=True))
+    color: Optional[str] = Field(default=None, sa_column=Column(String(7), nullable=True))
     created_at: datetime = Field(default_factory=datetime.utcnow)
     updated_at: datetime = Field(default_factory=datetime.utcnow)
 
