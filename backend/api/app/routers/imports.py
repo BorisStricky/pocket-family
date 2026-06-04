@@ -20,6 +20,12 @@ from typing import List
 from uuid import uuid4, UUID
 
 from dateutil.parser import parse as dateutil_parse, ParserError
+# NOTE (follow-up): starlette 1.x renamed the status constants used below
+# (HTTP_422_UNPROCESSABLE_ENTITY -> HTTP_422_UNPROCESSABLE_CONTENT,
+# HTTP_413_REQUEST_ENTITY_TOO_LARGE -> HTTP_413_CONTENT_TOO_LARGE) and
+# deprecates the old names. We intentionally keep the old names for now
+# because FastAPI itself still references them internally; rename once
+# FastAPI drops them, to silence the DeprecationWarnings (values unchanged).
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
