@@ -274,7 +274,7 @@ describe('TransactionsPage Integration', () => {
   // via the onRowClick prop in a unit test of AgTransactionsGrid, or
   // in an end-to-end test with a real browser (Playwright/Cypress).
 
-  it('renders the filters section with date picker and search input', async () => {
+  it('renders the filters section with the month picker and search input', async () => {
     renderTransactionsPage();
 
     // The filters section should contain a heading
@@ -283,7 +283,60 @@ describe('TransactionsPage Integration', () => {
     // Search input should be present with its placeholder
     expect(screen.getByPlaceholderText(/search transactions/i)).toBeInTheDocument();
 
-    // DateRangePicker renders with "Filter by date" label
-    expect(screen.getByText(/filter by date/i)).toBeInTheDocument();
+    // The month picker is the primary period control, exposing prev/next arrows
+    expect(screen.getByRole('button', { name: /previous month/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /next month/i })).toBeInTheDocument();
+
+    // The free-form date range is secondary and hidden until "Custom range" is opened
+    expect(screen.queryByText(/filter by date/i)).not.toBeInTheDocument();
+  });
+
+  it('reveals the custom date range picker when Custom range is clicked', async () => {
+    const user = userEvent.setup();
+    renderTransactionsPage();
+
+    // Date range is hidden by default behind the "Custom range" toggle
+    expect(screen.queryByText(/filter by date/i)).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /custom range/i }));
+
+    // After expanding, the DateRangePicker (labelled "Filter by date") becomes visible
+    await waitFor(() => {
+      expect(screen.getByText(/filter by date/i)).toBeInTheDocument();
+    });
+  });
+
+  it('steps to the next and previous month when the arrows are clicked', async () => {
+    const user = userEvent.setup();
+
+    // Build the labels the month picker should show for the current month and its
+    // neighbours so the assertions stay correct whenever the test runs.
+    const monthNames = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December',
+    ];
+    const now = new Date();
+    const labelFor = (offset: number): string => {
+      const date = new Date(now.getFullYear(), now.getMonth() + offset, 1);
+      return `${monthNames[date.getMonth()]} ${date.getFullYear()}`;
+    };
+
+    renderTransactionsPage();
+
+    // Defaults to the current month
+    expect(screen.getByText(labelFor(0))).toBeInTheDocument();
+
+    // Next arrow advances one month
+    await user.click(screen.getByRole('button', { name: /next month/i }));
+    await waitFor(() => {
+      expect(screen.getByText(labelFor(1))).toBeInTheDocument();
+    });
+
+    // Previous arrow steps back two months from there (one before the start)
+    await user.click(screen.getByRole('button', { name: /previous month/i }));
+    await user.click(screen.getByRole('button', { name: /previous month/i }));
+    await waitFor(() => {
+      expect(screen.getByText(labelFor(-1))).toBeInTheDocument();
+    });
   });
 });
