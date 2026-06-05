@@ -10,15 +10,27 @@ import {
   IconButton,
   Menu,
   MenuItem,
+  ListItemIcon,
+  ListItemText,
   Avatar,
   Chip,
 } from '@mui/material';
-import { AccountCircle, ArrowBack, Menu as MenuIcon } from '@mui/icons-material';
+import {
+  AccountCircle,
+  ArrowBack,
+  Menu as MenuIcon,
+  Language as LanguageIcon,
+  Check as CheckIcon,
+  ChevronRight as ChevronRightIcon,
+} from '@mui/icons-material';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useLogout } from '@/features/auth/hooks/useLogout';
+import { useLanguage } from '@/features/settings/hooks/useLanguage';
+import { SUPPORTED_LANGUAGES } from '@/i18n';
 import { FamilyContext } from '@/features/family/context/FamilyContext';
 import FamilySwitcherMini from '@/components/ui/molecules/FamilySwitcherMini';
-import type { User } from '@/types';
+import type { User, LanguageCode } from '@/types';
 
 interface TopNavProps {
   user?: User;
@@ -46,8 +58,20 @@ interface TopNavProps {
  */
 export default function TopNav({ user, globalMode = false, onMenuClick }: TopNavProps) {
   const navigate = useNavigate();
+  const { t } = useTranslation();
+  const { currentLanguage, changeLanguage } = useLanguage();
   const logoutMutation = useLogout();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  // Separate anchor for the nested Language submenu so it can position itself
+  // relative to its own "Language" menu item rather than the avatar button.
+  const [languageAnchorEl, setLanguageAnchorEl] = useState<null | HTMLElement>(null);
+
+  // Display labels for each supported language code, looked up from the active
+  // translation so the names themselves are localized where appropriate.
+  const languageLabels: Record<LanguageCode, string> = {
+    en: t('language.english'),
+    'pt-BR': t('language.portuguese'),
+  };
 
   // Safely access family context - will be undefined in global mode
   // Use optional context access to avoid errors when FamilyProvider is not available
@@ -63,6 +87,20 @@ export default function TopNav({ user, globalMode = false, onMenuClick }: TopNav
 
   const handleMenuClose = () => {
     setAnchorEl(null);
+    // Closing the user menu must also dismiss the nested language submenu so it
+    // never lingers as a detached popup.
+    setLanguageAnchorEl(null);
+  };
+
+  const handleLanguageMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
+    setLanguageAnchorEl(event.currentTarget);
+  };
+
+  // Apply the chosen language and close both menus so the user sees the change
+  // take effect immediately.
+  const handleSelectLanguage = (language: LanguageCode) => {
+    changeLanguage(language);
+    handleMenuClose();
   };
 
   const handleLogout = () => {
@@ -185,11 +223,49 @@ export default function TopNav({ user, globalMode = false, onMenuClick }: TopNav
               navigate('/app/accounts');
             }}
           >
-            See All Accounts
+            {t('userMenu.seeAllAccounts')}
           </MenuItem>
+
+          {/* Language submenu trigger — opens a nested Menu anchored to itself */}
+          <MenuItem
+            onClick={handleLanguageMenuOpen}
+            aria-haspopup="true"
+            aria-controls="language-menu"
+          >
+            <ListItemIcon>
+              <LanguageIcon fontSize="small" />
+            </ListItemIcon>
+            <ListItemText>{t('userMenu.language')}</ListItemText>
+            <ChevronRightIcon fontSize="small" sx={{ color: 'text.secondary', ml: 1 }} />
+          </MenuItem>
+
           <MenuItem onClick={handleLogout} disabled={logoutMutation.isPending}>
-            {logoutMutation.isPending ? 'Logging out...' : 'Logout'}
+            {logoutMutation.isPending ? t('userMenu.loggingOut') : t('userMenu.logout')}
           </MenuItem>
+        </Menu>
+
+        {/* Nested Language submenu: lists supported languages with a check on
+            the active one. Anchored to the "Language" item via languageAnchorEl. */}
+        <Menu
+          id="language-menu"
+          anchorEl={languageAnchorEl}
+          open={Boolean(languageAnchorEl)}
+          onClose={handleMenuClose}
+          anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
+          transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+        >
+          {SUPPORTED_LANGUAGES.map((language) => (
+            <MenuItem
+              key={language}
+              selected={language === currentLanguage}
+              onClick={() => handleSelectLanguage(language)}
+            >
+              <ListItemIcon>
+                {language === currentLanguage && <CheckIcon fontSize="small" />}
+              </ListItemIcon>
+              <ListItemText>{languageLabels[language]}</ListItemText>
+            </MenuItem>
+          ))}
         </Menu>
       </Toolbar>
     </AppBar>

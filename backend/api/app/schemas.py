@@ -5,6 +5,7 @@ from uuid import UUID
 from datetime import datetime, date
 from decimal import Decimal
 
+from pydantic import field_validator
 from sqlmodel import SQLModel, Field
 
 from .models import (
@@ -62,6 +63,58 @@ class TokenOut(SQLModel):
     access_token: str
     token_type: str = "bearer"
     refresh_token: Optional[str] = None  # Only returned in TEST_MODE
+
+
+# Allowed UI language codes. Kept as a module-level constant so both the
+# read/update schemas and any future validation share a single source of truth.
+SUPPORTED_LANGUAGES = {"en", "pt-BR"}
+
+
+class UserRead(SQLModel):
+    """Public read schema for the authenticated user's own profile.
+
+    Deliberately excludes sensitive fields (password_hash) and returns only the
+    safe subset the frontend needs to render and sync preferences.
+
+    Attributes:
+        id: User identifier.
+        email: Login email address.
+        name: Optional display name.
+        language: Preferred UI language code ("en" or "pt-BR").
+        created_at: Account creation timestamp.
+    """
+    id: UUID
+    email: str
+    name: Optional[str] = None
+    language: str
+    created_at: datetime
+
+
+class UserUpdate(SQLModel):
+    """Input schema for updating the authenticated user's own preferences.
+
+    Only fields the user is allowed to self-edit are exposed here. `language`
+    is validated against SUPPORTED_LANGUAGES so an unsupported code is rejected
+    with a 422 rather than silently persisted.
+
+    Args:
+        language: New preferred UI language code (optional).
+    """
+    language: Optional[str] = None
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, value: Optional[str]) -> Optional[str]:
+        """Reject any language code outside the supported set.
+
+        Returning the value unchanged when None keeps the field optional so a
+        partial update that omits `language` is still valid.
+        """
+        if value is not None and value not in SUPPORTED_LANGUAGES:
+            raise ValueError(
+                f"language must be one of {sorted(SUPPORTED_LANGUAGES)}"
+            )
+        return value
 
 
 class InviteCreate(SQLModel):

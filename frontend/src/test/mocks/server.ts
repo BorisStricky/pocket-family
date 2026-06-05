@@ -20,3 +20,4 @@ export { resetCategoryStore } from './handlers/categories';
 export { resetFamilyStore } from './handlers/family';
 export { resetBudgetStore } from './handlers/budgets';
 export { resetImportStore, seedImportJob } from './handlers/imports';
+export { resetUserStore } from './handlers/users';

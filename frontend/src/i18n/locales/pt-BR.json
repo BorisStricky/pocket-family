@@ -1,0 +1,24 @@
+{
+  "nav": {
+    "dashboard": "Painel",
+    "transactions": "Transações",
+    "accounts": "Contas",
+    "budgets": "Orçamentos",
+    "reports": "Relatórios",
+    "settings": "Configurações"
+  },
+  "userMenu": {
+    "seeAllAccounts": "Ver Todas as Contas",
+    "logout": "Sair",
+    "loggingOut": "Saindo...",
+    "language": "Idioma"
+  },
+  "language": {
+    "english": "English",
+    "portuguese": "Português (BR)"
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "save": "Salvar"
+  }
+}

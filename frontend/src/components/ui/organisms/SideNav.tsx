@@ -24,6 +24,7 @@ import {
   Close as CloseIcon,
 } from '@mui/icons-material';
 import { Link, useLocation, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { LAYOUT } from '@/lib/constants';
 
 interface SideNavProps {
@@ -48,15 +49,18 @@ interface SideNavProps {
 export default function SideNav({ open, onClose, isMobileViewport }: SideNavProps) {
   const location = useLocation();
   const { familyId } = useParams<{ familyId: string }>();
+  const { t } = useTranslation();
 
-  // Menu items with family-scoped paths and icons — Dashboard is the primary landing page
+  // Menu items with family-scoped paths and icons — Dashboard is the primary
+  // landing page. Labels are resolved through i18n so the nav localizes with
+  // the user's chosen language.
   const menuItems = [
-    { label: 'Dashboard', path: `/app/${familyId}/dashboard`, icon: Dashboard },
-    { label: 'Transactions', path: `/app/${familyId}/transactions`, icon: Receipt },
-    { label: 'Accounts', path: `/app/${familyId}/accounts`, icon: AccountBalance },
-    { label: 'Budgets', path: `/app/${familyId}/budgets`, icon: Assessment },
-    { label: 'Reports', path: `/app/${familyId}/reports`, icon: BarChart },
-    { label: 'Settings', path: `/app/${familyId}/settings`, icon: Settings },
+    { label: t('nav.dashboard'), path: `/app/${familyId}/dashboard`, icon: Dashboard },
+    { label: t('nav.transactions'), path: `/app/${familyId}/transactions`, icon: Receipt },
+    { label: t('nav.accounts'), path: `/app/${familyId}/accounts`, icon: AccountBalance },
+    { label: t('nav.budgets'), path: `/app/${familyId}/budgets`, icon: Assessment },
+    { label: t('nav.reports'), path: `/app/${familyId}/reports`, icon: BarChart },
+    { label: t('nav.settings'), path: `/app/${familyId}/settings`, icon: Settings },
   ];
 
   return (

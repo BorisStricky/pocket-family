@@ -8,6 +8,7 @@ import { accountHandlers } from './accounts';
 import { categoryHandlers } from './categories';
 import { budgetHandlers } from './budgets';
 import { importHandlers } from './imports';
+import { userHandlers } from './users';
 
 // Combined handlers array for MSW server setup
 // All handlers are exported together for convenience
@@ -19,6 +20,7 @@ export const handlers = [
   ...categoryHandlers,
   ...budgetHandlers,
   ...importHandlers,
+  ...userHandlers,
 ];
 
 // Also export individual handler groups for selective use
@@ -29,3 +31,4 @@ export { accountHandlers, resetAccountStore } from './accounts';
 export { categoryHandlers, resetCategoryStore } from './categories';
 export { budgetHandlers, resetBudgetStore } from './budgets';
 export { importHandlers, resetImportStore, seedImportJob } from './imports';
+export { userHandlers, resetUserStore } from './users';
