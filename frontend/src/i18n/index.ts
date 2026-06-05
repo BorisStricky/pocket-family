@@ -25,8 +25,10 @@ export function getStoredLanguage(): LanguageCode {
   if (typeof window === 'undefined') {
     return DEFAULT_LANGUAGE;
   }
-  const stored = window.localStorage.getItem(STORAGE_KEYS.LANGUAGE);
-  return SUPPORTED_LANGUAGES.includes(stored as LanguageCode)
+  const stored = window.localStorage.getItem(STORAGE_KEYS.LANGUAGE) ?? '';
+  // Widen to string[] for the includes check — TypeScript's readonly LanguageCode[]
+  // does not accept a plain string argument, but the runtime check is what matters.
+  return (SUPPORTED_LANGUAGES as readonly string[]).includes(stored)
     ? (stored as LanguageCode)
     : DEFAULT_LANGUAGE;
 }

@@ -39,12 +39,18 @@ export function useLanguage() {
   // in sync and consumers re-render when the language changes.
   const { i18n: i18nInstance } = useTranslation();
 
-  const updateLanguageMutation = useMutation({
+  const { mutate: mutateLanguage, isPending } = useMutation({
     mutationFn: (language: LanguageCode) => updateLanguage(language),
     // Seed the cache with the server's authoritative profile so a later
     // useSyncUserLanguage read does not flip the language back.
     onSuccess: (updatedUser) => {
       queryClient.setQueryData(CURRENT_USER_QUERY_KEY, updatedUser);
+    },
+    // The local language is already applied optimistically, so the UI is
+    // consistent. Log the failure so developers can catch backend issues;
+    // the choice persists in localStorage and will re-sync on next load.
+    onError: (error) => {
+      console.error('Failed to persist language preference to server:', error);
     },
   });
 
@@ -54,15 +60,18 @@ export function useLanguage() {
       // If the PATCH fails the local choice still holds for this session and
       // will be re-synced from the server on the next load.
       applyLanguageLocally(language);
-      updateLanguageMutation.mutate(language);
+      mutateLanguage(language);
     },
-    [updateLanguageMutation]
+    // mutate (destructured as mutateLanguage) is stable across renders —
+    // React Query guarantees its reference identity, so this callback is
+    // only created once rather than on every render.
+    [mutateLanguage]
   );
 
   return {
     currentLanguage: i18nInstance.language as LanguageCode,
     changeLanguage,
-    isUpdating: updateLanguageMutation.isPending,
+    isUpdating: isPending,
   };
 }
 

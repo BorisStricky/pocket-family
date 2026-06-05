@@ -1,6 +1,6 @@
 # backend/api/app/schemas.py
 from __future__ import annotations
-from typing import Optional, List
+from typing import Literal, Optional, List
 from uuid import UUID
 from datetime import datetime, date
 from decimal import Decimal
@@ -86,7 +86,7 @@ class UserRead(SQLModel):
     id: UUID
     email: str
     name: Optional[str] = None
-    language: str
+    language: Literal["en", "pt-BR"]
     created_at: datetime
 
 

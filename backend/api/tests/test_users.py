@@ -58,3 +58,10 @@ async def test_read_current_user_requires_authentication(async_client):
     """GET /users/me without an Authorization header returns 401."""
     response = await async_client.get("/users/me")
     assert response.status_code == 401
+
+
+@pytest.mark.asyncio
+async def test_update_current_user_requires_authentication(async_client):
+    """PATCH /users/me without an Authorization header returns 401."""
+    response = await async_client.patch("/users/me", json={"language": "pt-BR"})
+    assert response.status_code == 401
