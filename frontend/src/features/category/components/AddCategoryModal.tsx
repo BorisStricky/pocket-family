@@ -38,6 +38,8 @@ export interface AddCategoryModalProps {
   isLoading?: boolean;
   /** Optional error message */
   error?: string | null;
+  /** Optional initial name to pre-fill (e.g. from a search typed in CategorySelect) */
+  initialName?: string;
 }
 
 /**
@@ -61,6 +63,7 @@ export function AddCategoryModal({
   categories,
   isLoading = false,
   error = null,
+  initialName = '',
 }: AddCategoryModalProps) {
   // Form state
   const [name, setName] = useState('');
@@ -74,17 +77,18 @@ export function AddCategoryModal({
 
   // Sync form state from props whenever the modal opens.
   // useState only uses its initial value on first mount, so when the always-mounted
-  // modal reopens with different kind/parentId props, we must explicitly update state.
+  // modal reopens with different kind/parentId/initialName props, we must explicitly update state.
   useEffect(() => {
     if (open) {
       setSelectedKind(kind);
       setSelectedParentId(parentId);
-      setName('');
+      // Pre-fill name from the search text the user typed in CategorySelect (if any)
+      setName(initialName ?? '');
       setNameError(null);
       setSelectedIcon(null);
       setSelectedColor(null);
     }
-  }, [open, kind, parentId]);
+  }, [open, kind, parentId, initialName]);
 
   /**
    * Validate category name input

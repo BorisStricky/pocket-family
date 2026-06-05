@@ -1,7 +1,8 @@
 // src/features/transactions/components/TransactionForm.tsx
 // Form component for creating and editing transactions with React Hook Form validation
+// Supports inline creation of new categories and accounts without losing form context
 
-import React from "react";
+import React, { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
 import {
   Box,
@@ -9,7 +10,6 @@ import {
   Select,
   MenuItem,
   FormControl,
-  FormLabel,
   FormHelperText,
   Button,
   Typography,
@@ -23,10 +23,14 @@ import { AdapterDateFns } from "@mui/x-date-pickers/AdapterDateFns";
 import { enUS } from "date-fns/locale";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import { useCategories } from "@/features/category/hooks/useCategories";
+import { useCreateCategory } from "@/features/category/hooks/useCreateCategory";
 import { CategorySelect } from "@/components/domain/CategorySelect";
 import { AccountSelect } from "@/components/domain/AccountSelect";
+import { AddCategoryModal } from "@/features/category/components/AddCategoryModal";
+import { AddAccountModal } from "@/features/accounts/components/AddAccountModal";
 import type { TransactionRead, TransactionCreate } from "../types";
-import type { CategoryRead } from "@/types/category";
+import type { CategoryCreate } from "@/types/category";
+import type { AccountRead } from "@/types/account";
 
 /**
  * Props for TransactionForm component
@@ -105,6 +109,17 @@ export function TransactionForm({
   const { data: categories = [], isLoading: isLoadingCategories } =
     useCategories(familyId);
 
+  // Mutation for inline category creation — called when the user creates a new category
+  // from within the transaction form via AddCategoryModal; auto-selects the result
+  const { mutate: createCategory, isPending: isCreatingCategory, error: createCategoryError } =
+    useCreateCategory(familyId);
+
+  // State for the nested "create" modals that open on top of this form
+  const [addCategoryModalOpen, setAddCategoryModalOpen] = useState(false);
+  const [addAccountModalOpen, setAddAccountModalOpen] = useState(false);
+  // Stores the text the user typed in CategorySelect so AddCategoryModal can pre-fill the name
+  const [pendingCategoryName, setPendingCategoryName] = useState('');
+
   // Set up form with React Hook Form and default values
   // In edit mode, pre-populate fields from initialData
   // In create mode, use sensible defaults (today's date, expense type)
@@ -143,15 +158,6 @@ export function TransactionForm({
   // When user switches between expense/income, CategorySelect will only show relevant categories
   const watchedTransactionType = watch("transaction_type");
 
-  // Watch category_id to track selected category for CategorySelect component
-  const selectedCategoryId = watch("category_id");
-
-  // Find selected category object from categories list
-  // CategorySelect expects the full category object, not just the ID
-  const selectedCategory = categories.find(
-    (category: CategoryRead) => category.id === selectedCategoryId,
-  );
-
   // Handle form submission by passing data to parent component
   // The parent component will handle the API call and state updates
   const handleFormSubmit = (data: TransactionCreate) => {
@@ -163,7 +169,26 @@ export function TransactionForm({
     onSubmit(submitData);
   };
 
+  // Handle category creation from inline AddCategoryModal.
+  // On success, the new category ID is auto-selected in the form via setValue.
+  const handleInlineCategoryCreate = (data: CategoryCreate) => {
+    createCategory(data, {
+      onSuccess: (newCategory) => {
+        setValue('category_id', newCategory.id);
+        setAddCategoryModalOpen(false);
+        setPendingCategoryName('');
+      },
+    });
+  };
+
+  // Handle account creation from inline AddAccountModal.
+  // AddAccountModal calls onCreated with the new account so we can auto-select it.
+  const handleInlineAccountCreated = (newAccount: AccountRead) => {
+    setValue('account_id', newAccount.id);
+  };
+
   return (
+    <>
     <Box component="form" onSubmit={handleSubmit(handleFormSubmit)} noValidate>
       {/* Form Title — hidden when rendered inside a modal Dialog */}
       {!hideTitle && (
@@ -174,7 +199,8 @@ export function TransactionForm({
 
       <Stack spacing={3} sx={{ mt: hideTitle ? 0 : 2 }}>
         {/* Account Selection - Required Field */}
-        {/* Uses AccountSelect (Autocomplete) to display icon/color swatches in options and selected state */}
+        {/* Uses AccountSelect (Autocomplete) to display icon/color swatches in options and selected state. */}
+        {/* onCreateNew opens AddAccountModal inline so a missing account can be created without losing form context. */}
         <Controller
           name="account_id"
           control={control}
@@ -184,6 +210,7 @@ export function TransactionForm({
               label="Account"
               value={field.value || null}
               onChange={(accountId) => field.onChange(accountId || "")}
+              onCreateNew={() => setAddAccountModalOpen(true)}
               accounts={accounts}
               required
               disabled={isLoading || isLoadingAccounts}
@@ -258,6 +285,11 @@ export function TransactionForm({
                   errors.category_id?.message ||
                   "Required - select a category to classify this transaction"
                 }
+                // Open AddCategoryModal pre-filled with the user's search text and current kind
+                onCreateNew={(inputText) => {
+                  setPendingCategoryName(inputText ?? '');
+                  setAddCategoryModalOpen(true);
+                }}
               />
             )}
           />
@@ -392,5 +424,29 @@ export function TransactionForm({
         </Stack>
       </Stack>
     </Box>
+
+    {/* Nested modals — rendered via Portal on top of the transaction form Dialog.
+        MUI manages z-index automatically so these appear above the parent Dialog. */}
+    <AddCategoryModal
+      open={addCategoryModalOpen}
+      onClose={() => {
+        setAddCategoryModalOpen(false);
+        setPendingCategoryName('');
+      }}
+      onCreate={handleInlineCategoryCreate}
+      kind={watchedTransactionType}
+      initialName={pendingCategoryName}
+      categories={categories}
+      isLoading={isCreatingCategory}
+      error={createCategoryError instanceof Error ? createCategoryError.message : null}
+    />
+
+    <AddAccountModal
+      open={addAccountModalOpen}
+      onClose={() => setAddAccountModalOpen(false)}
+      familyId={familyId}
+      onCreated={handleInlineAccountCreated}
+    />
+    </>
   );
 }

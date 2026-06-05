@@ -1,6 +1,7 @@
 // src/components/domain/CategorySelect.tsx
 // Searchable dropdown component for selecting categories with hierarchical display
 // Filters by category kind (expense/income) and supports keyboard navigation
+// Optionally shows a "Create new category" sentinel option at the bottom of the list
 
 import { useState, useMemo } from 'react';
 import {
@@ -9,11 +10,28 @@ import {
   Box,
   Typography,
   Chip,
+  Divider,
 } from '@mui/material';
-import { ChevronRight } from 'lucide-react';
+import { ChevronRight, Plus } from 'lucide-react';
 import type { CategoryRead, CategoryKind } from '@/types/category';
 import { Icon } from '@/components/atoms/Icon';
 import type { IconName } from '@/components/atoms/Icon';
+
+// Sentinel ID used to represent the "Create new category" option in the dropdown.
+// When the user selects this option, onCreateNew is called instead of setting a value.
+const CREATE_NEW_ID = '__CREATE_NEW__';
+
+// Minimal sentinel object that satisfies the CategoryRead shape for MUI Autocomplete
+const createNewSentinel: CategoryRead = {
+  id: CREATE_NEW_ID,
+  name: '',
+  kind: 'expense',
+  parent_id: null,
+  parent_name: null,
+  tenant_id: '',
+  created_at: '',
+  updated_at: '',
+};
 
 /**
  * Props for CategorySelect component
@@ -39,6 +57,11 @@ export interface CategorySelectProps {
   disabled?: boolean;
   /** Optional required field indicator */
   required?: boolean;
+  /**
+   * When provided, a "+ Create new category" option is appended to the dropdown.
+   * Called with the user's current search text so the creation modal can pre-fill it.
+   */
+  onCreateNew?: (inputText?: string) => void;
 }
 
 /**
@@ -96,6 +119,7 @@ export function CategorySelect({
   helperText,
   disabled = false,
   required = false,
+  onCreateNew,
 }: CategorySelectProps) {
   // Track search input value for custom filtering
   const [inputValue, setInputValue] = useState('');
@@ -146,6 +170,12 @@ export function CategorySelect({
     <Autocomplete
       value={selectedCategory}
       onChange={(_event, newValue) => {
+        // When the sentinel is selected, open the creation flow instead of setting a value
+        if (newValue?.id === CREATE_NEW_ID) {
+          onCreateNew?.(inputValue || undefined);
+          setInputValue('');
+          return;
+        }
         onChange(newValue?.id || null);
       }}
       inputValue={inputValue}
@@ -153,19 +183,25 @@ export function CategorySelect({
         setInputValue(newInputValue);
       }}
       options={sortedCategories}
-      getOptionLabel={(option) => formatCategoryDisplay(option)}
+      getOptionLabel={(option) => {
+        if (option.id === CREATE_NEW_ID) return '';
+        return formatCategoryDisplay(option);
+      }}
       isOptionEqualToValue={(option, compareValue) => option.id === compareValue.id}
       disabled={disabled}
-      // Custom filter to search across full path (parent + child names)
+      // Custom filter: search across full path (parent + child names), then always append
+      // the "Create new" sentinel at the bottom when onCreateNew is provided
       filterOptions={(options, state) => {
         const searchTerm = state.inputValue.toLowerCase();
-        if (!searchTerm) {
-          return options;
+        const realOptions = options.filter((option) => option.id !== CREATE_NEW_ID);
+        const filtered = searchTerm
+          ? realOptions.filter((option) => buildSearchPath(option).includes(searchTerm))
+          : realOptions;
+
+        if (onCreateNew) {
+          return [...filtered, createNewSentinel];
         }
-        return options.filter((option) => {
-          const searchPath = buildSearchPath(option);
-          return searchPath.includes(searchTerm);
-        });
+        return filtered;
       }}
       renderInput={(params) => (
         <TextField
@@ -213,68 +249,92 @@ export function CategorySelect({
           }}
         />
       )}
-      renderOption={(props, option) => (
-        <Box component="li" {...props} key={option.id}>
-          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
-            {/* Show indentation for child categories */}
-            {option.parent_id && (
-              <ChevronRight
-                size={16}
-                style={{ marginLeft: '8px', color: '#9e9e9e' }}
-              />
-            )}
-            {/* Color circle with optional icon when at least one is set */}
-            {(option.icon || option.color) && (
-              <Box
+      renderOption={(props, option) => {
+        // Render the "Create new category" sentinel distinctively
+        if (option.id === CREATE_NEW_ID) {
+          const createLabel = inputValue
+            ? `Create "${inputValue}" as new category`
+            : '+ Create new category';
+          return (
+            <Box
+              component="li"
+              {...props}
+              key={CREATE_NEW_ID}
+              sx={{ borderTop: '1px solid', borderColor: 'divider', color: 'primary.main' }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Plus size={16} />
+                <Typography variant="body2" color="primary" fontWeight={600}>
+                  {createLabel}
+                </Typography>
+              </Box>
+            </Box>
+          );
+        }
+
+        return (
+          <Box component="li" {...props} key={option.id}>
+            <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', gap: 1 }}>
+              {/* Show indentation for child categories */}
+              {option.parent_id && (
+                <ChevronRight
+                  size={16}
+                  style={{ marginLeft: '8px', color: '#9e9e9e' }}
+                />
+              )}
+              {/* Color circle with optional icon when at least one is set */}
+              {(option.icon || option.color) && (
+                <Box
+                  sx={{
+                    width: 18,
+                    height: 18,
+                    borderRadius: '50%',
+                    backgroundColor: option.color ?? 'transparent',
+                    border: option.color ? 'none' : '1px dashed',
+                    borderColor: 'divider',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {option.icon && (
+                    <Icon
+                      name={option.icon as IconName}
+                      size={10}
+                      style={{ color: option.color ? '#fff' : 'inherit' }}
+                    />
+                  )}
+                </Box>
+              )}
+              {/* Category name */}
+              <Typography
+                variant="body2"
                 sx={{
-                  width: 18,
-                  height: 18,
-                  borderRadius: '50%',
-                  backgroundColor: option.color ?? 'transparent',
-                  border: option.color ? 'none' : '1px dashed',
-                  borderColor: 'divider',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  flexShrink: 0,
+                  flex: 1,
+                  fontWeight: option.parent_id ? 'normal' : 600,
                 }}
               >
-                {option.icon && (
-                  <Icon
-                    name={option.icon as IconName}
-                    size={10}
-                    style={{ color: option.color ? '#fff' : 'inherit' }}
-                  />
-                )}
-              </Box>
-            )}
-            {/* Category name */}
-            <Typography
-              variant="body2"
-              sx={{
-                flex: 1,
-                fontWeight: option.parent_id ? 'normal' : 600,
-              }}
-            >
-              {option.name}
-            </Typography>
-            {/* Parent name for context (shown for child categories) */}
-            {option.parent_name && (
-              <Typography variant="caption" color="text.secondary">
-                in {option.parent_name}
+                {option.name}
               </Typography>
-            )}
-            {/* Category kind badge */}
-            <Chip
-              label={option.kind}
-              size="small"
-              color={option.kind === 'expense' ? 'error' : 'success'}
-              sx={{ height: 18, fontSize: '0.7rem' }}
-            />
+              {/* Parent name for context (shown for child categories) */}
+              {option.parent_name && (
+                <Typography variant="caption" color="text.secondary">
+                  in {option.parent_name}
+                </Typography>
+              )}
+              {/* Category kind badge */}
+              <Chip
+                label={option.kind}
+                size="small"
+                color={option.kind === 'expense' ? 'error' : 'success'}
+                sx={{ height: 18, fontSize: '0.7rem' }}
+              />
+            </Box>
           </Box>
-        </Box>
-      )}
-      // No options text when filtered list is empty
+        );
+      }}
+      // No options text is only reached when onCreateNew is not provided and no matches exist
       noOptionsText={
         kind
           ? `No ${kind} categories found`
