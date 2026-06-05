@@ -104,13 +104,17 @@ class UserUpdate(SQLModel):
 
     @field_validator("language")
     @classmethod
-    def validate_language(cls, value: Optional[str]) -> Optional[str]:
+    def validate_language(cls, value: Optional[str]) -> str:
         """Reject any language code outside the supported set.
 
-        Returning the value unchanged when None keeps the field optional so a
-        partial update that omits `language` is still valid.
+        This validator only runs when `language` is actually present in the
+        request body (Pydantic does not validate the omitted default), so a
+        partial update that omits `language` stays valid. When the field *is*
+        supplied, `None` is rejected too — the column is non-nullable, so an
+        explicit `null` must fail cleanly with a 422 rather than reaching the
+        database and raising a 500.
         """
-        if value is not None and value not in SUPPORTED_LANGUAGES:
+        if value is None or value not in SUPPORTED_LANGUAGES:
             raise ValueError(
                 f"language must be one of {sorted(SUPPORTED_LANGUAGES)}"
             )

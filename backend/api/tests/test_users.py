@@ -54,6 +54,39 @@ async def test_update_language_rejects_unsupported_value(
 
 
 @pytest.mark.asyncio
+async def test_update_language_rejects_explicit_null(
+    async_client, test_user, auth_headers
+):
+    """PATCH /users/me with an explicit null language returns 422, not 500.
+
+    `language` is non-nullable, so an explicit `null` must be rejected at
+    validation time rather than reaching the database and triggering an
+    integrity error. (Omitting the field entirely remains a valid no-op,
+    covered implicitly by the supported-value update test.)
+    """
+    response = await async_client.patch(
+        "/users/me", json={"language": None}, headers=auth_headers
+    )
+    assert response.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_update_language_with_empty_body_is_noop(
+    async_client, test_user, auth_headers
+):
+    """PATCH /users/me with no fields leaves the language unchanged.
+
+    Omitting `language` must not run the validator or alter stored state, so
+    the user keeps the default 'en'.
+    """
+    response = await async_client.patch(
+        "/users/me", json={}, headers=auth_headers
+    )
+    assert response.status_code == 200
+    assert response.json()["language"] == "en"
+
+
+@pytest.mark.asyncio
 async def test_read_current_user_requires_authentication(async_client):
     """GET /users/me without an Authorization header returns 401."""
     response = await async_client.get("/users/me")
