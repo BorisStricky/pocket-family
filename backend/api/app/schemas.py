@@ -1,6 +1,6 @@
 # backend/api/app/schemas.py
 from __future__ import annotations
-from typing import Literal, Optional, List
+from typing import Literal, Optional, List, get_args
 from uuid import UUID
 from datetime import datetime, date
 from decimal import Decimal
@@ -65,9 +65,12 @@ class TokenOut(SQLModel):
     refresh_token: Optional[str] = None  # Only returned in TEST_MODE
 
 
-# Allowed UI language codes. Kept as a module-level constant so both the
-# read/update schemas and any future validation share a single source of truth.
-SUPPORTED_LANGUAGES = {"en", "pt-BR"}
+# Canonical type for a supported UI language code. The Literal is the single
+# source of truth: the read schema types `language` with it, and the runtime
+# set below is derived from it via get_args, so the read schema and the update
+# validator can never drift out of sync when a language is added or removed.
+LanguageCode = Literal["en", "pt-BR"]
+SUPPORTED_LANGUAGES = set(get_args(LanguageCode))
 
 
 class UserRead(SQLModel):
@@ -86,7 +89,7 @@ class UserRead(SQLModel):
     id: UUID
     email: str
     name: Optional[str] = None
-    language: Literal["en", "pt-BR"]
+    language: LanguageCode
     created_at: datetime
 
 
