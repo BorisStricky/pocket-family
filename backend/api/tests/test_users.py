@@ -8,6 +8,23 @@ here — `get_authenticated_user` resolves the user purely from the JWT `sub`.
 """
 
 import pytest
+from app.schemas import SUPPORTED_LANGUAGES
+
+
+def test_supported_languages_contract():
+    """Lock the exact supported-language set to catch frontend/backend drift early.
+
+    LanguageCode in schemas.py is the backend source of truth; SUPPORTED_LANGUAGES
+    is derived from it via get_args. When adding a language, update schemas.py
+    first, then mirror the change in:
+      - frontend/src/i18n/index.ts  (SUPPORTED_LANGUAGES array)
+      - frontend/src/types/index.ts (LanguageCode union)
+      - both en.json and pt-BR.json locale files
+      - the frontend contract test (src/__tests__/i18n.contract.test.ts)
+    Update the assertion below last — that required edit is the signal that all
+    five locations have been updated.
+    """
+    assert SUPPORTED_LANGUAGES == {"en", "pt-BR"}
 
 
 @pytest.mark.asyncio

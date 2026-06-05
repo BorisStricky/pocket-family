@@ -82,8 +82,9 @@ describe('Language switcher', () => {
     await user.click(screen.getByRole('button', { name: /account of current user/i }));
     await user.click(await screen.findByText('Idioma'));
 
-    // The active option (Português) should be marked selected.
-    const activeOption = await screen.findByRole('menuitem', { name: /Português \(BR\)/ });
-    expect(activeOption).toHaveClass('Mui-selected');
+    // The active option (Português) carries aria-checked="true" — asserts on
+    // the semantic attribute rather than the MUI-internal Mui-selected class.
+    const activeOption = await screen.findByRole('menuitemradio', { name: /Português \(BR\)/ });
+    expect(activeOption).toHaveAttribute('aria-checked', 'true');
   });
 });

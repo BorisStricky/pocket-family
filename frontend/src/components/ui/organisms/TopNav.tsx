@@ -228,8 +228,10 @@ export default function TopNav({ user, globalMode = false, onMenuClick }: TopNav
 
           {/* Language submenu trigger — opens a nested Menu anchored to itself */}
           <MenuItem
+            id="language-menu-trigger"
             onClick={handleLanguageMenuOpen}
-            aria-haspopup="true"
+            aria-haspopup="menu"
+            aria-expanded={Boolean(languageAnchorEl)}
             aria-controls="language-menu"
           >
             <ListItemIcon>
@@ -245,7 +247,11 @@ export default function TopNav({ user, globalMode = false, onMenuClick }: TopNav
         </Menu>
 
         {/* Nested Language submenu: lists supported languages with a check on
-            the active one. Anchored to the "Language" item via languageAnchorEl. */}
+            the active one. Anchored to the "Language" item via languageAnchorEl.
+            slotProps.root.disablePortal renders the submenu inside the same DOM
+            portal as the outer Menu rather than creating a second top-level Modal,
+            which avoids the dual-focus-trap and aria-hidden console warnings MUI
+            emits when two simultaneous portal Menus are open. */}
         <Menu
           id="language-menu"
           anchorEl={languageAnchorEl}
@@ -253,10 +259,16 @@ export default function TopNav({ user, globalMode = false, onMenuClick }: TopNav
           onClose={handleMenuClose}
           anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
+          slotProps={{ root: { disablePortal: true } }}
+          MenuListProps={{
+            'aria-labelledby': 'language-menu-trigger',
+          }}
         >
           {SUPPORTED_LANGUAGES.map((language) => (
             <MenuItem
               key={language}
+              role="menuitemradio"
+              aria-checked={language === currentLanguage}
               selected={language === currentLanguage}
               onClick={() => handleSelectLanguage(language)}
             >
