@@ -10,7 +10,6 @@ import {
   Box,
   Typography,
   Chip,
-  Divider,
 } from '@mui/material';
 import { ChevronRight, Plus } from 'lucide-react';
 import type { CategoryRead, CategoryKind } from '@/types/category';
