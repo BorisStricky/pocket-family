@@ -35,6 +35,8 @@ async def _fetch_category_with_parent(db: AsyncSession, category_id: UUID, tenan
         "kind": category.kind,
         "parent_id": category.parent_id,
         "parent_name": row.parent_name,
+        "icon": category.icon,
+        "color": category.color,
         "created_at": category.created_at,
         "updated_at": category.updated_at,
     }
@@ -61,6 +63,8 @@ async def create_category(
         name=payload.name,
         parent_id=payload.parent_id,
         kind=payload.kind,
+        icon=payload.icon,
+        color=payload.color,
     )
     db.add(category_record)
     await db.commit()
@@ -99,6 +103,8 @@ async def list_categories(
             "kind": category.kind,
             "parent_id": category.parent_id,
             "parent_name": row.parent_name,
+            "icon": category.icon,
+            "color": category.color,
             "created_at": category.created_at,
             "updated_at": category.updated_at,
         })
@@ -139,12 +145,16 @@ async def update_category(
     if active_context.active_membership.role != MembershipRole.OWNER:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="only owners can update categories")
 
-    if payload.name is not None:
-        category_record.name = payload.name
-    if payload.kind is not None:
-        category_record.kind = payload.kind
-    if payload.parent_id is not None:
-        category_record.parent_id = payload.parent_id
+    # Use exclude_unset so fields absent from the request body are not touched,
+    # while fields explicitly set to None (e.g. clearing an icon) are applied.
+    # Guard against None being passed for NOT NULL columns (e.g. name, kind) which
+    # would cause an IntegrityError at commit time. icon, color, and parent_id are
+    # genuinely nullable database columns and may legitimately be cleared to null.
+    NULLABLE_FIELDS = {'icon', 'color', 'parent_id'}
+    for field_name, field_value in payload.model_dump(exclude_unset=True).items():
+        if field_value is None and field_name not in NULLABLE_FIELDS:
+            continue
+        setattr(category_record, field_name, field_value)
     db.add(category_record)
     await db.commit()
     await db.refresh(category_record)

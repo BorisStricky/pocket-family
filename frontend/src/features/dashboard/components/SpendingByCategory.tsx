@@ -14,18 +14,8 @@ import {
   Legend,
 } from 'recharts';
 import type { CategorySpending } from '../hooks/useDashboardSummary';
-
-// Color palette for pie chart segments - distinct hues for up to 8 categories
-const CHART_COLORS = [
-  '#2196F3', // Blue
-  '#FF9800', // Orange
-  '#4CAF50', // Green
-  '#F44336', // Red
-  '#9C27B0', // Purple
-  '#00BCD4', // Cyan
-  '#FF5722', // Deep Orange
-  '#607D8B', // Blue Grey
-];
+// Import the canonical palette from reports so both charts use the same fallback colors
+import { CHART_COLORS } from '@/features/reports/utils';
 
 interface SpendingByCategoryProps {
   spendingByCategory: CategorySpending[];
@@ -53,7 +43,7 @@ export default function SpendingByCategory({ spendingByCategory }: SpendingByCat
       .reduce((sum, category) => sum + category.total, 0);
     chartData = [
       ...topCategories,
-      { categoryName: 'Other', total: Math.round(otherTotal * 100) / 100 },
+      { categoryName: 'Other', total: Math.round(otherTotal * 100) / 100, color: null },
     ];
   }
 
@@ -103,10 +93,11 @@ export default function SpendingByCategory({ spendingByCategory }: SpendingByCat
               }}
               labelLine
             >
-              {chartData.map((_entry, index) => (
+              {chartData.map((entry, index) => (
                 <Cell
                   key={`cell-${index}`}
-                  fill={CHART_COLORS[index % CHART_COLORS.length]}
+                  // Use the category's assigned color when set; fall back to the positional palette
+                  fill={entry.color ?? CHART_COLORS[index % CHART_COLORS.length]}
                 />
               ))}
             </Pie>

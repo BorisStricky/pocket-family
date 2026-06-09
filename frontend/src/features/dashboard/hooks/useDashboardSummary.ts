@@ -18,10 +18,13 @@ export type DateRangePreset = '7d' | '30d' | 'month';
 /**
  * Summary of spending grouped by category name.
  * Used by SpendingByCategory chart to render pie/bar charts.
+ * `color` is the user-assigned hex color for the category, or null to use the
+ * positional fallback from CHART_COLORS.
  */
 export interface CategorySpending {
   categoryName: string;
   total: number;
+  color: string | null;
 }
 
 /**
@@ -116,7 +119,9 @@ export function useDashboardSummary(familyId: string, dateRange: DateRangePreset
   const summary = useMemo<DashboardSummary | null>(() => {
     if (!transactions) return null;
 
-    // Build a category ID-to-name lookup map for any transactions missing category_name
+    // Build category name lookup: id → name (color comes directly from transaction.category_color,
+    // which the backend JOINs in, so no separate color map is needed and there is no race
+    // condition when transactions resolve before categories).
     const categoryLookup = new Map<string, string>();
     if (categories) {
       for (const category of categories) {
@@ -127,8 +132,8 @@ export function useDashboardSummary(familyId: string, dateRange: DateRangePreset
     let totalExpenses = 0;
     let totalIncome = 0;
 
-    // Maps for grouping: category name → total spending, date → { income, expenses }
-    const categorySpendingMap = new Map<string, number>();
+    // Maps for grouping: category name → { total, color }, date → { income, expenses }
+    const categorySpendingMap = new Map<string, { total: number; color: string | null }>();
     const dailyTrendMap = new Map<string, { income: number; expenses: number }>();
 
     for (const transaction of transactions) {
@@ -137,13 +142,22 @@ export function useDashboardSummary(familyId: string, dateRange: DateRangePreset
       if (transaction.transaction_type === 'expense') {
         totalExpenses += amount;
 
-        // Group expenses by category for the pie chart
+        // Group expenses by category name for the pie chart; also carry the assigned color
         const categoryName =
           transaction.category_name ||
           categoryLookup.get(transaction.category_id || '') ||
           'Uncategorized';
-        const currentCategoryTotal = categorySpendingMap.get(categoryName) || 0;
-        categorySpendingMap.set(categoryName, currentCategoryTotal + amount);
+        // category_color is JOINed by the backend onto every TransactionRead row —
+        // use it directly to avoid depending on the categories query loading first.
+        const categoryColor = transaction.category_color ?? null;
+        const existing = categorySpendingMap.get(categoryName);
+        categorySpendingMap.set(categoryName, {
+          total: (existing?.total ?? 0) + amount,
+          // Always use the current transaction's resolved category color from colorById,
+          // which reflects the Category table's current state. Picking "first wins" would
+          // lock the bucket on null if the earliest transaction pre-dated the color being set.
+          color: categoryColor,
+        });
       } else {
         totalIncome += amount;
       }
@@ -161,7 +175,11 @@ export function useDashboardSummary(familyId: string, dateRange: DateRangePreset
 
     // Convert category spending map to sorted array (highest spending first)
     const spendingByCategory: CategorySpending[] = Array.from(categorySpendingMap.entries())
-      .map(([categoryName, total]) => ({ categoryName, total: Math.round(total * 100) / 100 }))
+      .map(([categoryName, { total, color }]) => ({
+        categoryName,
+        total: Math.round(total * 100) / 100,
+        color,
+      }))
       .sort((a, b) => b.total - a.total);
 
     // Convert daily trends map to sorted array (chronological order)

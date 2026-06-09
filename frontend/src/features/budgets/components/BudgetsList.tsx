@@ -12,6 +12,8 @@ import { ColDef } from 'ag-grid-community';
 import { Box, Chip, IconButton, LinearProgress, Stack, Typography } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
 import type { BudgetRead } from '../types';
+import { Icon } from '@/components/atoms/Icon';
+import type { IconName } from '@/components/atoms/Icon';
 
 /**
  * Props for the BudgetsList component
@@ -87,6 +89,42 @@ export function BudgetsList({
         sortable: true,
         flex: 1,
         minWidth: 150,
+        // Render budget name with a leading icon/color circle when set
+        cellRenderer: (params: { data: BudgetRead | undefined; value: string }) => {
+          const budget = params.data;
+          if (!budget) return <span>{params.value}</span>;
+
+          return (
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, height: '100%' }}>
+              {/* Only render the colored circle when at least one of icon/color is set */}
+              {(budget.icon || budget.color) && (
+                <Box
+                  sx={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: '50%',
+                    backgroundColor: budget.color ?? 'transparent',
+                    border: budget.color ? 'none' : '1px dashed',
+                    borderColor: 'divider',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0,
+                  }}
+                >
+                  {budget.icon && (
+                    <Icon
+                      name={budget.icon as IconName}
+                      size={11}
+                      style={{ color: budget.color ? '#fff' : 'inherit' }}
+                    />
+                  )}
+                </Box>
+              )}
+              <span>{budget.name}</span>
+            </Box>
+          );
+        },
       },
       {
         field: 'amount',

@@ -351,6 +351,9 @@ class TestBudgetRead:
         assert Decimal(response_body["amount"]) == Decimal("500.00")
         assert len(response_body["categories"]) == 1
         assert response_body["categories"][0]["name"] == "Food"
+        # icon and color must always be present in the response, defaulting to None
+        assert response_body["icon"] is None
+        assert response_body["color"] is None
 
     @pytest.mark.asyncio
     async def test_get_budget_not_found(
@@ -2516,3 +2519,87 @@ class TestCurrencyFiltering:
 
         assert Decimal(brl_budget_response["spent"]) == Decimal("250.00")
         assert Decimal(usd_budget_response["spent"]) == Decimal("100.00")
+
+
+class TestBudgetIconAndColor:
+    """Tests for icon and color fields on budgets (POST, PATCH, and clearing to null)."""
+
+    @pytest.mark.asyncio
+    async def test_create_budget_with_icon_and_color(
+        self,
+        async_client: AsyncClient,
+        owner_token: str,
+        test_tenant: Tenant,
+    ):
+        """Creating a budget with icon/color stores and returns both fields."""
+        budget_data = {
+            "name": "Groceries",
+            "amount": "500.00",
+            "icon": "ShoppingCart",
+            "color": "#F44336",
+        }
+        response = await async_client.post(
+            "/budgets", json=budget_data, headers=authorization_header(owner_token)
+        )
+
+        assert response.status_code == status.HTTP_201_CREATED, response.text
+        created_budget = response.json()
+        assert created_budget["icon"] == "ShoppingCart"
+        assert created_budget["color"] == "#F44336"
+
+    @pytest.mark.asyncio
+    async def test_update_budget_icon_and_color(
+        self,
+        async_client: AsyncClient,
+        owner_token: str,
+        test_tenant: Tenant,
+    ):
+        """PATCHing icon/color updates the stored values and returns them."""
+        # Create a plain budget first
+        create_response = await async_client.post(
+            "/budgets",
+            json={"name": "Transport", "amount": "300.00"},
+            headers=authorization_header(owner_token),
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED, create_response.text
+        created_budget = create_response.json()
+
+        update_response = await async_client.patch(
+            f"/budgets/{created_budget['id']}",
+            json={"icon": "Coffee", "color": "#2196F3"},
+            headers=authorization_header(owner_token),
+        )
+
+        assert update_response.status_code == status.HTTP_200_OK, update_response.text
+        updated_budget = update_response.json()
+        assert updated_budget["icon"] == "Coffee"
+        assert updated_budget["color"] == "#2196F3"
+
+    @pytest.mark.asyncio
+    async def test_clear_budget_icon_and_color(
+        self,
+        async_client: AsyncClient,
+        owner_token: str,
+        test_tenant: Tenant,
+    ):
+        """PATCHing with explicit null clears icon and color to None."""
+        # Create a budget with icon and color set
+        create_response = await async_client.post(
+            "/budgets",
+            json={"name": "Leisure", "amount": "200.00", "icon": "Music", "color": "#9C27B0"},
+            headers=authorization_header(owner_token),
+        )
+        assert create_response.status_code == status.HTTP_201_CREATED, create_response.text
+        created_budget = create_response.json()
+
+        # Clear both fields with explicit null
+        clear_response = await async_client.patch(
+            f"/budgets/{created_budget['id']}",
+            json={"icon": None, "color": None},
+            headers=authorization_header(owner_token),
+        )
+
+        assert clear_response.status_code == status.HTTP_200_OK, clear_response.text
+        cleared_budget = clear_response.json()
+        assert cleared_budget["icon"] is None
+        assert cleared_budget["color"] is None

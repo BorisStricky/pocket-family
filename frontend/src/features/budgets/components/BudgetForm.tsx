@@ -6,7 +6,7 @@
 // MUI Autocomplete for the category multi-select with chip display.
 // Pre-populates fields when editing an existing budget.
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
   Dialog,
@@ -28,6 +28,8 @@ import {
 import { useCategories } from '@/features/category/hooks/useCategories';
 import type { CategoryRead } from '@/types/category';
 import type { BudgetRead, BudgetCreatePayload, BudgetUpdatePayload } from '../types';
+import { IconPicker } from '@/components/ui/molecules/IconPicker';
+import { ColorSwatchPicker } from '@/components/ui/molecules/ColorSwatchPicker';
 
 /**
  * Internal form data shape used by React Hook Form
@@ -90,6 +92,15 @@ export function BudgetForm({
   // Categories are tenant-scoped, so we need the familyId to load the correct set
   const { data: allCategories = [], isLoading: isCategoriesLoading } = useCategories(familyId);
 
+  // Icon and color are controlled outside React Hook Form because they use
+  // custom picker components rather than standard input fields
+  const [selectedIcon, setSelectedIcon] = useState<string | null>(
+    mode === 'edit' && existingBudget ? existingBudget.icon : null
+  );
+  const [selectedColor, setSelectedColor] = useState<string | null>(
+    mode === 'edit' && existingBudget ? existingBudget.color : null
+  );
+
   // Build default values for the form
   // In edit mode, pre-populate from existingBudget; in create mode, use sensible defaults
   const defaultName = mode === 'edit' && existingBudget ? existingBudget.name : '';
@@ -123,8 +134,7 @@ export function BudgetForm({
     },
   });
 
-  // Reset form when dialog opens or existingBudget changes
-  // This ensures edit mode properly pre-populates with new budget data
+  // Reset form (and icon/color state) when dialog opens or existingBudget changes
   React.useEffect(() => {
     if (open) {
       reset({
@@ -133,6 +143,8 @@ export function BudgetForm({
         currency: defaultCurrency,
         selectedCategories: defaultSelectedCategories,
       });
+      setSelectedIcon(mode === 'edit' && existingBudget ? existingBudget.icon : null);
+      setSelectedColor(mode === 'edit' && existingBudget ? existingBudget.color : null);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, existingBudget?.id, reset]);
@@ -147,6 +159,8 @@ export function BudgetForm({
       amount: parseFloat(formData.amount),
       currency: formData.currency,
       category_ids: categoryIds.length > 0 ? categoryIds : [],
+      icon: selectedIcon,
+      color: selectedColor,
     };
 
     onSubmit(payload);
@@ -285,6 +299,17 @@ export function BudgetForm({
                   }
                 />
               )}
+            />
+            {/* Icon and color for visual identity in budget lists */}
+            <IconPicker
+              value={selectedIcon}
+              onChange={setSelectedIcon}
+              disabled={isSubmitting}
+            />
+            <ColorSwatchPicker
+              value={selectedColor}
+              onChange={setSelectedColor}
+              disabled={isSubmitting}
             />
           </Box>
         </DialogContent>

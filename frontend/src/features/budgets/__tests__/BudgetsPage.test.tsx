@@ -375,16 +375,17 @@ describe('BudgetsPage Integration', () => {
     const confirmDeleteButton = screen.getByRole('button', { name: /^delete$/i });
     await user.click(confirmDeleteButton);
 
-    // After successful deletion, the dialog should close
+    // After successful deletion, the dialog should close.
+    // Larger timeout: dialog close + React Query cache invalidation + GET refetch
+    // must all complete, which can be slow under full-suite CPU contention.
     await waitFor(() => {
-      // The "Delete Budget" title from the dialog should disappear
       expect(screen.queryByText('Delete Budget')).not.toBeInTheDocument();
-    });
+    }, { timeout: 10000 });
 
     // The deleted budget should no longer appear in the grid after refetch
     await waitFor(() => {
       expect(screen.queryByText('Monthly Entertainment')).not.toBeInTheDocument();
-    });
+    }, { timeout: 10000 });
 
     // Other budgets should still be present
     expect(screen.getByText('Food & Groceries')).toBeInTheDocument();

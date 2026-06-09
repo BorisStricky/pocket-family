@@ -121,10 +121,12 @@ function includeForChart(
   return transactionMatchesSelection(transaction, selection, effectiveCategoryId);
 }
 
-/** Convert a Map of id -> { label, total } into a sorted (desc) ReportSlice array. */
-function toSortedSlices(grouped: Map<string, { label: string; total: number }>): ReportSlice[] {
+/** Convert a Map of id -> { label, total, color } into a sorted (desc) ReportSlice array. */
+function toSortedSlices(
+  grouped: Map<string, { label: string; total: number; color: string | null }>,
+): ReportSlice[] {
   return Array.from(grouped.entries())
-    .map(([id, { label, total }]) => ({ id, label, total: roundCents(total) }))
+    .map(([id, { label, total, color }]) => ({ id, label, total: roundCents(total), color }))
     .sort((first, second) => second.total - first.total);
 }
 
@@ -160,10 +162,12 @@ export function useMonthlyReport({
     // Build category lookup maps once so resolveCategory stays O(1) per transaction.
     const parentIdByCategory = new Map<string, string | null>();
     const nameByCategory = new Map<string, string>();
+    const colorById = new Map<string, string | null>();
     if (categories) {
       for (const category of categories) {
         parentIdByCategory.set(category.id, category.parent_id);
         nameByCategory.set(category.id, category.name);
+        colorById.set(category.id, category.color);
       }
     }
 
@@ -196,9 +200,10 @@ export function useMonthlyReport({
     let totalExpenses = 0;
     let transactionCount = 0;
 
-    const byCategoryMap = new Map<string, { label: string; total: number }>();
-    const byUserMap = new Map<string, { label: string; total: number }>();
-    const byAccountMap = new Map<string, { label: string; total: number }>();
+    const byCategoryMap = new Map<string, { label: string; total: number; color: string | null }>();
+    // User and account slices don't have user-assigned colors — always null
+    const byUserMap = new Map<string, { label: string; total: number; color: string | null }>();
+    const byAccountMap = new Map<string, { label: string; total: number; color: string | null }>();
     const byDayMap = new Map<string, { income: number; expenses: number }>();
 
     for (const transaction of currencyTransactions) {
@@ -232,9 +237,12 @@ export function useMonthlyReport({
         if (includeForChart(transaction, selection, 'category', effectiveCategory)) {
           const resolved = resolveCategory(transaction, parentIdByCategory, nameByCategory, rollUpSubcategories);
           const existing = byCategoryMap.get(resolved.id);
+          // Color comes from the resolved category (the root when rolling up)
+          const color = colorById.get(resolved.id) ?? null;
           byCategoryMap.set(resolved.id, {
             label: resolved.label,
             total: (existing?.total ?? 0) + amount,
+            color,
           });
         }
 
@@ -244,6 +252,7 @@ export function useMonthlyReport({
           byUserMap.set(userId, {
             label: transaction.created_by_name ?? 'Unknown user',
             total: (existing?.total ?? 0) + amount,
+            color: null,
           });
         }
 
@@ -253,6 +262,10 @@ export function useMonthlyReport({
           byAccountMap.set(accountId, {
             label: transaction.account_name ?? 'Unknown account',
             total: (existing?.total ?? 0) + amount,
+            // Preserve the color from the first transaction seen for this account
+            // (all rows for the same account share the same color); fall back to the
+            // current row's color so we never overwrite an existing value with null.
+            color: existing?.color ?? (transaction.account_color ?? null),
           });
         }
       }

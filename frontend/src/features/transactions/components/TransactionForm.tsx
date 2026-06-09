@@ -24,6 +24,7 @@ import { enUS } from "date-fns/locale";
 import { useAccounts } from "@/features/accounts/hooks/useAccounts";
 import { useCategories } from "@/features/category/hooks/useCategories";
 import { CategorySelect } from "@/components/domain/CategorySelect";
+import { AccountSelect } from "@/components/domain/AccountSelect";
 import type { TransactionRead, TransactionCreate } from "../types";
 import type { CategoryRead } from "@/types/category";
 
@@ -173,48 +174,28 @@ export function TransactionForm({
 
       <Stack spacing={3} sx={{ mt: hideTitle ? 0 : 2 }}>
         {/* Account Selection - Required Field */}
-        {/* Dynamically loads accounts from API using React Query hook */}
-        {/* Shows loading state while fetching, error message if fetch fails */}
-        {/* Formats account options as: "Account Name (Account Type)" */}
-        <FormControl fullWidth error={!!errors.account_id} required>
-          <InputLabel id="account-select-label">Account</InputLabel>
-          <Controller
-            name="account_id"
-            control={control}
-            rules={{ required: "Account is required" }}
-            render={({ field }) => (
-              <Select
-                {...field}
-                labelId="account-select-label"
-                label="Account"
-                disabled={isLoading || isLoadingAccounts}
-                startAdornment={
-                  isLoadingAccounts ? (
-                    <CircularProgress size={20} sx={{ mr: 1 }} />
-                  ) : null
-                }
-              >
-                <MenuItem value="">
-                  <em>
-                    {isLoadingAccounts
-                      ? "Loading accounts..."
-                      : isAccountsError
-                        ? "Error loading accounts"
-                        : "Select an account"}
-                  </em>
-                </MenuItem>
-                {accounts.map((account) => (
-                  <MenuItem key={account.id} value={account.id}>
-                    {account.name} ({account.type})
-                  </MenuItem>
-                ))}
-              </Select>
-            )}
-          />
-          {errors.account_id && (
-            <FormHelperText>{errors.account_id.message}</FormHelperText>
+        {/* Uses AccountSelect (Autocomplete) to display icon/color swatches in options and selected state */}
+        <Controller
+          name="account_id"
+          control={control}
+          rules={{ required: "Account is required" }}
+          render={({ field }) => (
+            <AccountSelect
+              label="Account"
+              value={field.value || null}
+              onChange={(accountId) => field.onChange(accountId || "")}
+              accounts={accounts}
+              required
+              disabled={isLoading || isLoadingAccounts}
+              loading={isLoadingAccounts}
+              error={!!errors.account_id}
+              helperText={
+                errors.account_id?.message ||
+                (isAccountsError ? "Error loading accounts" : undefined)
+              }
+            />
           )}
-        </FormControl>
+        />
 
         {/* Transaction Type Selection - Required Field */}
         <FormControl fullWidth error={!!errors.transaction_type} required>

@@ -13,6 +13,8 @@ export interface CategoryRead {
   kind: CategoryKind;
   parent_id: string | null;
   parent_name: string | null;
+  icon: string | null;
+  color: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -24,6 +26,8 @@ export interface CategoryCreate {
   name: string;
   kind: CategoryKind;
   parent_id?: string | null;
+  icon?: string | null;
+  color?: string | null;
 }
 
 /**
@@ -33,6 +37,8 @@ export interface CategoryUpdate {
   name?: string | null;
   kind?: CategoryKind | null;
   parent_id?: string | null;
+  icon?: string | null;
+  color?: string | null;
 }
 
 /**
@@ -45,6 +51,8 @@ interface CreateMockCategoryOptions {
   kind?: CategoryKind;
   parent_id?: string | null;
   parent_name?: string | null;
+  icon?: string | null;
+  color?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -65,6 +73,8 @@ export function createMockCategory(options: CreateMockCategoryOptions = {}): Cat
     kind = 'expense',
     parent_id = null,
     parent_name = null,
+    icon = null,
+    color = null,
     created_at = new Date().toISOString(),
     updated_at = new Date().toISOString(),
   } = options;
@@ -76,6 +86,8 @@ export function createMockCategory(options: CreateMockCategoryOptions = {}): Cat
     kind,
     parent_id,
     parent_name,
+    icon,
+    color,
     created_at,
     updated_at,
   };

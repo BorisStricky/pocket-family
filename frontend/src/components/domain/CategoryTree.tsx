@@ -20,6 +20,8 @@ import {
   FolderPlus,
 } from 'lucide-react';
 import type { CategoryRead, CategoryKind } from '@/types/category';
+import { Icon } from '@/components/atoms/Icon';
+import type { IconName } from '@/components/atoms/Icon';
 
 /**
  * CategoryTreeNode - Represents a category with its children in tree structure
@@ -148,6 +150,31 @@ function CategoryTreeItem({
 
         {/* Category Name and Kind Badge */}
         <Stack direction="row" spacing={1} sx={{ flex: 1, alignItems: 'center' }}>
+          {/* Show color circle with optional icon when at least one is set */}
+          {(category.icon || category.color) && (
+            <Box
+              sx={{
+                width: 20,
+                height: 20,
+                borderRadius: '50%',
+                backgroundColor: category.color ?? 'transparent',
+                border: category.color ? 'none' : '1px dashed',
+                borderColor: 'divider',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}
+            >
+              {category.icon && (
+                <Icon
+                  name={category.icon as IconName}
+                  size={11}
+                  style={{ color: category.color ? '#fff' : 'inherit' }}
+                />
+              )}
+            </Box>
+          )}
           <Typography variant="body1">{category.name}</Typography>
           <Chip
             label={category.kind}

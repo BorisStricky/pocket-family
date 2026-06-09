@@ -12,6 +12,8 @@ import {
 } from '@mui/material';
 import { ChevronRight } from 'lucide-react';
 import type { CategoryRead, CategoryKind } from '@/types/category';
+import { Icon } from '@/components/atoms/Icon';
+import type { IconName } from '@/components/atoms/Icon';
 
 /**
  * Props for CategorySelect component
@@ -173,6 +175,42 @@ export function CategorySelect({
           required={required}
           error={error}
           helperText={helperText}
+          InputProps={{
+            ...params.InputProps,
+            // Show the selected category's color/icon swatch before the text input
+            startAdornment: (
+              <>
+                {selectedCategory && (selectedCategory.icon || selectedCategory.color) && (
+                  <Box
+                    component="span"
+                    sx={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      backgroundColor: selectedCategory.color ?? 'transparent',
+                      border: selectedCategory.color ? 'none' : '1px dashed',
+                      borderColor: 'divider',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      ml: 0.5,
+                      mr: 0.5,
+                    }}
+                  >
+                    {selectedCategory.icon && (
+                      <Icon
+                        name={selectedCategory.icon as IconName}
+                        size={10}
+                        style={{ color: selectedCategory.color ? '#fff' : 'inherit' }}
+                      />
+                    )}
+                  </Box>
+                )}
+                {params.InputProps.startAdornment}
+              </>
+            ),
+          }}
         />
       )}
       renderOption={(props, option) => (
@@ -184,6 +222,31 @@ export function CategorySelect({
                 size={16}
                 style={{ marginLeft: '8px', color: '#9e9e9e' }}
               />
+            )}
+            {/* Color circle with optional icon when at least one is set */}
+            {(option.icon || option.color) && (
+              <Box
+                sx={{
+                  width: 18,
+                  height: 18,
+                  borderRadius: '50%',
+                  backgroundColor: option.color ?? 'transparent',
+                  border: option.color ? 'none' : '1px dashed',
+                  borderColor: 'divider',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  flexShrink: 0,
+                }}
+              >
+                {option.icon && (
+                  <Icon
+                    name={option.icon as IconName}
+                    size={10}
+                    style={{ color: option.color ? '#fff' : 'inherit' }}
+                  />
+                )}
+              </Box>
             )}
             {/* Category name */}
             <Typography

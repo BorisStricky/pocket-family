@@ -14,6 +14,8 @@ export interface CategoryRead {
   kind: CategoryKind; // Category type: expense or income
   parent_id: string | null; // UUID of parent category for subcategories, null for top-level
   parent_name: string | null; // Name of parent category, null for top-level
+  icon: string | null; // lucide-react icon name for visual identity, null if not set
+  color: string | null; // hex color string (#RRGGBB) for charts and display, null if not set
   created_at: string; // ISO datetime string
   updated_at: string; // ISO datetime string
 }
@@ -26,6 +28,8 @@ export interface CategoryCreate {
   name: string; // Required: category name
   kind: CategoryKind; // Required: category type (expense/income)
   parent_id?: string | null; // Optional: parent category ID for creating subcategories
+  icon?: string | null; // Optional: lucide-react icon name
+  color?: string | null; // Optional: hex color string (#RRGGBB)
 }
 
 /**
@@ -36,4 +40,6 @@ export interface CategoryUpdate {
   name?: string | null;
   kind?: CategoryKind | null;
   parent_id?: string | null;
+  icon?: string | null; // Pass null to clear the icon
+  color?: string | null; // Pass null to clear the color
 }

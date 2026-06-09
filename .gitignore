@@ -13,6 +13,7 @@ personal/
 __pycache__/
 *.pyc
 .venv/
+*.egg-info/
 
 # Frontend
 frontend/node_modules

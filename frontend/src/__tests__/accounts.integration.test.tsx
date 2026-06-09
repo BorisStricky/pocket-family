@@ -16,7 +16,7 @@
 import { describe, it, expect, beforeEach } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import userEvent from '@testing-library/user-event';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { Routes, Route } from 'react-router-dom';
 import { renderWithProviders, setupAuthenticatedUser, server } from '@/test/utils';
 import { resetAccountStore } from '@/test/mocks/server';
@@ -233,5 +233,87 @@ describe('Accounts Integration - All Accounts Page (Global View)', () => {
     await waitFor(() => {
       expect(screen.getByRole('dialog')).toBeInTheDocument();
     });
+  });
+});
+
+describe('Accounts Integration - Icon and Color Pickers', () => {
+  beforeEach(() => {
+    resetAccountStore();
+    setupAuthenticatedUser(TENANT_ID);
+  });
+
+  function renderFamilyAccountsPage() {
+    return renderWithProviders(
+      <Routes>
+        <Route path="/app/:familyId/accounts" element={<AccountsPage />} />
+      </Routes>,
+      { initialEntries: [`/app/${TENANT_ID}/accounts`] }
+    );
+  }
+
+  it('renders IconPicker and ColorSwatchPicker inside the Add Account modal', async () => {
+    const user = userEvent.setup();
+
+    renderFamilyAccountsPage();
+
+    await user.click(screen.getByRole('button', { name: /add account/i }));
+
+    // Wait for the modal to appear
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    const dialog = screen.getByRole('dialog');
+    // IconPicker renders Typography "Icon"; ColorSwatchPicker renders Typography "Color"
+    expect(within(dialog).getByText('Icon')).toBeInTheDocument();
+    expect(within(dialog).getByText('Color')).toBeInTheDocument();
+  });
+
+  it('includes icon and color in the API payload when submitting the Add Account form', async () => {
+    const user = userEvent.setup();
+
+    let capturedRequestBody: Record<string, unknown> | null = null;
+    server.use(
+      http.post(`${API_BASE}/accounts`, async ({ request }) => {
+        capturedRequestBody = await request.json() as Record<string, unknown>;
+        return HttpResponse.json({
+          id: 'account-uuid-icon-test',
+          name: capturedRequestBody.name as string,
+          type: capturedRequestBody.type as string,
+          currency: capturedRequestBody.currency as string,
+          balance: capturedRequestBody.balance as string,
+          icon: capturedRequestBody.icon ?? null,
+          color: capturedRequestBody.color ?? null,
+          tenant_id: TENANT_ID,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        });
+      })
+    );
+
+    renderFamilyAccountsPage();
+
+    await user.click(screen.getByRole('button', { name: /add account/i }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    const dialog = screen.getByRole('dialog');
+
+    // Fill in required fields
+    await user.type(within(dialog).getByLabelText(/account name/i), 'My Wallet');
+
+    // Select a color swatch — aria-label is the hex value per SWATCH_COLORS
+    const firstColorSwatch = within(dialog).getByRole('button', { name: '#F44336' });
+    await user.click(firstColorSwatch);
+
+    await user.click(within(dialog).getByRole('button', { name: /create account/i }));
+
+    await waitFor(() => {
+      expect(capturedRequestBody).not.toBeNull();
+    });
+
+    expect(capturedRequestBody).toMatchObject({ name: 'My Wallet', color: '#F44336' });
   });
 });

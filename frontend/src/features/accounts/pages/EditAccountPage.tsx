@@ -82,6 +82,8 @@ export function EditAccountPage() {
       balance: data.balance !== undefined && data.balance !== ''
         ? Number(data.balance)
         : undefined,
+      icon: data.icon,
+      color: data.color,
     };
 
     // Call mutation to update account
@@ -157,6 +159,8 @@ export function EditAccountPage() {
     currency: account.currency,
     // Balance may be null for hidden accounts, use '0' as fallback
     balance: account.balance !== null ? account.balance : '0',
+    icon: account.icon,
+    color: account.color,
   };
 
   return (

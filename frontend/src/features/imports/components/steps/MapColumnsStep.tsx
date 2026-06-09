@@ -22,6 +22,7 @@ import {
 } from '@mui/material';
 import { InfoOutlined as InfoOutlinedIcon } from '@mui/icons-material';
 import { useAccounts } from '@/features/accounts/hooks/useAccounts';
+import { AccountSelect } from '@/components/domain/AccountSelect';
 import { useAnalyzeCsv } from '../../hooks/useAnalyzeCsv';
 import type { AnalyzeResponse, ColumnMapping, WizardState } from '../../types';
 
@@ -191,23 +192,17 @@ export function MapColumnsStep({
           ))}
         </TextField>
 
-        <TextField
-          select
-          fullWidth
-          required
+        <AccountSelect
+          value={accountId || null}
+          onChange={(id) => setAccountId(id ?? '')}
+          accounts={accounts}
           label="Account"
-          value={accountId}
+          required
+          loading={isLoadingAccounts}
           disabled={isLoadingAccounts}
           error={!accountId}
           helperText={!accountId ? 'Select the account these transactions belong to' : undefined}
-          onChange={(event) => setAccountId(event.target.value)}
-        >
-          {accounts.map((account) => (
-            <MenuItem key={account.id} value={account.id}>
-              {account.name} ({account.currency})
-            </MenuItem>
-          ))}
-        </TextField>
+        />
 
         <TextField
           select

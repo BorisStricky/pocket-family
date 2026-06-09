@@ -1,7 +1,7 @@
 // src/features/accounts/components/AccountForm.tsx
 // Form component for creating and editing accounts with React Hook Form validation
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
 import {
   Box,
@@ -16,6 +16,8 @@ import {
   Stack,
 } from '@mui/material';
 import type { AccountCreate, AccountType, Currency } from '@/types/account';
+import { IconPicker } from '@/components/ui/molecules/IconPicker';
+import { ColorSwatchPicker } from '@/components/ui/molecules/ColorSwatchPicker';
 
 /**
  * Props for AccountForm component
@@ -76,6 +78,11 @@ export function AccountForm({
   // Determine if this is create or edit mode
   const isEditMode = mode === 'edit';
 
+  // Icon and color are controlled outside React Hook Form because they use
+  // custom picker components rather than standard input fields
+  const [selectedIcon, setSelectedIcon] = useState<string | null>(initialData?.icon ?? null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(initialData?.color ?? null);
+
   // Set up form with React Hook Form and default values
   // In edit mode, pre-populate fields from initialData
   // In create mode, use sensible defaults (BRL currency, 0 balance, cash type)
@@ -93,10 +100,9 @@ export function AccountForm({
     },
   });
 
-  // Handle form submission by passing data to parent component
-  // The parent component will handle the API call and state updates
+  // Handle form submission by passing data (plus icon/color state) to parent component
   const handleFormSubmit = (data: AccountCreate) => {
-    onSubmit(data);
+    onSubmit({ ...data, icon: selectedIcon, color: selectedColor });
   };
 
   return (
@@ -214,6 +220,18 @@ export function AccountForm({
             step: '0.01',
             min: '0',
           }}
+        />
+
+        {/* Icon and color for visual identity in account lists and cards */}
+        <IconPicker
+          value={selectedIcon}
+          onChange={setSelectedIcon}
+          disabled={isLoading}
+        />
+        <ColorSwatchPicker
+          value={selectedColor}
+          onChange={setSelectedColor}
+          disabled={isLoading}
         />
 
         {/* Form Action Buttons */}

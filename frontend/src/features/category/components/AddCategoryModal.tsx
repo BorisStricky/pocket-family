@@ -15,6 +15,8 @@ import {
 } from '@mui/material';
 import type { CategoryCreate, CategoryKind, CategoryRead } from '@/types/category';
 import { CategorySelect } from '@/components/domain/CategorySelect';
+import { IconPicker } from '@/components/ui/molecules/IconPicker';
+import { ColorSwatchPicker } from '@/components/ui/molecules/ColorSwatchPicker';
 
 /**
  * Props for AddCategoryModal component
@@ -64,6 +66,8 @@ export function AddCategoryModal({
   const [name, setName] = useState('');
   const [selectedKind, setSelectedKind] = useState<CategoryKind>(kind);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(parentId);
+  const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
   // Form validation
   const [nameError, setNameError] = useState<string | null>(null);
@@ -77,6 +81,8 @@ export function AddCategoryModal({
       setSelectedParentId(parentId);
       setName('');
       setNameError(null);
+      setSelectedIcon(null);
+      setSelectedColor(null);
     }
   }, [open, kind, parentId]);
 
@@ -112,6 +118,8 @@ export function AddCategoryModal({
       name: name.trim(),
       kind: selectedKind,
       parent_id: selectedParentId,
+      icon: selectedIcon,
+      color: selectedColor,
     };
 
     onCreate(categoryData);
@@ -209,6 +217,18 @@ export function AddCategoryModal({
             categories={parentCategoriesForKind}
             label="Parent Category (Optional)"
             placeholder="None - create as top-level category"
+            disabled={isLoading}
+          />
+
+          {/* Icon and color selection for visual identity across the app */}
+          <IconPicker
+            value={selectedIcon}
+            onChange={setSelectedIcon}
+            disabled={isLoading}
+          />
+          <ColorSwatchPicker
+            value={selectedColor}
+            onChange={setSelectedColor}
             disabled={isLoading}
           />
         </Stack>

@@ -247,4 +247,80 @@ describe('Categories Integration - Settings Page', () => {
       screen.getByText(/add your first category to start organizing transactions/i)
     ).toBeInTheDocument();
   });
+
+  it('renders IconPicker and ColorSwatchPicker inside AddCategoryModal', async () => {
+    const user = userEvent.setup();
+
+    renderSettingsPage();
+
+    // Wait for categories to load before opening the modal
+    await waitFor(() => {
+      expect(screen.getByText('Expenses')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Add Category' }));
+
+    // The modal must contain both picker labels rendered by IconPicker and ColorSwatchPicker
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    const dialog = screen.getByRole('dialog');
+    // IconPicker renders a Typography label "Icon"; ColorSwatchPicker renders "Color"
+    expect(within(dialog).getByText('Icon')).toBeInTheDocument();
+    expect(within(dialog).getByText('Color')).toBeInTheDocument();
+  });
+
+  it('sends icon and color in the API payload when submitting AddCategoryModal', async () => {
+    const user = userEvent.setup();
+
+    let capturedRequestBody: Record<string, unknown> | null = null;
+    server.use(
+      http.post(`${API_BASE}/categories`, async ({ request }) => {
+        capturedRequestBody = await request.json() as Record<string, unknown>;
+        return HttpResponse.json({
+          id: 'category-uuid-icon-test',
+          tenant_id: TEST_TENANT_ID,
+          name: capturedRequestBody.name as string,
+          kind: capturedRequestBody.kind as string,
+          parent_id: null,
+          parent_name: null,
+          icon: capturedRequestBody.icon ?? null,
+          color: capturedRequestBody.color ?? null,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        }, { status: 201 });
+      })
+    );
+
+    renderSettingsPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('Expenses')).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByRole('button', { name: 'Add Category' }));
+
+    await waitFor(() => {
+      expect(screen.getByRole('dialog')).toBeInTheDocument();
+    });
+
+    const dialog = screen.getByRole('dialog');
+
+    // Fill in the category name (required field)
+    await user.type(within(dialog).getByLabelText(/category name/i), 'Gas');
+
+    // Click the first real color swatch — aria-label is the hex value per SWATCH_COLORS
+    const firstColorSwatch = within(dialog).getByRole('button', { name: '#F44336' });
+    await user.click(firstColorSwatch);
+
+    await user.click(within(dialog).getByRole('button', { name: /create category/i }));
+
+    // The form submission should include color in the payload
+    await waitFor(() => {
+      expect(capturedRequestBody).not.toBeNull();
+    });
+
+    expect(capturedRequestBody).toMatchObject({ name: 'Gas', color: '#F44336' });
+  });
 });

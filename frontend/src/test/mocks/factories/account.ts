@@ -14,6 +14,8 @@ interface CreateMockAccountOptions {
   type?: AccountType;
   currency?: Currency;
   balance?: string | null;
+  icon?: string | null;
+  color?: string | null;
   created_at?: string;
   updated_at?: string;
 }
@@ -35,6 +37,8 @@ export function createMockAccount(options: CreateMockAccountOptions = {}): Accou
     type = 'debit',
     currency = 'USD',
     balance = '1000.00',
+    icon = null,
+    color = null,
     created_at = new Date().toISOString(),
     updated_at = new Date().toISOString(),
   } = options;
@@ -47,6 +51,8 @@ export function createMockAccount(options: CreateMockAccountOptions = {}): Accou
     type,
     currency,
     balance,
+    icon,
+    color,
     created_at,
     updated_at,
   };
