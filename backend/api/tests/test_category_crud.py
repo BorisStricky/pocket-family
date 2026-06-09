@@ -78,6 +78,9 @@ def test_read_base_category(client, category_base_fixture):
     assert fetched_category["id"] == base_category["id"]
     assert fetched_category["name"] == base_category["name"]
     assert fetched_category["kind"] == base_category["kind"]
+    # icon and color must always be present in the response, defaulting to None
+    assert fetched_category["icon"] is None
+    assert fetched_category["color"] is None
 
 
 def test_list_categories_includes_base(client, category_base_fixture):
@@ -91,6 +94,11 @@ def test_list_categories_includes_base(client, category_base_fixture):
     categories = categories_list_response.json()
     category_ids = [category["id"] for category in categories]
     assert base_category["id"] in category_ids
+
+    # Every category in the list must expose icon and color keys (null when unset)
+    for category in categories:
+        assert "icon" in category
+        assert "color" in category
 
 
 def test_update_base_category(client, category_base_fixture):

@@ -28,6 +28,10 @@ class TestListAccountsWithTenantId:
         accounts = response.json()
         assert len(accounts) >= 1
         assert any(account["id"] == str(test_account.id) for account in accounts)
+        # icon and color must always be present in every account response, defaulting to None
+        for account in accounts:
+            assert "icon" in account
+            assert "color" in account
 
     async def test_list_accounts_with_valid_tenant_id_returns_shared_accounts(
         self, async_client, async_session, test_user, test_user2, test_tenant, test_tenant2,

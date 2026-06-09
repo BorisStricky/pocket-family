@@ -12,7 +12,7 @@ import { CategoryKind, TransactionSource } from '@/types';
 export interface TransactionRead {
   id: string;
   tenant_id: string;
-  account_id: string;
+  account_id: string | null; // Optional in backend TransactionRead — transactions may have no account
   account_name: string;
   account_icon: string | null; // lucide-react icon name resolved from Account
   account_color: string | null; // hex color string resolved from Account

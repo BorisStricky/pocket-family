@@ -351,6 +351,9 @@ class TestBudgetRead:
         assert Decimal(response_body["amount"]) == Decimal("500.00")
         assert len(response_body["categories"]) == 1
         assert response_body["categories"][0]["name"] == "Food"
+        # icon and color must always be present in the response, defaulting to None
+        assert response_body["icon"] is None
+        assert response_body["color"] is None
 
     @pytest.mark.asyncio
     async def test_get_budget_not_found(
