@@ -11,8 +11,12 @@ interface CreateMockTransactionOptions {
   tenant_id?: string;
   account_id?: string;
   account_name?: string;
+  account_icon?: string | null;
+  account_color?: string | null;
   category_id?: string | null;
   category_name?: string | null;
+  category_icon?: string | null;
+  category_color?: string | null;
   amount?: string;
   currency?: string;
   transaction_date?: string;
@@ -39,8 +43,12 @@ export function createMockTransaction(options: CreateMockTransactionOptions = {}
     tenant_id = 'tenant-uuid-456',
     account_id = '20c3fafc-b75f-4197-bfa9-b5dac43c6000',
     account_name = 'Cash (BRL)',
+    account_icon = null,
+    account_color = null,
     category_id = '638d246d-ed81-4831-a511-8e76faa25e4a',
     category_name = 'Test (Expense)',
+    category_icon = null,
+    category_color = null,
     amount = '125.50',
     currency = 'USD',
     transaction_date = '2026-01-10',
@@ -58,8 +66,12 @@ export function createMockTransaction(options: CreateMockTransactionOptions = {}
     tenant_id,
     account_id,
     account_name,
+    account_icon,
+    account_color,
     category_id,
     category_name,
+    category_icon,
+    category_color,
     amount,
     currency,
     transaction_date,

@@ -7,8 +7,12 @@ export interface Transaction {
   tenant_id: string;
   account_id: string | null;
   account_name: string | null;
+  account_icon: string | null; // lucide-react icon name resolved from Account
+  account_color: string | null; // hex color string resolved from Account
   category_id: string | null;
   category_name: string | null;
+  category_icon: string | null; // lucide-react icon name resolved from Category
+  category_color: string | null; // hex color string resolved from Category
   amount: string; // backend returns string for precision
   currency: 'BRL' | 'USD' | 'EUR' | string;
   transaction_date: string; // YYYY-MM-DD

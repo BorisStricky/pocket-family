@@ -175,6 +175,42 @@ export function CategorySelect({
           required={required}
           error={error}
           helperText={helperText}
+          InputProps={{
+            ...params.InputProps,
+            // Show the selected category's color/icon swatch before the text input
+            startAdornment: (
+              <>
+                {selectedCategory && (selectedCategory.icon || selectedCategory.color) && (
+                  <Box
+                    component="span"
+                    sx={{
+                      width: 16,
+                      height: 16,
+                      borderRadius: '50%',
+                      backgroundColor: selectedCategory.color ?? 'transparent',
+                      border: selectedCategory.color ? 'none' : '1px dashed',
+                      borderColor: 'divider',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      flexShrink: 0,
+                      ml: 0.5,
+                      mr: 0.5,
+                    }}
+                  >
+                    {selectedCategory.icon && (
+                      <Icon
+                        name={selectedCategory.icon as IconName}
+                        size={10}
+                        style={{ color: selectedCategory.color ? '#fff' : 'inherit' }}
+                      />
+                    )}
+                  </Box>
+                )}
+                {params.InputProps.startAdornment}
+              </>
+            ),
+          }}
         />
       )}
       renderOption={(props, option) => (

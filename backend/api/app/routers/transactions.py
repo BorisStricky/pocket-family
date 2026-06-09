@@ -25,7 +25,12 @@ async def _fetch_transaction_with_names(db: AsyncSession, tenant_id: UUID, trans
         select(
             Transaction,
             Account.name.label("account_name"),
+            Account.icon.label("account_icon"),
+            Account.color.label("account_color"),
             Category.name.label("category_name"),
+            # Resolve icon and color from Category for visual display in the UI
+            Category.icon.label("category_icon"),
+            Category.color.label("category_color"),
             # Resolve the creator's display name for the response payload
             User.name.label("created_by_name"),
         )
@@ -44,8 +49,12 @@ async def _fetch_transaction_with_names(db: AsyncSession, tenant_id: UUID, trans
         "tenant_id": transaction.tenant_id,
         "account_id": transaction.account_id,
         "account_name": row.account_name,
+        "account_icon": row.account_icon,
+        "account_color": row.account_color,
         "category_id": transaction.category_id,
         "category_name": row.category_name,
+        "category_icon": row.category_icon,
+        "category_color": row.category_color,
         "amount": transaction.amount,
         "currency": transaction.currency,
         "transaction_date": transaction.transaction_date,
@@ -71,8 +80,12 @@ async def _rows_to_transaction_reads(rows: List[Any]) -> List[dict]:
             "tenant_id": transaction.tenant_id,
             "account_id": transaction.account_id,
             "account_name": row.account_name,
+            "account_icon": row.account_icon,
+            "account_color": row.account_color,
             "category_id": transaction.category_id,
             "category_name": row.category_name,
+            "category_icon": row.category_icon,
+            "category_color": row.category_color,
             "amount": transaction.amount,
             "currency": transaction.currency,
             "transaction_date": transaction.transaction_date,
@@ -202,12 +215,17 @@ async def list_transactions(
     user = active_context.active_user
     tenant = active_context.active_tenant
 
-    # Build a joined query to get account_name, category_name, and created_by_name
+    # Build a joined query to get account/category name, icon, color and created_by_name
     query = (
         select(
             Transaction,
             Account.name.label("account_name"),
+            Account.icon.label("account_icon"),
+            Account.color.label("account_color"),
             Category.name.label("category_name"),
+            # Resolve icon and color from Category for visual display in the UI
+            Category.icon.label("category_icon"),
+            Category.color.label("category_color"),
             # Resolve the creator's display name so the frontend can show who created each transaction
             User.name.label("created_by_name"),
         )

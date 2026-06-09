@@ -353,8 +353,14 @@ class TransactionRead(SQLModel):
     tenant_id: UUID
     account_id: Optional[UUID]
     account_name: Optional[str]
+    # Icon name and color hex resolved via Account join for visual display
+    account_icon: Optional[str] = None
+    account_color: Optional[str] = None
     category_id: Optional[UUID]
     category_name: Optional[str]
+    # Icon name and color hex resolved via Category join for visual display
+    category_icon: Optional[str] = None
+    category_color: Optional[str] = None
     amount: Decimal
     currency: Currency
     transaction_date: date

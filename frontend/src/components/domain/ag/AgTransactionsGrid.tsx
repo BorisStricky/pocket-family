@@ -4,10 +4,12 @@
 
 import React, { useMemo } from 'react';
 import { AgGridReact } from 'ag-grid-react';
-import { ColDef } from 'ag-grid-community';
+import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Box, Typography } from '@mui/material';
 import type { TransactionRead, TransactionFilters } from '@/features/transactions/types';
 import { formatDisplayDate } from '@/lib/dateUtils';
+import { Icon } from '@/components/atoms/Icon';
+import type { IconName } from '@/components/atoms/Icon';
 
 /**
  * Props for AgTransactionsGrid component
@@ -43,6 +45,82 @@ interface AgTransactionsGridProps {
  *   onSelectionChange={(ids) => setSelectedIds(ids)}
  * />
  */
+// Cell renderer for account name that prepends the icon/color circle when set
+function AccountNameRenderer(params: ICellRendererParams<TransactionRead>) {
+  const transaction = params.data;
+  const accountName = params.value || '[Deleted Account]';
+
+  if (!transaction || (!transaction.account_icon && !transaction.account_color)) {
+    return <span>{accountName}</span>;
+  }
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, height: '100%' }}>
+      <Box
+        sx={{
+          width: 18,
+          height: 18,
+          borderRadius: '50%',
+          backgroundColor: transaction.account_color ?? 'transparent',
+          border: transaction.account_color ? 'none' : '1px dashed',
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        {transaction.account_icon && (
+          <Icon
+            name={transaction.account_icon as IconName}
+            size={10}
+            style={{ color: transaction.account_color ? '#fff' : 'inherit' }}
+          />
+        )}
+      </Box>
+      <span>{accountName}</span>
+    </Box>
+  );
+}
+
+// Cell renderer for category that prepends the icon/color circle when set
+function CategoryNameRenderer(params: ICellRendererParams<TransactionRead>) {
+  const transaction = params.data;
+  const categoryName = params.value || 'Uncategorized';
+
+  if (!transaction || (!transaction.category_icon && !transaction.category_color)) {
+    return <span>{categoryName}</span>;
+  }
+
+  return (
+    <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, height: '100%' }}>
+      <Box
+        sx={{
+          width: 18,
+          height: 18,
+          borderRadius: '50%',
+          backgroundColor: transaction.category_color ?? 'transparent',
+          border: transaction.category_color ? 'none' : '1px dashed',
+          borderColor: 'divider',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          flexShrink: 0,
+        }}
+      >
+        {transaction.category_icon && (
+          <Icon
+            name={transaction.category_icon as IconName}
+            size={10}
+            style={{ color: transaction.category_color ? '#fff' : 'inherit' }}
+          />
+        )}
+      </Box>
+      <span>{categoryName}</span>
+    </Box>
+  );
+}
+
 export function AgTransactionsGrid({
   transactions,
   isLoading = false,
@@ -71,11 +149,9 @@ export function AgTransactionsGrid({
       headerName: 'Category',
       sortable: true,
       filter: true, // Enable AG Grid text filter - icon appears next to header
-      width: 150,
-      valueFormatter: (params) => {
-        // Show category name or "Uncategorized" if not assigned
-        return params.value || 'Uncategorized';
-      },
+      width: 170,
+      // Custom renderer to show category color circle and icon alongside the name
+      cellRenderer: CategoryNameRenderer,
     },
     {
       field: 'amount',
@@ -116,11 +192,9 @@ export function AgTransactionsGrid({
       headerName: 'Account',
       sortable: true,
       filter: true, // Enable AG Grid text filter - icon appears next to header
-      width: 150,
-      valueFormatter: (params) => {
-        // Show friendly message when account has been deleted
-        return params.value || '[Deleted Account]';
-      },
+      width: 170,
+      // Custom renderer to show account color circle and icon alongside the name
+      cellRenderer: AccountNameRenderer,
     },
     {
       field: 'transaction_type',

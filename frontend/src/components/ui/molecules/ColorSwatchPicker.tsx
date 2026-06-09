@@ -43,6 +43,7 @@ export const ColorSwatchPicker: React.FC<ColorSwatchPickerProps> = ({ value, onC
         <Tooltip title="No color">
           <Box
             component="button"
+            type="button"
             disabled={disabled}
             onClick={() => onChange(null)}
             sx={{
@@ -66,6 +67,7 @@ export const ColorSwatchPicker: React.FC<ColorSwatchPickerProps> = ({ value, onC
           <Tooltip key={swatchColor} title={swatchColor}>
             <Box
               component="button"
+              type="button"
               disabled={disabled}
               onClick={() => onChange(swatchColor)}
               sx={{
