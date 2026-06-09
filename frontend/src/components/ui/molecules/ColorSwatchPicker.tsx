@@ -44,6 +44,7 @@ export const ColorSwatchPicker: React.FC<ColorSwatchPickerProps> = ({ value, onC
           <Box
             component="button"
             type="button"
+            aria-label="No color"
             disabled={disabled}
             onClick={() => onChange(null)}
             sx={{
@@ -68,6 +69,7 @@ export const ColorSwatchPicker: React.FC<ColorSwatchPickerProps> = ({ value, onC
             <Box
               component="button"
               type="button"
+              aria-label={swatchColor}
               disabled={disabled}
               onClick={() => onChange(swatchColor)}
               sx={{

@@ -310,9 +310,8 @@ describe('Categories Integration - Settings Page', () => {
     // Fill in the category name (required field)
     await user.type(within(dialog).getByLabelText(/category name/i), 'Gas');
 
-    // Click the first color swatch (tooltip "No color" is the "None" option;
-    // the first real color swatch has tooltip "#F44336" per SWATCH_COLORS)
-    const firstColorSwatch = within(dialog).getByTitle('#F44336');
+    // Click the first real color swatch — aria-label is the hex value per SWATCH_COLORS
+    const firstColorSwatch = within(dialog).getByRole('button', { name: '#F44336' });
     await user.click(firstColorSwatch);
 
     await user.click(within(dialog).getByRole('button', { name: /create category/i }));

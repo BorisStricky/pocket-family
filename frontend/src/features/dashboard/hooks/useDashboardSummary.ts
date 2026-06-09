@@ -119,13 +119,13 @@ export function useDashboardSummary(familyId: string, dateRange: DateRangePreset
   const summary = useMemo<DashboardSummary | null>(() => {
     if (!transactions) return null;
 
-    // Build category lookup maps: id → name and id → color
+    // Build category name lookup: id → name (color comes directly from transaction.category_color,
+    // which the backend JOINs in, so no separate color map is needed and there is no race
+    // condition when transactions resolve before categories).
     const categoryLookup = new Map<string, string>();
-    const colorById = new Map<string, string | null>();
     if (categories) {
       for (const category of categories) {
         categoryLookup.set(category.id, category.name);
-        colorById.set(category.id, category.color);
       }
     }
 
@@ -147,7 +147,9 @@ export function useDashboardSummary(familyId: string, dateRange: DateRangePreset
           transaction.category_name ||
           categoryLookup.get(transaction.category_id || '') ||
           'Uncategorized';
-        const categoryColor = colorById.get(transaction.category_id || '') ?? null;
+        // category_color is JOINed by the backend onto every TransactionRead row —
+        // use it directly to avoid depending on the categories query loading first.
+        const categoryColor = transaction.category_color ?? null;
         const existing = categorySpendingMap.get(categoryName);
         categorySpendingMap.set(categoryName, {
           total: (existing?.total ?? 0) + amount,

@@ -148,9 +148,9 @@ async def update_category(
     # Use exclude_unset so fields absent from the request body are not touched,
     # while fields explicitly set to None (e.g. clearing an icon) are applied.
     # Guard against None being passed for NOT NULL columns (e.g. name, kind) which
-    # would cause an IntegrityError at commit time. Only icon and color are genuinely
-    # nullable database columns and may legitimately be cleared to null.
-    NULLABLE_FIELDS = {'icon', 'color'}
+    # would cause an IntegrityError at commit time. icon, color, and parent_id are
+    # genuinely nullable database columns and may legitimately be cleared to null.
+    NULLABLE_FIELDS = {'icon', 'color', 'parent_id'}
     for field_name, field_value in payload.model_dump(exclude_unset=True).items():
         if field_value is None and field_name not in NULLABLE_FIELDS:
             continue

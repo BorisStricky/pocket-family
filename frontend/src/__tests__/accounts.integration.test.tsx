@@ -304,11 +304,11 @@ describe('Accounts Integration - Icon and Color Pickers', () => {
     // Fill in required fields
     await user.type(within(dialog).getByLabelText(/account name/i), 'My Wallet');
 
-    // Select a color swatch
-    const firstColorSwatch = within(dialog).getByTitle('#F44336');
+    // Select a color swatch — aria-label is the hex value per SWATCH_COLORS
+    const firstColorSwatch = within(dialog).getByRole('button', { name: '#F44336' });
     await user.click(firstColorSwatch);
 
-    await user.click(within(dialog).getByRole('button', { name: /add account/i }));
+    await user.click(within(dialog).getByRole('button', { name: /create account/i }));
 
     await waitFor(() => {
       expect(capturedRequestBody).not.toBeNull();
