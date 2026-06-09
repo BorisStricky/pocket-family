@@ -66,7 +66,7 @@ export default function UserAccountDonut({
                 {byAccount.map((slice, index) => (
                   <Cell
                     key={`account-${slice.id}`}
-                    fill={CHART_COLORS[index % CHART_COLORS.length]}
+                    fill={slice.color ?? CHART_COLORS[index % CHART_COLORS.length]}
                     opacity={!activeAccountId || activeAccountId === slice.id ? 1 : 0.3}
                   />
                 ))}

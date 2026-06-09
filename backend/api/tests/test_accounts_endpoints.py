@@ -398,3 +398,75 @@ class TestTransactionBalanceUpdates:
         # Verify balance is negative (representing debt)
         await async_session.refresh(credit_account)
         assert credit_account.balance == Decimal("-300.00")
+
+
+class TestAccountIconAndColor:
+    """Tests for icon and color fields on accounts (POST, PATCH, and clearing to null)."""
+
+    @pytest.mark.asyncio
+    async def test_create_account_with_icon_and_color(
+        self, async_client, test_tenant, test_membership, auth_headers
+    ):
+        """Creating an account with icon/color stores and returns both fields."""
+        account_data = {
+            "name": "Savings",
+            "type": "cash",
+            "currency": "BRL",
+            "balance": "500.00",
+            "icon": "ShoppingCart",
+            "color": "#F44336",
+        }
+        response = await async_client.post("/accounts", json=account_data, headers=auth_headers)
+
+        assert response.status_code == 200, response.text
+        created_account = response.json()
+        assert created_account["icon"] == "ShoppingCart"
+        assert created_account["color"] == "#F44336"
+
+    @pytest.mark.asyncio
+    async def test_update_account_icon_and_color(
+        self, async_client, test_tenant, test_membership, auth_headers, test_account
+    ):
+        """PATCHing icon/color updates the stored values and returns them."""
+        update_response = await async_client.patch(
+            f"/accounts/{test_account.id}",
+            json={"icon": "Coffee", "color": "#2196F3"},
+            headers=auth_headers,
+        )
+
+        assert update_response.status_code == 200, update_response.text
+        updated_account = update_response.json()
+        assert updated_account["icon"] == "Coffee"
+        assert updated_account["color"] == "#2196F3"
+
+    @pytest.mark.asyncio
+    async def test_clear_account_icon_and_color(
+        self, async_client, test_tenant, test_membership, auth_headers
+    ):
+        """PATCHing with explicit null clears icon and color to None."""
+        # Create an account with icon and color set
+        account_data = {
+            "name": "Wallet",
+            "type": "cash",
+            "currency": "BRL",
+            "balance": "0.00",
+            "icon": "Music",
+            "color": "#9C27B0",
+        }
+        create_response = await async_client.post(
+            "/accounts", json=account_data, headers=auth_headers
+        )
+        assert create_response.status_code == 200, create_response.text
+        created_account = create_response.json()
+
+        # Clear both fields with explicit null
+        clear_response = await async_client.patch(
+            f"/accounts/{created_account['id']}",
+            json={"icon": None, "color": None},
+            headers=auth_headers,
+        )
+
+        assert clear_response.status_code == 200, clear_response.text
+        cleared_account = clear_response.json()
+        assert cleared_account["icon"] is None
+        assert cleared_account["color"] is None

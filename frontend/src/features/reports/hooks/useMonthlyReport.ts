@@ -262,7 +262,10 @@ export function useMonthlyReport({
           byAccountMap.set(accountId, {
             label: transaction.account_name ?? 'Unknown account',
             total: (existing?.total ?? 0) + amount,
-            color: null,
+            // Preserve the color from the first transaction seen for this account
+            // (all rows for the same account share the same color); fall back to the
+            // current row's color so we never overwrite an existing value with null.
+            color: existing?.color ?? (transaction.account_color ?? null),
           });
         }
       }

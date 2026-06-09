@@ -497,8 +497,14 @@ async def update_budget(
     # from the request body are not touched, while fields explicitly set to None
     # (e.g. clearing an icon) are applied. category_ids is excluded here because it
     # requires special sync logic handled separately below.
+    # Guard against None being passed for NOT NULL columns (e.g. name, amount, currency)
+    # which would cause an IntegrityError at commit time. Only icon and color are
+    # genuinely nullable database columns and may legitimately be cleared to null.
+    NULLABLE_FIELDS = {'icon', 'color'}
     scalar_updates = payload.model_dump(exclude_unset=True, exclude={"category_ids"})
     for field_name, field_value in scalar_updates.items():
+        if field_value is None and field_name not in NULLABLE_FIELDS:
+            continue
         setattr(budget_record, field_name, field_value)
 
     # Update the modification timestamp

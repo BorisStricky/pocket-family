@@ -397,7 +397,13 @@ async def update_account(account_id: UUID, payload: AccountUpdate, db: AsyncSess
         raise HTTPException(status_code=403, detail="only owner can update account")
     # Use exclude_unset so fields absent from the request body are not touched,
     # while fields explicitly set to None (e.g. clearing an icon) are applied.
+    # Guard against None being passed for NOT NULL columns (e.g. name, balance, type,
+    # currency) which would cause an IntegrityError at commit time. Only icon and color
+    # are genuinely nullable database columns and may legitimately be cleared.
+    NULLABLE_FIELDS = {'icon', 'color'}
     for field_name, field_value in payload.model_dump(exclude_unset=True).items():
+        if field_value is None and field_name not in NULLABLE_FIELDS:
+            continue
         setattr(account_record, field_name, field_value)
     db.add(account_record)
     await db.commit()

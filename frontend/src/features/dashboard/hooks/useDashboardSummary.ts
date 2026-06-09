@@ -151,8 +151,10 @@ export function useDashboardSummary(familyId: string, dateRange: DateRangePreset
         const existing = categorySpendingMap.get(categoryName);
         categorySpendingMap.set(categoryName, {
           total: (existing?.total ?? 0) + amount,
-          // Keep the first encountered color for this category name; null for Uncategorized
-          color: existing?.color !== undefined ? existing.color : categoryColor,
+          // Always use the current transaction's resolved category color from colorById,
+          // which reflects the Category table's current state. Picking "first wins" would
+          // lock the bucket on null if the earliest transaction pre-dated the color being set.
+          color: categoryColor,
         });
       } else {
         totalIncome += amount;
