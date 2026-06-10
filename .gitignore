@@ -21,6 +21,7 @@ node_modules/*
 #agentic_qe
 .agentic-qe
 .claude
+Agentic QCSD/*
 
 # Frontend
 frontend/node_modules
