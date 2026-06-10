@@ -91,6 +91,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
     setUser(null);
     localStorage.removeItem(STORAGE_KEYS.ACCESS_TOKEN);
     localStorage.removeItem(STORAGE_KEYS.REFRESH_TOKEN);
+    // Clear the persisted UI language too. It is a per-user preference, so it
+    // must not survive into the next session — otherwise a different user
+    // logging in on this browser would briefly see the previous user's language
+    // (read synchronously at i18n init) before the /users/me sync corrects it.
+    localStorage.removeItem(STORAGE_KEYS.LANGUAGE);
   }, []);
 
   // Register auth failure callback with apiClient on mount

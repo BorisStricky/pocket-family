@@ -100,6 +100,7 @@ class User(SQLModel, table=True):
         password_hash: Hashed password for authentication.
         name: Optional display name.
         created_at: Timestamp when the user was created.
+        language: Preferred UI language as a BCP-47 code ("en" or "pt-BR").
     """
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     email: str = Field(nullable=False, index=True)
@@ -107,6 +108,12 @@ class User(SQLModel, table=True):
     name: Optional[str] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
     preferred_tenant_id: Optional[UUID] = Field(default=None, nullable=True, index=True)
+    # Preferred UI language as a BCP-47 code ("en" or "pt-BR"). Stored on the user
+    # (not the tenant) because language is a personal preference that should follow
+    # the user across every family they belong to and across devices. Non-nullable
+    # with a default of English; the migration backfills existing rows via
+    # server_default so no data migration is required.
+    language: str = Field(default="en", nullable=False)
 
 class Tenant(SQLModel, table=True):
     """Represents a Family (tenant) that groups data and users.

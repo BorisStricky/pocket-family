@@ -22,10 +22,12 @@
     "ag-grid-community": "^34.3.1",
     "ag-grid-react": "^34.3.1",
     "date-fns": "^4.1.0",
+    "i18next": "^26.3.1",
     "lucide-react": "^0.554.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-hook-form": "^7.67.0",
+    "react-i18next": "^17.0.8",
     "react-router-dom": "^6.14.0",
     "recharts": "^3.7.0"
   },

@@ -6,6 +6,8 @@ import { afterAll, afterEach, beforeAll, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 import '@testing-library/jest-dom/vitest';
 import { server } from './mocks/server';
+import i18n from '@/i18n'; // Initialize i18next so useTranslation works in every test
+import { resetUserStore } from './mocks/server';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 
 // Register AG Grid modules for tests that use AG Grid components
@@ -40,6 +42,10 @@ afterEach(() => {
   server.resetHandlers();  // Reset to default handlers
   cleanup();               // Unmount React components
   localStorage.clear();    // Clear all localStorage
+  resetUserStore();        // Reset the /users/me mock store
+  // Reset i18n to English so a language change in one test does not leak into
+  // the next (the i18n instance is a module singleton shared across tests).
+  i18n.changeLanguage('en');
   vi.clearAllMocks();      // Clear mock call history
 });
 

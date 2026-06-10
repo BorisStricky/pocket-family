@@ -7,6 +7,7 @@ import { Outlet } from 'react-router-dom';
 import TopNav from './TopNav';
 import SideNav from './SideNav';
 import { useAuth } from '@/features/auth/hooks/useAuth';
+import { useSyncUserLanguage } from '@/features/settings/hooks/useLanguage';
 import { LAYOUT } from '@/lib/constants';
 
 interface AppShellProps {
@@ -34,6 +35,11 @@ interface AppShellProps {
 export default function AppShell({ globalMode = false }: AppShellProps) {
   const { user } = useAuth();
   const theme = useTheme();
+
+  // Pull the user's saved language from the backend once authenticated and
+  // apply it. Mounted here because AppShell wraps every authenticated page, so
+  // the sync runs exactly once for the whole app session.
+  useSyncUserLanguage();
 
   // Detect mobile viewport: below MUI "md" breakpoint (900px)
   // Used to determine default SideNav state and drawer variant

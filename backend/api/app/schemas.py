@@ -1,10 +1,11 @@
 # backend/api/app/schemas.py
 from __future__ import annotations
-from typing import Optional, List
+from typing import Literal, Optional, List, get_args
 from uuid import UUID
 from datetime import datetime, date
 from decimal import Decimal
 
+from pydantic import field_validator
 from sqlmodel import SQLModel, Field
 
 from .models import (
@@ -62,6 +63,65 @@ class TokenOut(SQLModel):
     access_token: str
     token_type: str = "bearer"
     refresh_token: Optional[str] = None  # Only returned in TEST_MODE
+
+
+# Canonical type for a supported UI language code. The Literal is the single
+# source of truth: the read schema types `language` with it, and the runtime
+# set below is derived from it via get_args, so the read schema and the update
+# validator can never drift out of sync when a language is added or removed.
+LanguageCode = Literal["en", "pt-BR"]
+SUPPORTED_LANGUAGES = set(get_args(LanguageCode))
+
+
+class UserRead(SQLModel):
+    """Public read schema for the authenticated user's own profile.
+
+    Deliberately excludes sensitive fields (password_hash) and returns only the
+    safe subset the frontend needs to render and sync preferences.
+
+    Attributes:
+        id: User identifier.
+        email: Login email address.
+        name: Optional display name.
+        language: Preferred UI language code ("en" or "pt-BR").
+        created_at: Account creation timestamp.
+    """
+    id: UUID
+    email: str
+    name: Optional[str] = None
+    language: LanguageCode
+    created_at: datetime
+
+
+class UserUpdate(SQLModel):
+    """Input schema for updating the authenticated user's own preferences.
+
+    Only fields the user is allowed to self-edit are exposed here. `language`
+    is validated against SUPPORTED_LANGUAGES so an unsupported code is rejected
+    with a 422 rather than silently persisted.
+
+    Args:
+        language: New preferred UI language code (optional).
+    """
+    language: Optional[str] = None
+
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, value: Optional[str]) -> str:
+        """Reject any language code outside the supported set.
+
+        This validator only runs when `language` is actually present in the
+        request body (Pydantic does not validate the omitted default), so a
+        partial update that omits `language` stays valid. When the field *is*
+        supplied, `None` is rejected too — the column is non-nullable, so an
+        explicit `null` must fail cleanly with a 422 rather than reaching the
+        database and raising a 500.
+        """
+        if value is None or value not in SUPPORTED_LANGUAGES:
+            raise ValueError(
+                f"language must be one of {sorted(SUPPORTED_LANGUAGES)}"
+            )
+        return value
 
 
 class InviteCreate(SQLModel):
