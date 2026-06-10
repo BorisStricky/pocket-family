@@ -43,7 +43,7 @@ dev = [
     "aiosqlite==0.20.0",
 
     # Linting & formatting
-    "black==24.10.0",
+    "black==26.3.1",
     "isort==5.13.2",
 ]
 
