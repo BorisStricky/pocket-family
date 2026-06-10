@@ -549,6 +549,46 @@ describe('ImportWizard Integration', () => {
         expect(zeroButton).toBeDisabled();
       });
     });
+
+    it('opens AddCategoryModal from the category creation sentinel in a row category cell and closes it on success', async () => {
+      const user = userEvent.setup();
+      renderImportWizard();
+      await advanceWizardToReviewStep(user);
+
+      // Locate the unique row by its description input, then find the CategorySelect
+      // autocomplete inside the same row's category cell (placeholder is "Optional…")
+      const supermarketInput = screen.getByDisplayValue('Supermarket');
+      const uniqueRow = supermarketInput.closest('[role="row"]')!;
+      const categoryInput = within(uniqueRow).getByPlaceholderText('Optional…');
+
+      // Click the category autocomplete to open the options dropdown
+      await user.click(categoryInput);
+
+      // The "+ Create new category" sentinel should appear at the bottom of the options
+      const sentinel = await screen.findByRole('option', { name: /create new category/i });
+      expect(sentinel).toBeInTheDocument();
+
+      // Clicking the sentinel fires onCreateCategory, which opens AddCategoryModal
+      await user.click(sentinel);
+
+      // AddCategoryModal opens on top of the grid
+      const categoryModal = await screen.findByRole('dialog', { name: /add category/i });
+      expect(categoryModal).toBeInTheDocument();
+
+      // Fill in a new category name and submit
+      const nameInput = within(categoryModal).getByRole('textbox', { name: /category name/i });
+      await user.type(nameInput, 'Transport');
+      await user.click(within(categoryModal).getByRole('button', { name: /create category/i }));
+
+      // After successful creation, onSuccess calls setAddCategoryModalOpen(false) and
+      // onEditRow(pendingRowIndex, { categoryId }) to auto-assign the new category to the row
+      await waitFor(() => {
+        expect(screen.queryByRole('dialog', { name: /add category/i })).not.toBeInTheDocument();
+      });
+
+      // The ReviewStep remains intact — import count is unchanged
+      expect(screen.getByText(/of \d+ rows will be imported/i)).toBeInTheDocument();
+    });
   });
 
   // ── Step 3: ImportStep ────────────────────────────────────────────────────

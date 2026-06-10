@@ -4,9 +4,29 @@
 
 import { useMemo } from 'react';
 import { Autocomplete, TextField, Box, Typography } from '@mui/material';
+import { Plus } from 'lucide-react';
 import type { AccountRead } from '@/types/account';
 import { Icon } from '@/components/atoms/Icon';
 import type { IconName } from '@/components/atoms/Icon';
+
+// Sentinel ID used to represent the "Create new account" option in the dropdown.
+// When the user selects this option, onCreateNew is called instead of setting a value.
+const CREATE_NEW_ID = '__CREATE_ACCOUNT__';
+
+// Minimal sentinel object that satisfies the AccountRead shape for MUI Autocomplete
+const createNewSentinel: AccountRead = {
+  id: CREATE_NEW_ID,
+  user_id: '',
+  user_name: '',
+  name: '',
+  type: 'cash',
+  currency: 'BRL',
+  balance: null,
+  icon: null,
+  color: null,
+  created_at: '',
+  updated_at: '',
+};
 
 export interface AccountSelectProps {
   /** Currently selected account ID */
@@ -29,6 +49,8 @@ export interface AccountSelectProps {
   helperText?: string;
   /** Show a loading spinner in the input while accounts are fetching */
   loading?: boolean;
+  /** When provided, an inline "Create new account" option appears at the bottom of the list */
+  onCreateNew?: () => void;
 }
 
 /** Render the icon/color circle swatch for an account, or null if neither is set */
@@ -84,6 +106,7 @@ export function AccountSelect({
   error = false,
   helperText,
   loading = false,
+  onCreateNew,
 }: AccountSelectProps) {
   // Sort accounts alphabetically by name for consistent ordering
   const sortedAccounts = useMemo(
@@ -99,12 +122,38 @@ export function AccountSelect({
   return (
     <Autocomplete
       value={selectedAccount}
-      onChange={(_event, newValue) => onChange(newValue?.id ?? null)}
+      onChange={(_event, newValue) => {
+        // When the sentinel is selected, open the creation flow instead of setting a value
+        if (newValue?.id === CREATE_NEW_ID) {
+          onCreateNew?.();
+          return;
+        }
+        onChange(newValue?.id ?? null);
+      }}
       options={sortedAccounts}
-      getOptionLabel={(option) => `${option.name} (${option.type})`}
+      getOptionLabel={(option) => {
+        if (option.id === CREATE_NEW_ID) return '';
+        return `${option.name} (${option.type})`;
+      }}
       isOptionEqualToValue={(option, compareValue) => option.id === compareValue.id}
       disabled={disabled}
       loading={loading}
+      // Custom filter: match on the account label, then always append the
+      // "Create new account" sentinel at the bottom when onCreateNew is provided
+      filterOptions={(options, state) => {
+        const searchTerm = state.inputValue.toLowerCase();
+        const realOptions = options.filter((option) => option.id !== CREATE_NEW_ID);
+        const filtered = searchTerm
+          ? realOptions.filter((option) =>
+              `${option.name} (${option.type})`.toLowerCase().includes(searchTerm),
+            )
+          : realOptions;
+
+        if (onCreateNew) {
+          return [...filtered, createNewSentinel];
+        }
+        return filtered;
+      }}
       renderInput={(params) => (
         <TextField
           {...params}
@@ -129,19 +178,40 @@ export function AccountSelect({
           }}
         />
       )}
-      renderOption={(props, option) => (
-        <Box component="li" {...props} key={option.id}>
-          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
-            <AccountSwatch account={option} />
-            <Typography variant="body2" sx={{ flex: 1 }}>
-              {option.name}
-            </Typography>
-            <Typography variant="caption" color="text.secondary">
-              {option.type} · {option.currency}
-            </Typography>
+      renderOption={(props, option) => {
+        // Render the "Create new account" sentinel distinctively
+        if (option.id === CREATE_NEW_ID) {
+          return (
+            <Box
+              component="li"
+              {...props}
+              key={CREATE_NEW_ID}
+              sx={{ borderTop: '1px solid', borderColor: 'divider', color: 'primary.main' }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Plus size={16} />
+                <Typography variant="body2" color="primary" fontWeight={600}>
+                  + Create new account
+                </Typography>
+              </Box>
+            </Box>
+          );
+        }
+
+        return (
+          <Box component="li" {...props} key={option.id}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, width: '100%' }}>
+              <AccountSwatch account={option} />
+              <Typography variant="body2" sx={{ flex: 1 }}>
+                {option.name}
+              </Typography>
+              <Typography variant="caption" color="text.secondary">
+                {option.type} · {option.currency}
+              </Typography>
+            </Box>
           </Box>
-        </Box>
-      )}
+        );
+      }}
       noOptionsText="No accounts found"
     />
   );

@@ -6,13 +6,15 @@ import React from 'react';
 import { Dialog, DialogTitle, DialogContent, Alert } from '@mui/material';
 import { AccountForm } from './AccountForm';
 import { useCreateAccount } from '../hooks/useCreateAccount';
-import type { AccountCreate } from '@/types/account';
+import type { AccountCreate, AccountRead } from '@/types/account';
 
 interface AddAccountModalProps {
   open: boolean;
   onClose: () => void;
   /** When provided, auto-shares the new account with this family. Omit for global context. */
   familyId?: string;
+  /** Optional callback with the newly created account, e.g. to auto-select it in a parent form. */
+  onCreated?: (account: AccountRead) => void;
 }
 
 /**
@@ -24,7 +26,7 @@ interface AddAccountModalProps {
  * In global context (no familyId): the account is created without any shares;
  * the user can share it with families later.
  */
-export function AddAccountModal({ open, onClose, familyId }: AddAccountModalProps) {
+export function AddAccountModal({ open, onClose, familyId, onCreated }: AddAccountModalProps) {
   // Prevent closing on backdrop click to avoid accidental data loss on mobile
   const handleDialogClose = (_event: object, reason: string) => {
     if (reason === 'backdropClick') return;
@@ -46,7 +48,9 @@ export function AddAccountModal({ open, onClose, familyId }: AddAccountModalProp
       : data;
 
     createAccount(accountData, {
-      onSuccess: () => {
+      onSuccess: (newAccount) => {
+        // Notify parent so it can auto-select the new account (e.g. in TransactionForm)
+        onCreated?.(newAccount);
         onClose();
       },
     });
