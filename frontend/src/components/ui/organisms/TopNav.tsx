@@ -248,10 +248,12 @@ export default function TopNav({ user, globalMode = false, onMenuClick }: TopNav
 
         {/* Nested Language submenu: lists supported languages with a check on
             the active one. Anchored to the "Language" item via languageAnchorEl.
-            slotProps.root.disablePortal renders the submenu inside the same DOM
-            portal as the outer Menu rather than creating a second top-level Modal,
-            which avoids the dual-focus-trap and aria-hidden console warnings MUI
-            emits when two simultaneous portal Menus are open. */}
+
+            This must portal to <body> (the MUI default) so it stacks ABOVE the
+            outer user Menu's modal layer. If it renders inline instead (e.g. via
+            slotProps.root.disablePortal), the outer Menu's full-screen backdrop
+            sits on top of these items: a click then lands on that backdrop and
+            closes the menu instead of selecting a language. */}
         <Menu
           id="language-menu"
           anchorEl={languageAnchorEl}
@@ -259,7 +261,6 @@ export default function TopNav({ user, globalMode = false, onMenuClick }: TopNav
           onClose={handleMenuClose}
           anchorOrigin={{ vertical: 'top', horizontal: 'left' }}
           transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-          slotProps={{ root: { disablePortal: true } }}
           MenuListProps={{
             'aria-labelledby': 'language-menu-trigger',
           }}
