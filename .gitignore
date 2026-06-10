@@ -22,6 +22,12 @@ node_modules/*
 .agentic-qe
 .claude
 Agentic QCSD/*
+# Backup of CLAUDE.md created by Agentic QE init — machine-local, not for the repo
+CLAUDE.md.backup
+# Root-level node project from Agentic QE init (leading slash anchors to repo
+# root only, so frontend/package.json stays tracked)
+/package.json
+/package-lock.json
 
 # Frontend
 frontend/node_modules
