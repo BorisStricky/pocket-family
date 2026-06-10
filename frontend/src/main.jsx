@@ -9,6 +9,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { AuthProvider } from './features/auth/context/AuthContext';
 import AppRouter from './router';
 import theme from './theme';
+import './i18n'; // Initialize i18next (side-effect import) before rendering the app
 import './index.css'; // make sure Tailwind is configured and this file exists
 import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';

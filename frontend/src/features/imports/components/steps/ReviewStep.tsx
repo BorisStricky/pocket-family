@@ -7,7 +7,7 @@
 // (skip checkbox, description, category) are React cell renderers that read
 // shared state via params.context and call back into the wizard on changes.
 
-import React, { useEffect, useMemo, useRef } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Box,
@@ -23,8 +23,10 @@ import {
 import { AgGridReact } from 'ag-grid-react';
 import type { CellClassParams, ColDef, ICellRendererParams } from 'ag-grid-community';
 import { CategorySelect } from '@/components/domain/CategorySelect';
+import { AddCategoryModal } from '@/features/category/components/AddCategoryModal';
 import { useCategories } from '@/features/category/hooks/useCategories';
-import type { CategoryRead } from '@/types/category';
+import { useCreateCategory } from '@/features/category/hooks/useCreateCategory';
+import type { CategoryRead, CategoryCreate } from '@/types/category';
 import type { ParsedRow, RowEdit } from '../../types';
 
 interface ReviewStepProps {
@@ -39,6 +41,8 @@ interface ReviewContext {
   rowEdits: Record<number, RowEdit>;
   onEditRow: (rowIndex: number, edit: Partial<RowEdit>) => void;
   categories: CategoryRead[];
+  /** Opens AddCategoryModal pre-filled with the search text and row's transaction kind. */
+  onCreateCategory?: (inputText: string | undefined, rowIndex: number, kind?: 'expense' | 'income') => void;
 }
 
 function isRowSkipped(row: ParsedRow, rowEdits: Record<number, RowEdit>): boolean {
@@ -144,6 +148,11 @@ function CategoryCellRenderer(params: ICellRendererParams<ParsedRow>) {
         label=""
         placeholder="Optional…"
         disabled={skipped}
+        onCreateNew={
+          ctx.onCreateCategory
+            ? (inputText) => ctx.onCreateCategory!(inputText, row.row_index, effectiveType)
+            : undefined
+        }
       />
     </Box>
   );
@@ -175,6 +184,38 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
   const { data: categoriesResponse } = useCategories(familyId);
   const categories = Array.isArray(categoriesResponse) ? categoriesResponse : [];
   const gridRef = useRef<AgGridReact<ParsedRow>>(null);
+
+  // Inline category creation — opens AddCategoryModal from within the grid's Category cell
+  const { mutate: createCategory, isPending: isCreatingCategory, error: createCategoryError } =
+    useCreateCategory(familyId);
+  const [addCategoryModalOpen, setAddCategoryModalOpen] = useState(false);
+  const [pendingCategoryName, setPendingCategoryName] = useState('');
+  const [pendingCategoryKind, setPendingCategoryKind] = useState<'expense' | 'income'>('expense');
+  const [pendingRowIndex, setPendingRowIndex] = useState(-1);
+
+  // Called from the CategorySelect sentinel inside each grid row
+  const handleCreateCategoryRequest = (
+    inputText: string | undefined,
+    rowIndex: number,
+    kind?: 'expense' | 'income',
+  ) => {
+    setPendingCategoryName(inputText ?? '');
+    setPendingCategoryKind(kind ?? 'expense');
+    setPendingRowIndex(rowIndex);
+    setAddCategoryModalOpen(true);
+  };
+
+  // After successful creation, auto-assign the new category to the originating row
+  const handleInlineCategoryCreate = (data: CategoryCreate) => {
+    createCategory(data, {
+      onSuccess: (newCategory) => {
+        onEditRow(pendingRowIndex, { categoryId: newCategory.id });
+        setAddCategoryModalOpen(false);
+        setPendingCategoryName('');
+        setPendingRowIndex(-1);
+      },
+    });
+  };
 
   const includedCount = analyzedRows.filter((row) => {
     if (row.parse_error) return false;
@@ -263,6 +304,7 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
   }, []);
 
   return (
+    <>
     <Box>
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ mb: 2 }}>
         <Typography variant="body1">
@@ -296,7 +338,7 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
           ref={gridRef}
           rowData={analyzedRows}
           columnDefs={columnDefinitions}
-          context={{ rowEdits, onEditRow, categories }}
+          context={{ rowEdits, onEditRow, categories, onCreateCategory: handleCreateCategoryRequest }}
           theme="legacy"
           getRowId={(params) => String(params.data.row_index)}
           rowHeight={52}
@@ -305,5 +347,22 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
         />
       </Box>
     </Box>
+
+    {/* AddCategoryModal — opened from within any row's Category cell in the grid */}
+    <AddCategoryModal
+      open={addCategoryModalOpen}
+      onClose={() => {
+        setAddCategoryModalOpen(false);
+        setPendingCategoryName('');
+        setPendingRowIndex(-1);
+      }}
+      onCreate={handleInlineCategoryCreate}
+      kind={pendingCategoryKind}
+      initialName={pendingCategoryName}
+      categories={categories}
+      isLoading={isCreatingCategory}
+      error={createCategoryError instanceof Error ? createCategoryError.message : null}
+    />
+    </>
   );
 }

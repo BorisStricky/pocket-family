@@ -169,6 +169,8 @@ export const categoryHandlers = [
         kind: body.kind,
         parent_id: body.parent_id,
         parent_name: parentCategory.name,
+        icon: body.icon ?? null,
+        color: body.color ?? null,
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
@@ -187,6 +189,8 @@ export const categoryHandlers = [
       kind: body.kind,
       parent_id: null,
       parent_name: null,
+      icon: body.icon ?? null,
+      color: body.color ?? null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

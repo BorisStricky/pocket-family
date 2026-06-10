@@ -16,10 +16,10 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { http, HttpResponse } from 'msw';
 import userEvent from '@testing-library/user-event';
-import { screen, waitFor } from '@testing-library/react';
+import { screen, waitFor, within } from '@testing-library/react';
 import { Routes, Route } from 'react-router-dom';
-import { renderWithProviders, setupAuthenticatedUser, server } from '@/test/utils';
-import { resetTransactionStore } from '@/test/mocks/server';
+import { renderWithProviders, setupAuthenticatedUser, server, createMockExpenseCategory } from '@/test/utils';
+import { resetTransactionStore, resetAccountStore, resetCategoryStore } from '@/test/mocks/server';
 import { TransactionsPage } from '@/features/transactions/pages';
 
 const API_BASE = 'http://localhost:8000';
@@ -338,5 +338,126 @@ describe('TransactionsPage Integration', () => {
     await waitFor(() => {
       expect(screen.getByText(labelFor(-1))).toBeInTheDocument();
     });
+  });
+});
+
+describe('Inline create flows in Add Transaction modal', () => {
+  beforeEach(() => {
+    setupAuthenticatedUser(TENANT_ID);
+    resetTransactionStore();
+    resetAccountStore();
+    resetCategoryStore();
+    // Return empty list so the page renders quickly without grid data
+    server.use(
+      http.get(`${API_BASE}/transactions`, ({ request }) => {
+        if (!request.headers.get('Authorization')) {
+          return HttpResponse.json({ detail: 'Not authenticated' }, { status: 401 });
+        }
+        return HttpResponse.json([]);
+      })
+    );
+  });
+
+  it('shows the category creation sentinel in the Category dropdown and opens AddCategoryModal on top of the form', async () => {
+    const user = userEvent.setup();
+
+    // Single known expense category so the autocomplete loads with predictable options
+    server.use(
+      http.get(`${API_BASE}/categories`, ({ request }) => {
+        if (!request.headers.get('Authorization')) {
+          return HttpResponse.json({ detail: 'Not authenticated' }, { status: 401 });
+        }
+        return HttpResponse.json([
+          createMockExpenseCategory({ id: 'cat-food', name: 'Food' }),
+        ]);
+      })
+    );
+
+    renderTransactionsPage();
+
+    // Open the Add Transaction modal
+    const addButtons = await screen.findAllByRole('button', { name: /add transaction/i });
+    await user.click(addButtons[0]);
+    await screen.findByRole('dialog');
+
+    // Wait for the CategorySelect to appear — TransactionForm shows a spinner while
+    // isLoadingCategories is true. Use getByRole('combobox') because MUI Autocomplete
+    // associates the input with its label via aria-labelledby, not htmlFor.
+    const categoryInput = await screen.findByRole('combobox', { name: /category/i });
+
+    // Click to open the Autocomplete dropdown
+    await user.click(categoryInput);
+
+    // The sentinel option is always appended at the bottom when onCreateNew is provided
+    const sentinel = await screen.findByRole('option', { name: /create new category/i });
+    expect(sentinel).toBeInTheDocument();
+
+    // Clicking the sentinel calls onCreateNew and sets addCategoryModalOpen = true
+    await user.click(sentinel);
+
+    // AddCategoryModal has aria-labelledby="add-category-dialog-title" so it is
+    // findable by accessible name; it renders on top of the transaction dialog
+    const categoryModal = await screen.findByRole('dialog', { name: /add category/i });
+    expect(categoryModal).toBeInTheDocument();
+
+    // Fill in the new category name
+    const nameInput = within(categoryModal).getByRole('textbox', { name: /category name/i });
+    await user.type(nameInput, 'Groceries');
+
+    // Submit — MSW POST /categories returns the new category; onSuccess closes the modal
+    await user.click(within(categoryModal).getByRole('button', { name: /create category/i }));
+
+    // AddCategoryModal closes after successful creation
+    await waitFor(() => {
+      expect(screen.queryByRole('dialog', { name: /add category/i })).not.toBeInTheDocument();
+    });
+
+    // The Add Transaction dialog remains open — form context and other fields preserved
+    expect(screen.getByRole('heading', { name: 'Add Transaction' })).toBeInTheDocument();
+  });
+
+  it('shows the account creation sentinel in the Account dropdown and opens AddAccountModal on top of the form', async () => {
+    const user = userEvent.setup();
+    renderTransactionsPage();
+
+    // Open the Add Transaction modal
+    const addButtons = await screen.findAllByRole('button', { name: /add transaction/i });
+    await user.click(addButtons[0]);
+    const transactionDialog = await screen.findByRole('dialog');
+
+    // Locate the Account MUI Select by walking from its InputLabel text to the combobox.
+    // MUI renders InputLabel twice (floating label + legend shrink), both inside the same
+    // MuiFormControl-root, so we walk up from the first match.
+    const accountLabels = within(transactionDialog).getAllByText('Account');
+    const accountFormControl = accountLabels[0].closest('.MuiFormControl-root')!;
+    const accountCombobox = accountFormControl.querySelector('[role="combobox"]') as HTMLElement;
+    await user.click(accountCombobox);
+
+    // The "Create new account" sentinel is the last option in the MUI Select listbox
+    const listbox = await screen.findByRole('listbox');
+    const sentinel = within(listbox).getByRole('option', { name: /create new account/i });
+    await user.click(sentinel);
+
+    // AddAccountModal opens — AddAccountModal does not set aria-labelledby so we
+    // find it via its DialogTitle which MUI renders as an <h2>
+    const accountModalHeading = await screen.findByRole('heading', { name: 'Add Account' });
+    const accountModal = accountModalHeading.closest('[role="dialog"]') as HTMLElement;
+    expect(accountModal).toBeInTheDocument();
+
+    // Fill in the required account name field
+    const accountNameInput = within(accountModal).getByRole('textbox', { name: /account name/i });
+    await user.type(accountNameInput, 'My Savings Account');
+
+    // Submit — MSW POST /accounts returns the new account; onCreated sets account_id in the form
+    // AccountForm submit button says "Create Account" in create mode
+    await user.click(within(accountModal).getByRole('button', { name: /create account/i }));
+
+    // AddAccountModal closes after successful creation
+    await waitFor(() => {
+      expect(screen.queryByRole('heading', { name: 'Add Account' })).not.toBeInTheDocument();
+    });
+
+    // The Add Transaction dialog remains open
+    expect(screen.getByRole('heading', { name: 'Add Transaction' })).toBeInTheDocument();
   });
 });

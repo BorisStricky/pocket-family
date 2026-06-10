@@ -1,0 +1,25 @@
+{
+  "nav": {
+    "dashboard": "Painel",
+    "transactions": "Transações",
+    "accounts": "Contas",
+    "budgets": "Orçamentos",
+    "reports": "Relatórios",
+    "settings": "Configurações"
+  },
+  "userMenu": {
+    "seeAllAccounts": "Ver Todas as Contas",
+    "logout": "Sair",
+    "loggingOut": "Saindo...",
+    "language": "Idioma",
+    "languageUpdateFailed": "Não foi possível salvar sua preferência de idioma. Ela vale por agora, mas pode não ser mantida em outros dispositivos."
+  },
+  "language": {
+    "english": "English",
+    "portuguese": "Português (BR)"
+  },
+  "common": {
+    "cancel": "Cancelar",
+    "save": "Salvar"
+  }
+}

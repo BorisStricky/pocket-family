@@ -17,6 +17,8 @@ export interface AccountRead {
   type: AccountType; // Account type: cash, debit, or credit
   currency: Currency; // Currency code (BRL, USD, EUR)
   balance: string | null; // Current balance as string for precision, may be null if masked
+  icon: string | null; // lucide-react icon name for visual identity, null if not set
+  color: string | null; // hex color string (#RRGGBB) for display, null if not set
   created_at: string; // ISO datetime string
   updated_at: string; // ISO datetime string
 }
@@ -31,6 +33,8 @@ export interface AccountCreate {
   currency?: Currency; // Optional: defaults to BRL if not provided
   balance?: number | string; // Optional: initial balance, defaults to 0
   share_with?: AccountShareWith; // Optional: atomically share account with family on creation
+  icon?: string | null; // Optional: lucide-react icon name
+  color?: string | null; // Optional: hex color string (#RRGGBB)
 }
 
 /**
@@ -42,6 +46,8 @@ export interface AccountUpdate {
   type?: AccountType | null;
   currency?: Currency | null;
   balance?: number | string | null;
+  icon?: string | null; // Pass null to clear the icon
+  color?: string | null; // Pass null to clear the color
 }
 
 /**

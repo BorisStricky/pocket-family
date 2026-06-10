@@ -19,7 +19,7 @@ import userEvent from '@testing-library/user-event';
 import { screen, waitFor } from '@testing-library/react';
 import { Routes, Route } from 'react-router-dom';
 import { renderWithProviders, setupAuthenticatedUser, server } from '@/test/utils';
-import { resetTransactionStore, resetCategoryStore } from '@/test/mocks/server';
+import { resetTransactionStore, resetCategoryStore, resetBudgetStore } from '@/test/mocks/server';
 import { ReportsPage } from '@/features/reports/pages';
 import { formatReportAmount } from '@/features/reports/utils';
 
@@ -97,6 +97,7 @@ describe('ReportsPage Integration', () => {
     setupAuthenticatedUser(TENANT_ID);
     resetTransactionStore();
     resetCategoryStore();
+    resetBudgetStore();
   });
 
   it('renders the report heading and all four chart sections after data loads', async () => {
@@ -110,9 +111,38 @@ describe('ReportsPage Integration', () => {
     expect(screen.getByText('Expenses by Category')).toBeInTheDocument();
     expect(screen.getByText('Daily Income vs Expenses')).toBeInTheDocument();
     expect(screen.getByText('Expenses by User & Account')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: /^budgets$/i })).toBeInTheDocument();
     expect(screen.getByText('Total Income')).toBeInTheDocument();
     expect(screen.getByText('Total Expenses')).toBeInTheDocument();
     expect(screen.getByText('Net')).toBeInTheDocument();
+  });
+
+  it('renders each budget with its name and computed spent percentage', async () => {
+    useSeededData();
+    renderReportsPage();
+
+    // The default budget store seeds three budgets with known spent/amount ratios:
+    // 250/500 = 50%, 850/1000 = 85%, 2100/2000 = 105% (capped visually, shown as text).
+    await waitFor(() => {
+      expect(screen.getByText('Monthly Entertainment')).toBeInTheDocument();
+    });
+    expect(screen.getByText('Food & Groceries')).toBeInTheDocument();
+    expect(screen.getByText('Total Spending')).toBeInTheDocument();
+
+    expect(screen.getByText('50%')).toBeInTheDocument();
+    expect(screen.getByText('85%')).toBeInTheDocument();
+    expect(screen.getByText('105%')).toBeInTheDocument();
+  });
+
+  it('shows an empty budgets state when no budgets exist for the period', async () => {
+    useSeededData();
+    // Override the budgets endpoint to return no budgets for this month.
+    server.use(http.get(`${API_BASE}/budgets`, () => HttpResponse.json([])));
+    renderReportsPage();
+
+    await waitFor(() => {
+      expect(screen.getByText('No budgets for this period')).toBeInTheDocument();
+    });
   });
 
   it('computes KPI totals from the month\'s transactions', async () => {

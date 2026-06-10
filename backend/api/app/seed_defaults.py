@@ -34,18 +34,36 @@ from .models import (
 # ---------------------------------------------------------------------------
 # Default category definitions
 # ---------------------------------------------------------------------------
-# Each tuple is (parent_name, [child_names]).
-# Parents with no children use an empty list.
+# Each tuple is (parent_name, parent_icon, parent_color, [(child_name, child_icon), ...]).
+# Children inherit their parent's color for visual cohesion.
 # All default categories are EXPENSE kind because new users primarily
 # need to categorise their spending — income categories can be added later.
+# Icon names match Lucide React's PascalCase export names used in the frontend.
 
-_DEFAULT_CATEGORY_TREE: List[tuple[str, List[str]]] = [
-    ("Bills", []),
-    ("Food", ["Eat Out", "Groceries"]),
-    ("Leisure", ["Sports", "Movies", "Music"]),
-    ("Transport", ["Fuel", "Taxi/Uber"]),
-    ("Other", []),
+_DEFAULT_CATEGORY_TREE: List[tuple[str, str, str, List[tuple[str, str]]]] = [
+    ("Bills", "Receipt", "#EF4444", []),
+    ("Food", "Pizza", "#F97316", [
+        ("Eat Out", "ForkKnife"),
+        ("Groceries", "ShoppingCart"),
+    ]),
+    ("Leisure", "Smile", "#8B5CF6", [
+        ("Sports", "Dumbbell"),
+        ("Movies", "Film"),
+        ("Music", "Music"),
+    ]),
+    ("Transport", "Car", "#3B82F6", [
+        ("Fuel", "Fuel"),
+        ("Taxi/Uber", "CarTaxiFront"),
+    ]),
+    ("Other", "Package", "#6B7280", []),
 ]
+
+# Icon and color for default accounts created at signup, keyed by account type.
+_ACCOUNT_TYPE_ICON_COLOR: dict[str, tuple[str, str]] = {
+    "cash": ("Banknote", "#10B981"),
+    "debit": ("Landmark", "#3B82F6"),
+    "credit": ("CreditCard", "#EF4444"),
+}
 
 
 async def seed_tenant_defaults(
@@ -84,12 +102,14 @@ async def seed_tenant_defaults(
 
     # 1a) Create parent categories (top-level, no parent_id)
     parent_category_records: List[Category] = []
-    for parent_name, _child_names in _DEFAULT_CATEGORY_TREE:
+    for parent_name, parent_icon, parent_color, _children in _DEFAULT_CATEGORY_TREE:
         parent_category = Category(
             tenant_id=tenant.id,
             name=parent_name,
             kind=CategoryKind.EXPENSE,
             parent_id=None,
+            icon=parent_icon,
+            color=parent_color,
         )
         parent_category_records.append(parent_category)
 
@@ -107,13 +127,15 @@ async def seed_tenant_defaults(
     }
 
     child_category_records: List[Category] = []
-    for parent_name, child_names in _DEFAULT_CATEGORY_TREE:
-        for child_name in child_names:
+    for parent_name, _parent_icon, parent_color, children in _DEFAULT_CATEGORY_TREE:
+        for child_name, child_icon in children:
             child_category = Category(
                 tenant_id=tenant.id,
                 name=child_name,
                 kind=CategoryKind.EXPENSE,
                 parent_id=parent_lookup[parent_name].id,
+                icon=child_icon,
+                color=parent_color,
             )
             child_category_records.append(child_category)
 
@@ -171,12 +193,15 @@ async def seed_tenant_defaults(
     # Create one account per AccountType (CASH, DEBIT, CREDIT) and share
     # each with the new tenant so they appear in the family's account list.
     for account_type in AccountType:
+        account_icon, account_color = _ACCOUNT_TYPE_ICON_COLOR[account_type.value]
         account_record = Account(
             user_id=user.id,
             name=f"{display_name} {account_type.value.title()}",
             type=account_type,
             currency=Currency.BRL,
             balance=Decimal("0.00"),
+            icon=account_icon,
+            color=account_color,
         )
         database_session.add(account_record)
         # Flush to get the account ID before creating the share

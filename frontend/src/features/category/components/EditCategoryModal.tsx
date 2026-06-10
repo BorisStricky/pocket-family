@@ -15,6 +15,8 @@ import {
 } from '@mui/material';
 import type { CategoryRead, CategoryUpdate, CategoryKind } from '@/types/category';
 import { CategorySelect } from '@/components/domain/CategorySelect';
+import { IconPicker } from '@/components/ui/molecules/IconPicker';
+import { ColorSwatchPicker } from '@/components/ui/molecules/ColorSwatchPicker';
 
 /**
  * Props for EditCategoryModal component
@@ -64,18 +66,22 @@ export function EditCategoryModal({
   const [selectedParentId, setSelectedParentId] = useState<string | null>(
     category.parent_id
   );
+  const [selectedIcon, setSelectedIcon] = useState<string | null>(category.icon);
+  const [selectedColor, setSelectedColor] = useState<string | null>(category.color);
 
   // Form validation
   const [nameError, setNameError] = useState<string | null>(null);
 
   /**
-   * Reset form state when category prop changes
-   * This ensures form is updated when switching between categories
+   * Reset form state when category prop changes.
+   * This ensures form is updated when switching between categories.
    */
   useEffect(() => {
     setName(category.name);
     setSelectedKind(category.kind);
     setSelectedParentId(category.parent_id);
+    setSelectedIcon(category.icon);
+    setSelectedColor(category.color);
     setNameError(null);
   }, [category]);
 
@@ -104,7 +110,9 @@ export function EditCategoryModal({
     return (
       name.trim() !== category.name ||
       selectedKind !== category.kind ||
-      selectedParentId !== category.parent_id
+      selectedParentId !== category.parent_id ||
+      selectedIcon !== category.icon ||
+      selectedColor !== category.color
     );
   };
 
@@ -130,6 +138,13 @@ export function EditCategoryModal({
     if (selectedParentId !== category.parent_id) {
       updateData.parent_id = selectedParentId;
     }
+    // Always include icon/color so the user can clear them (null = "remove")
+    if (selectedIcon !== category.icon) {
+      updateData.icon = selectedIcon;
+    }
+    if (selectedColor !== category.color) {
+      updateData.color = selectedColor;
+    }
 
     // Only call onUpdate if there are actual changes
     if (Object.keys(updateData).length > 0) {
@@ -146,6 +161,8 @@ export function EditCategoryModal({
       setName(category.name);
       setSelectedKind(category.kind);
       setSelectedParentId(category.parent_id);
+      setSelectedIcon(category.icon);
+      setSelectedColor(category.color);
       setNameError(null);
       onClose();
     }
@@ -242,6 +259,18 @@ export function EditCategoryModal({
             categories={availableParentCategories}
             label="Parent Category (Optional)"
             placeholder="None - keep as top-level category"
+            disabled={isLoading}
+          />
+
+          {/* Icon and color selection for visual identity across the app */}
+          <IconPicker
+            value={selectedIcon}
+            onChange={setSelectedIcon}
+            disabled={isLoading}
+          />
+          <ColorSwatchPicker
+            value={selectedColor}
+            onChange={setSelectedColor}
             disabled={isLoading}
           />
         </Stack>

@@ -21,6 +21,8 @@ export interface BudgetRead {
   spent: number; // Calculated: total expense transactions for the month matching currency
   month: number; // Calendar month (1-12) the spent calculation covers
   year: number; // Calendar year the spent calculation covers
+  icon: string | null; // lucide-react icon name for visual identity, null if not set
+  color: string | null; // hex color string (#RRGGBB) for display, null if not set
   created_at: string; // ISO datetime string
   updated_at: string; // ISO datetime string
 }
@@ -36,6 +38,8 @@ export interface BudgetCreatePayload {
   amount: number; // Required: monthly spending limit (must be > 0)
   currency?: string; // Optional: ISO 4217 code, defaults to "BRL"
   category_ids?: string[]; // Optional: UUIDs of categories to track (empty = universal)
+  icon?: string | null; // Optional: lucide-react icon name
+  color?: string | null; // Optional: hex color string (#RRGGBB)
 }
 
 /**
@@ -50,4 +54,6 @@ export interface BudgetUpdatePayload {
   amount?: number; // Optional: new spending limit (must be > 0)
   currency?: string; // Optional: new ISO 4217 currency code
   category_ids?: string[]; // Optional: full replacement of category set
+  icon?: string | null; // Pass null to clear the icon
+  color?: string | null; // Pass null to clear the color
 }

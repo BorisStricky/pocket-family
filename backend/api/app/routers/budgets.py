@@ -83,6 +83,8 @@ async def _fetch_categories_for_budget(
             "kind": category_record.kind,
             "parent_id": category_record.parent_id,
             "parent_name": row.parent_name,
+            "icon": category_record.icon,
+            "color": category_record.color,
             "created_at": category_record.created_at,
             "updated_at": category_record.updated_at,
         })
@@ -181,6 +183,8 @@ async def _build_budget_read(
         "spent": spent_amount,
         "month": month,
         "year": year,
+        "icon": budget_record.icon,
+        "color": budget_record.color,
         "created_at": budget_record.created_at,
         "updated_at": budget_record.updated_at,
     }
@@ -412,6 +416,8 @@ async def create_budget(
         name=payload.name,
         amount=payload.amount,
         currency=payload.currency or Currency.BRL,
+        icon=payload.icon,
+        color=payload.color,
     )
     database_session.add(budget_record)
     await database_session.flush()
@@ -487,13 +493,19 @@ async def update_budget(
             detail="Budget not found",
         )
 
-    # Apply scalar field updates from the payload
-    if payload.name is not None:
-        budget_record.name = payload.name
-    if payload.amount is not None:
-        budget_record.amount = payload.amount
-    if payload.currency is not None:
-        budget_record.currency = payload.currency
+    # Apply scalar field updates from the payload. Use exclude_unset so fields absent
+    # from the request body are not touched, while fields explicitly set to None
+    # (e.g. clearing an icon) are applied. category_ids is excluded here because it
+    # requires special sync logic handled separately below.
+    # Guard against None being passed for NOT NULL columns (e.g. name, amount, currency)
+    # which would cause an IntegrityError at commit time. Only icon and color are
+    # genuinely nullable database columns and may legitimately be cleared to null.
+    NULLABLE_FIELDS = {'icon', 'color'}
+    scalar_updates = payload.model_dump(exclude_unset=True, exclude={"category_ids"})
+    for field_name, field_value in scalar_updates.items():
+        if field_value is None and field_name not in NULLABLE_FIELDS:
+            continue
+        setattr(budget_record, field_name, field_value)
 
     # Update the modification timestamp
     budget_record.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)

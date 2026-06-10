@@ -138,6 +138,8 @@ export const accountHandlers = [
       type: body.type || 'debit',
       currency: body.currency || 'USD',
       balance: body.balance || '0.00',
+      icon: body.icon ?? null,
+      color: body.color ?? null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

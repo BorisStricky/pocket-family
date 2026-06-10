@@ -25,6 +25,7 @@ import ReportTotals from '../components/ReportTotals';
 import DailyAmountsBarChart from '../components/DailyAmountsBarChart';
 import CategoryPieChart from '../components/CategoryPieChart';
 import UserAccountDonut from '../components/UserAccountDonut';
+import BudgetProgressChart from '../components/BudgetProgressChart';
 
 export function ReportsPage() {
   const { familyId } = useParams<{ familyId: string }>();
@@ -130,9 +131,10 @@ export function ReportsPage() {
         />
       </Box>
 
-      {/* Charts grid. Every chart shares the selection + onSelect handler for cross-filtering.
-          Layout: second row = category pie + user/account donut side by side;
-          third row = the daily bar chart spanning the full width. */}
+      {/* Charts grid. The cross-filtered charts share the selection + onSelect handler.
+          Layout: first row = category pie + user/account donut side by side;
+          second row = per-budget progress bars; third row = the daily bar chart,
+          each spanning the full width. */}
       <Grid container spacing={3}>
         <Grid size={{ xs: 12, md: 6 }}>
           <CategoryPieChart
@@ -152,6 +154,12 @@ export function ReportsPage() {
             selection={selection}
             onSelect={setSelection}
           />
+        </Grid>
+        {/* Budget progress for the selected month, sitting between the pie charts and
+            the daily expenses graph. It fetches its own budget data (with per-budget
+            currency) so it stands apart from the cross-filter selection. */}
+        <Grid size={{ xs: 12 }}>
+          <BudgetProgressChart familyId={familyId!} year={period.year} month={period.month} />
         </Grid>
         <Grid size={{ xs: 12 }}>
           <DailyAmountsBarChart

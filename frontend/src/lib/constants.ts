@@ -7,6 +7,10 @@
 export const STORAGE_KEYS = {
   ACCESS_TOKEN: 'pf_access_token',
   REFRESH_TOKEN: 'pf_refresh_token',
+  // Preferred UI language code ("en" or "pt-BR"). Read synchronously at i18n
+  // init so the chosen language applies instantly on load, before any network
+  // call to /users/me completes.
+  LANGUAGE: 'pf_language',
 } as const;
 
 /**
@@ -62,6 +66,9 @@ export const API_ENDPOINTS = {
   // Categories
   CATEGORIES: '/categories',
   CATEGORY_BY_ID: '/categories/:id',
+
+  // Current user profile / preferences
+  USERS_ME: '/users/me',
 
   // Budgets
   BUDGETS: '/budgets',

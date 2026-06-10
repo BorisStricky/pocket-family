@@ -78,6 +78,9 @@ def test_read_base_category(client, category_base_fixture):
     assert fetched_category["id"] == base_category["id"]
     assert fetched_category["name"] == base_category["name"]
     assert fetched_category["kind"] == base_category["kind"]
+    # icon and color must always be present in the response, defaulting to None
+    assert fetched_category["icon"] is None
+    assert fetched_category["color"] is None
 
 
 def test_list_categories_includes_base(client, category_base_fixture):
@@ -91,6 +94,11 @@ def test_list_categories_includes_base(client, category_base_fixture):
     categories = categories_list_response.json()
     category_ids = [category["id"] for category in categories]
     assert base_category["id"] in category_ids
+
+    # Every category in the list must expose icon and color keys (null when unset)
+    for category in categories:
+        assert "icon" in category
+        assert "color" in category
 
 
 def test_update_base_category(client, category_base_fixture):
@@ -128,3 +136,56 @@ def test_delete_base_category(client, category_base_fixture):
     categories = categories_list_response.json()
     category_ids = [category["id"] for category in categories]
     assert base_category["id"] not in category_ids
+
+
+def test_create_category_with_icon_and_color(client, category_base_fixture):
+    """CREATE with icon/color: assert both fields round-trip through POST /categories."""
+    headers = category_base_fixture["headers"]
+
+    payload = {"name": "Transport", "kind": "expense", "icon": "ShoppingCart", "color": "#F44336"}
+    response = client.post("/categories", json=payload, headers=headers)
+    assert response.status_code == 200, response.text
+
+    created_category = response.json()
+    assert created_category["icon"] == "ShoppingCart"
+    assert created_category["color"] == "#F44336"
+
+
+def test_update_category_icon_and_color(client, category_base_fixture):
+    """UPDATE icon/color: PATCH with new values and assert the changes persisted."""
+    headers = category_base_fixture["headers"]
+    base_category = category_base_fixture["base_category"]
+
+    update_response = client.patch(
+        f"/categories/{base_category['id']}",
+        json={"icon": "Coffee", "color": "#2196F3"},
+        headers=headers,
+    )
+    assert update_response.status_code == 200, update_response.text
+
+    updated_category = update_response.json()
+    assert updated_category["icon"] == "Coffee"
+    assert updated_category["color"] == "#2196F3"
+
+
+def test_clear_category_icon_and_color(client, category_base_fixture):
+    """CLEAR icon/color: PATCH with explicit null values and assert fields become None."""
+    headers = category_base_fixture["headers"]
+
+    # Create a category that has icon and color set
+    payload = {"name": "Leisure", "kind": "expense", "icon": "Music", "color": "#9C27B0"}
+    create_response = client.post("/categories", json=payload, headers=headers)
+    assert create_response.status_code == 200, create_response.text
+    created_category = create_response.json()
+
+    # Clear both fields with explicit null
+    clear_response = client.patch(
+        f"/categories/{created_category['id']}",
+        json={"icon": None, "color": None},
+        headers=headers,
+    )
+    assert clear_response.status_code == 200, clear_response.text
+
+    cleared_category = clear_response.json()
+    assert cleared_category["icon"] is None
+    assert cleared_category["color"] is None

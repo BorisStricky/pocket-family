@@ -15,6 +15,8 @@ import {
 } from '@mui/material';
 import type { CategoryCreate, CategoryKind, CategoryRead } from '@/types/category';
 import { CategorySelect } from '@/components/domain/CategorySelect';
+import { IconPicker } from '@/components/ui/molecules/IconPicker';
+import { ColorSwatchPicker } from '@/components/ui/molecules/ColorSwatchPicker';
 
 /**
  * Props for AddCategoryModal component
@@ -36,6 +38,8 @@ export interface AddCategoryModalProps {
   isLoading?: boolean;
   /** Optional error message */
   error?: string | null;
+  /** Optional initial name to pre-fill (e.g. from a search typed in CategorySelect) */
+  initialName?: string;
 }
 
 /**
@@ -59,26 +63,32 @@ export function AddCategoryModal({
   categories,
   isLoading = false,
   error = null,
+  initialName = '',
 }: AddCategoryModalProps) {
   // Form state
   const [name, setName] = useState('');
   const [selectedKind, setSelectedKind] = useState<CategoryKind>(kind);
   const [selectedParentId, setSelectedParentId] = useState<string | null>(parentId);
+  const [selectedIcon, setSelectedIcon] = useState<string | null>(null);
+  const [selectedColor, setSelectedColor] = useState<string | null>(null);
 
   // Form validation
   const [nameError, setNameError] = useState<string | null>(null);
 
   // Sync form state from props whenever the modal opens.
   // useState only uses its initial value on first mount, so when the always-mounted
-  // modal reopens with different kind/parentId props, we must explicitly update state.
+  // modal reopens with different kind/parentId/initialName props, we must explicitly update state.
   useEffect(() => {
     if (open) {
       setSelectedKind(kind);
       setSelectedParentId(parentId);
-      setName('');
+      // Pre-fill name from the search text the user typed in CategorySelect (if any)
+      setName(initialName ?? '');
       setNameError(null);
+      setSelectedIcon(null);
+      setSelectedColor(null);
     }
-  }, [open, kind, parentId]);
+  }, [open, kind, parentId, initialName]);
 
   /**
    * Validate category name input
@@ -112,6 +122,8 @@ export function AddCategoryModal({
       name: name.trim(),
       kind: selectedKind,
       parent_id: selectedParentId,
+      icon: selectedIcon,
+      color: selectedColor,
     };
 
     onCreate(categoryData);
@@ -209,6 +221,18 @@ export function AddCategoryModal({
             categories={parentCategoriesForKind}
             label="Parent Category (Optional)"
             placeholder="None - create as top-level category"
+            disabled={isLoading}
+          />
+
+          {/* Icon and color selection for visual identity across the app */}
+          <IconPicker
+            value={selectedIcon}
+            onChange={setSelectedIcon}
+            disabled={isLoading}
+          />
+          <ColorSwatchPicker
+            value={selectedColor}
+            onChange={setSelectedColor}
             disabled={isLoading}
           />
         </Stack>
