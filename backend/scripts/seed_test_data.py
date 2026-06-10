@@ -107,6 +107,37 @@ def generate_dates_for_month(year: int, month: int, count: int) -> list[date]:
 
 
 # ---------------------------------------------------------------------------
+# Icon / color mappings for seeded test data
+# ---------------------------------------------------------------------------
+# Icon names match Lucide React PascalCase exports used by the frontend.
+# Category icon slots use generic but visually distinct icons so the UI
+# is testable without relying on realistic category names.
+_CATEGORY_ICON_MAP: dict[str, tuple[str, str]] = {
+    "cat1":   ("Tag",       "#6366F1"),
+    "cat1_1": ("Tag",       "#6366F1"),
+    "cat1_2": ("Tag",       "#6366F1"),
+    "cat1_3": ("Tag",       "#6366F1"),
+    "cat2":   ("Tags",      "#EC4899"),
+    "cat2_1": ("Tags",      "#EC4899"),
+    "cat2_2": ("Tags",      "#EC4899"),
+    "cat3":   ("Folder",    "#F59E0B"),
+    "income": ("TrendingUp","#10B981"),
+}
+
+# One icon + color per account type — matches the defaults used in seed_defaults.py.
+_ACCOUNT_TYPE_ICON_MAP: dict[AccountType, tuple[str, str]] = {
+    AccountType.CASH:   ("Banknote",   "#10B981"),
+    AccountType.DEBIT:  ("Landmark",   "#3B82F6"),
+    AccountType.CREDIT: ("CreditCard", "#EF4444"),
+}
+
+# Global accounts are cash-type but use a neutral color to distinguish them
+# from family-scoped accounts in the UI.
+_GLOBAL_ACCOUNT_ICON = "Wallet"
+_GLOBAL_ACCOUNT_COLOR = "#6B7280"
+
+
+# ---------------------------------------------------------------------------
 # Main seed logic
 # ---------------------------------------------------------------------------
 async def seed():
@@ -222,11 +253,17 @@ async def seed():
         for code, (tenant, owner) in family_map.items():
             accounts = [
                 Account(id=uuid4(), user_id=owner.id, name=f"{code} Cash",
-                        type=AccountType.CASH, currency=Currency.BRL, balance=Decimal("0.00")),
+                        type=AccountType.CASH, currency=Currency.BRL, balance=Decimal("0.00"),
+                        icon=_ACCOUNT_TYPE_ICON_MAP[AccountType.CASH][0],
+                        color=_ACCOUNT_TYPE_ICON_MAP[AccountType.CASH][1]),
                 Account(id=uuid4(), user_id=owner.id, name=f"{code} Debit Card",
-                        type=AccountType.DEBIT, currency=Currency.BRL, balance=Decimal("0.00")),
+                        type=AccountType.DEBIT, currency=Currency.BRL, balance=Decimal("0.00"),
+                        icon=_ACCOUNT_TYPE_ICON_MAP[AccountType.DEBIT][0],
+                        color=_ACCOUNT_TYPE_ICON_MAP[AccountType.DEBIT][1]),
                 Account(id=uuid4(), user_id=owner.id, name=f"{code} Credit Card",
-                        type=AccountType.CREDIT, currency=Currency.BRL, balance=Decimal("0.00")),
+                        type=AccountType.CREDIT, currency=Currency.BRL, balance=Decimal("0.00"),
+                        icon=_ACCOUNT_TYPE_ICON_MAP[AccountType.CREDIT][0],
+                        color=_ACCOUNT_TYPE_ICON_MAP[AccountType.CREDIT][1]),
             ]
             family_accounts[code] = accounts
             session.add_all(accounts)
@@ -244,11 +281,14 @@ async def seed():
         # ------------------------------------------------------------------
         print("Creating global accounts...")
         global_0 = Account(id=uuid4(), user_id=user1.id, name="Global 0",
-                           type=AccountType.CASH, currency=Currency.BRL, balance=Decimal("0.00"))
+                           type=AccountType.CASH, currency=Currency.BRL, balance=Decimal("0.00"),
+                           icon=_GLOBAL_ACCOUNT_ICON, color=_GLOBAL_ACCOUNT_COLOR)
         global_12 = Account(id=uuid4(), user_id=user1.id, name="Global 1-2",
-                            type=AccountType.CASH, currency=Currency.BRL, balance=Decimal("0.00"))
+                            type=AccountType.CASH, currency=Currency.BRL, balance=Decimal("0.00"),
+                            icon=_GLOBAL_ACCOUNT_ICON, color=_GLOBAL_ACCOUNT_COLOR)
         global_123 = Account(id=uuid4(), user_id=user1.id, name="Global 1-2-3",
-                             type=AccountType.CASH, currency=Currency.BRL, balance=Decimal("0.00"))
+                             type=AccountType.CASH, currency=Currency.BRL, balance=Decimal("0.00"),
+                             icon=_GLOBAL_ACCOUNT_ICON, color=_GLOBAL_ACCOUNT_COLOR)
         session.add_all([global_0, global_12, global_123])
         await session.flush()
 
@@ -290,26 +330,39 @@ async def seed():
         for code, (tenant, _owner) in family_map.items():
             categories: dict[str, Category] = {}
 
-            # Parent categories
-            category_1 = Category(id=uuid4(), tenant_id=tenant.id, name=f"{code} Category 1", kind=CategoryKind.EXPENSE)
-            category_2 = Category(id=uuid4(), tenant_id=tenant.id, name=f"{code} Category 2", kind=CategoryKind.EXPENSE)
-            category_3 = Category(id=uuid4(), tenant_id=tenant.id, name=f"{code} Category 3", kind=CategoryKind.EXPENSE)
-            income = Category(id=uuid4(), tenant_id=tenant.id, name=f"{code} Income", kind=CategoryKind.INCOME)
+            # Parent categories — icons assigned per slot so test data is visually navigable
+            category_1 = Category(id=uuid4(), tenant_id=tenant.id, name=f"{code} Category 1",
+                                  kind=CategoryKind.EXPENSE,
+                                  icon=_CATEGORY_ICON_MAP["cat1"][0], color=_CATEGORY_ICON_MAP["cat1"][1])
+            category_2 = Category(id=uuid4(), tenant_id=tenant.id, name=f"{code} Category 2",
+                                  kind=CategoryKind.EXPENSE,
+                                  icon=_CATEGORY_ICON_MAP["cat2"][0], color=_CATEGORY_ICON_MAP["cat2"][1])
+            category_3 = Category(id=uuid4(), tenant_id=tenant.id, name=f"{code} Category 3",
+                                  kind=CategoryKind.EXPENSE,
+                                  icon=_CATEGORY_ICON_MAP["cat3"][0], color=_CATEGORY_ICON_MAP["cat3"][1])
+            income = Category(id=uuid4(), tenant_id=tenant.id, name=f"{code} Income",
+                              kind=CategoryKind.INCOME,
+                              icon=_CATEGORY_ICON_MAP["income"][0], color=_CATEGORY_ICON_MAP["income"][1])
             session.add_all([category_1, category_2, category_3, income])
             await session.flush()
 
             # Child categories for Category 1
             category_1_1 = Category(id=uuid4(), tenant_id=tenant.id, name=f"{code} Category 1-1",
-                                    kind=CategoryKind.EXPENSE, parent_id=category_1.id)
+                                    kind=CategoryKind.EXPENSE, parent_id=category_1.id,
+                                    icon=_CATEGORY_ICON_MAP["cat1_1"][0], color=_CATEGORY_ICON_MAP["cat1_1"][1])
             category_1_2 = Category(id=uuid4(), tenant_id=tenant.id, name=f"{code} Category 1-2",
-                                    kind=CategoryKind.EXPENSE, parent_id=category_1.id)
+                                    kind=CategoryKind.EXPENSE, parent_id=category_1.id,
+                                    icon=_CATEGORY_ICON_MAP["cat1_2"][0], color=_CATEGORY_ICON_MAP["cat1_2"][1])
             category_1_3 = Category(id=uuid4(), tenant_id=tenant.id, name=f"{code} Category 1-3",
-                                    kind=CategoryKind.EXPENSE, parent_id=category_1.id)
+                                    kind=CategoryKind.EXPENSE, parent_id=category_1.id,
+                                    icon=_CATEGORY_ICON_MAP["cat1_3"][0], color=_CATEGORY_ICON_MAP["cat1_3"][1])
             # Child categories for Category 2
             category_2_1 = Category(id=uuid4(), tenant_id=tenant.id, name=f"{code} Category 2-1",
-                                    kind=CategoryKind.EXPENSE, parent_id=category_2.id)
+                                    kind=CategoryKind.EXPENSE, parent_id=category_2.id,
+                                    icon=_CATEGORY_ICON_MAP["cat2_1"][0], color=_CATEGORY_ICON_MAP["cat2_1"][1])
             category_2_2 = Category(id=uuid4(), tenant_id=tenant.id, name=f"{code} Category 2-2",
-                                    kind=CategoryKind.EXPENSE, parent_id=category_2.id)
+                                    kind=CategoryKind.EXPENSE, parent_id=category_2.id,
+                                    icon=_CATEGORY_ICON_MAP["cat2_2"][0], color=_CATEGORY_ICON_MAP["cat2_2"][1])
             session.add_all([category_1_1, category_1_2, category_1_3, category_2_1, category_2_2])
 
             categories = {
@@ -322,24 +375,163 @@ async def seed():
         await session.flush()
 
         # ------------------------------------------------------------------
-        # 8. Create budgets (4 per family = 24 total)
+        # 8. Generate expense transactions (600 per family = 3,600 total)
         # ------------------------------------------------------------------
+        # Also track spend per category ID so budget amounts can be calibrated
+        # after the fact to land in the 30-110% utilisation target range.
+        family_category_spend: dict[str, dict[object, Decimal]] = {
+            code: {} for code in family_map
+        }
+
+        print("Generating expense transactions...")
+        # Current month + 2 preceding months (oldest gets most transactions)
+        today = date.today()
+        months = []
+        for months_ago in range(2, -1, -1):
+            year = today.year
+            month = today.month - months_ago
+            while month <= 0:
+                month += 12
+                year -= 1
+            months.append((year, month))
+        month_specs = [(year, month, count) for (year, month), count in zip(months, [300, 200, 100])]
+        total_expense_count = 0
+
+        for code, (tenant, owner) in family_map.items():
+            # Only use EXPENSE categories for expense transactions
+            expense_categories = [
+                category for key, category in family_categories[code].items()
+                if key != "income"
+            ]
+            accounts = family_accounts[code]
+            spend_map = family_category_spend[code]
+
+            for year, month, count in month_specs:
+                dates = generate_dates_for_month(year, month, count)
+                transaction_batch = []
+                for transaction_date in dates:
+                    chosen_category = random.choice(expense_categories)
+                    chosen_account = random.choice(accounts)
+                    amount = random_amount()
+
+                    # Accumulate spend per category for budget amount calibration
+                    spend_map[chosen_category.id] = (
+                        spend_map.get(chosen_category.id, Decimal("0")) + amount
+                    )
+
+                    transaction_batch.append(Transaction(
+                        id=uuid4(),
+                        tenant_id=tenant.id,
+                        account_id=chosen_account.id,
+                        category_id=chosen_category.id,
+                        transaction_date=transaction_date,
+                        transaction_type=TransactionType.EXPENSE,
+                        amount=amount,
+                        currency=Currency.BRL,
+                        created_by=owner.id,
+                        description=random_description(),
+                        source=TransactionSource.MANUAL,
+                    ))
+
+                session.add_all(transaction_batch)
+                total_expense_count += len(transaction_batch)
+
+            family_total = sum(count for _, _, count in month_specs)
+            print(f"  {code}: {family_total} expense transactions")
+
+        # ------------------------------------------------------------------
+        # 9. Generate income transactions (6 per family = 36 total)
+        # ------------------------------------------------------------------
+        # Two salary deposits per month over the same 3-month window.
+        # Total income per family = total expense spend / 0.75, so expenses
+        # land at roughly 75% of income — a healthy surplus for testing.
+        print("Generating income transactions...")
+        total_income_count = 0
+
+        for code, (tenant, owner) in family_map.items():
+            total_family_expense = sum(family_category_spend[code].values())
+            # 6 paydays across 3 months, income sized so expense/income ≈ 0.75
+            income_per_payday = (
+                total_family_expense / Decimal("0.75") / Decimal("6")
+            ).quantize(Decimal("0.01"))
+
+            income_category = family_categories[code]["income"]
+            # Salary arrives in the debit account (index 1 among the 3 family accounts)
+            debit_account = next(
+                account for account in family_accounts[code][:3]
+                if account.type == AccountType.DEBIT
+            )
+
+            income_batch = []
+            for year, month, _count in month_specs:
+                for payday_day in (1, 15):
+                    try:
+                        payday_date = date(year, month, payday_day)
+                    except ValueError:
+                        continue
+                    income_batch.append(Transaction(
+                        id=uuid4(),
+                        tenant_id=tenant.id,
+                        account_id=debit_account.id,
+                        category_id=income_category.id,
+                        transaction_date=payday_date,
+                        transaction_type=TransactionType.INCOME,
+                        amount=income_per_payday,
+                        currency=Currency.BRL,
+                        created_by=owner.id,
+                        description="Salary",
+                        source=TransactionSource.MANUAL,
+                    ))
+
+            session.add_all(income_batch)
+            total_income_count += len(income_batch)
+            print(f"  {code}: {len(income_batch)} income transactions ({income_per_payday} BRL/payday)")
+
+        await session.flush()
+
+        # ------------------------------------------------------------------
+        # 10. Create budgets (4 per family = 24 total)
+        # ------------------------------------------------------------------
+        # Amounts are computed from actual expense spend so each budget's
+        # utilisation is randomised in [0.30, 1.10] — a realistic mix of
+        # on-track, under-budget, and slightly-over budgets.
         print("Creating budgets...")
+
+        def _calibrated_amount(spend_total: Decimal) -> Decimal:
+            """Return a budget amount placing spend_total at 30-110% utilisation."""
+            if spend_total == Decimal("0"):
+                return Decimal("1000.00")
+            utilization = Decimal(str(random.uniform(0.30, 1.10)))
+            return (spend_total / utilization).quantize(Decimal("0.01"))
+
         for code, (tenant, _owner) in family_map.items():
             categories = family_categories[code]
+            spend = family_category_spend[code]
 
-            # Budget 0 — no categories (universal)
+            total_expense_spend = sum(spend.values())
+
+            budget_1_spend = sum(
+                spend.get(categories[k].id, Decimal("0"))
+                for k in ("cat1", "cat1_1", "cat1_2", "cat1_3")
+            )
+            budget_2_spend = sum(
+                spend.get(categories[k].id, Decimal("0"))
+                for k in ("cat2", "cat2_1", "cat2_2")
+            )
+            budget_3_spend = spend.get(categories["cat3"].id, Decimal("0"))
+
+            # Budget 0 — no category links; amount sized to total family spend
             budget_0 = Budget(id=uuid4(), tenant_id=tenant.id, name=f"{code} Budget 0",
-                              amount=Decimal("5000.00"), currency=Currency.BRL)
+                              amount=_calibrated_amount(total_expense_spend), currency=Currency.BRL)
             # Budget 1 — Category 1 + subcategories
             budget_1 = Budget(id=uuid4(), tenant_id=tenant.id, name=f"{code} Budget 1",
-                              amount=Decimal("2000.00"), currency=Currency.BRL)
+                              amount=_calibrated_amount(budget_1_spend), currency=Currency.BRL)
             # Budget 2 — Category 2 + subcategories
             budget_2 = Budget(id=uuid4(), tenant_id=tenant.id, name=f"{code} Budget 2",
-                              amount=Decimal("1500.00"), currency=Currency.BRL)
+                              amount=_calibrated_amount(budget_2_spend), currency=Currency.BRL)
             # Budget 3 — Category 3 only
             budget_3 = Budget(id=uuid4(), tenant_id=tenant.id, name=f"{code} Budget 3",
-                              amount=Decimal("500.00"), currency=Currency.BRL)
+                              amount=_calibrated_amount(budget_3_spend), currency=Currency.BRL)
             session.add_all([budget_0, budget_1, budget_2, budget_3])
             await session.flush()
 
@@ -364,63 +556,9 @@ async def seed():
         await session.flush()
 
         # ------------------------------------------------------------------
-        # 9. Generate transactions (600 per family = 3,600 total)
+        # 11. Commit everything
         # ------------------------------------------------------------------
-        print("Generating transactions...")
-        # Current month + 2 preceding months (oldest gets most transactions)
-        today = date.today()
-        months = []
-        for months_ago in range(2, -1, -1):
-            year = today.year
-            month = today.month - months_ago
-            while month <= 0:
-                month += 12
-                year -= 1
-            months.append((year, month))
-        month_specs = [(year, month, count) for (year, month), count in zip(months, [300, 200, 100])]
-        total_transaction_count = 0
-
-        for code, (tenant, owner) in family_map.items():
-            # Only use EXPENSE categories for transactions
-            expense_categories = [
-                category for key, category in family_categories[code].items()
-                if key != "income"
-            ]
-            accounts = family_accounts[code]
-
-            for year, month, count in month_specs:
-                dates = generate_dates_for_month(year, month, count)
-                transaction_batch = []
-                for transaction_date in dates:
-                    chosen_category = random.choice(expense_categories)
-                    chosen_account = random.choice(accounts)
-                    amount = random_amount()
-
-                    transaction_batch.append(Transaction(
-                        id=uuid4(),
-                        tenant_id=tenant.id,
-                        account_id=chosen_account.id,
-                        category_id=chosen_category.id,
-                        transaction_date=transaction_date,
-                        transaction_type=TransactionType.EXPENSE,
-                        amount=amount,
-                        currency=Currency.BRL,
-                        created_by=owner.id,
-                        description=random_description(),
-                        source=TransactionSource.MANUAL,
-                    ))
-
-                session.add_all(transaction_batch)
-                total_transaction_count += len(transaction_batch)
-
-            family_total = sum(count for _, _, count in month_specs)
-            print(f"  {code}: {family_total} transactions created")
-
-        await session.flush()
-
-        # ------------------------------------------------------------------
-        # 10. Commit everything
-        # ------------------------------------------------------------------
+        total_transaction_count = total_expense_count + total_income_count
         await session.commit()
         print(f"\nSeed complete!")
         print(f"  Users:        3")
@@ -430,7 +568,7 @@ async def seed():
         print(f"  AccountShares: {18 + 5} (18 family + 5 global)")
         print(f"  Categories:   54 (9 per family)")
         print(f"  Budgets:      24 (4 per family)")
-        print(f"  Transactions: {total_transaction_count}")
+        print(f"  Transactions: {total_transaction_count} ({total_expense_count} expense + {total_income_count} income)")
 
 
 if __name__ == "__main__":

@@ -25,7 +25,7 @@ from datetime import date, datetime, timedelta, timezone
 from decimal import Decimal
 from typing import Dict, List
 
-from sqlalchemy import delete
+from sqlalchemy import delete, func
 from sqlmodel import select
 
 _HERE = os.path.dirname(os.path.abspath(__file__))
@@ -128,7 +128,10 @@ _ACCOUNT_TYPE_WEIGHTS: Dict[AccountType, float] = {
 
 # Monthly recurring income approximations.
 _INCOME_DAYS = (1, 15)
-_INCOME_AMOUNT = Decimal("2500.00")
+# Expected demo expense spend is ~35 300 BRL/month (1 000 transactions at
+# weighted average ~106 BRL, spread over 3 months). Setting income to
+# ~47 000 BRL/month (2 × 23 500) keeps expenses around 75% of income.
+_INCOME_AMOUNT = Decimal("23500.00")
 
 
 async def _load_demo_context(session) -> tuple[User, Tenant, Membership]:
@@ -384,7 +387,31 @@ async def reset_demo_data() -> None:
 
         await _build_demo_transactions(session, tenant, user, today)
 
-        # Bump the tenant updated_at-equivalent (we just rely on commit time).
+        # Calibrate the monthly budget amount to actual transaction spend.
+        # seed_tenant_defaults creates it at the signup default (R$1 000), which
+        # is far below the demo's realistic transaction volume. We recalculate
+        # here so the budget page targets ~70% utilisation — comfortably inside
+        # the 30-110% "meaningful" range.
+        budget_result = await session.execute(
+            select(Budget).where(Budget.tenant_id == tenant.id)
+        )
+        monthly_budget = budget_result.scalars().first()
+        if monthly_budget is not None:
+            expense_sum_result = await session.execute(
+                select(func.sum(Transaction.amount)).where(
+                    Transaction.tenant_id == tenant.id,
+                    Transaction.transaction_type == TransactionType.EXPENSE,
+                )
+            )
+            total_expense = Decimal(str(expense_sum_result.scalar() or 0))
+            # Divide by 3 (the 90-day window spans ~3 months) to get monthly
+            # average, then size the budget for ~70% utilisation.
+            monthly_expense = total_expense / Decimal("3")
+            monthly_budget.amount = (monthly_expense / Decimal("0.70")).quantize(
+                Decimal("0.01")
+            )
+            session.add(monthly_budget)
+
         await session.commit()
 
     log.info(
