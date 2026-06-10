@@ -14,6 +14,8 @@ import {
   ListItemText,
   Avatar,
   Chip,
+  Snackbar,
+  Alert,
 } from '@mui/material';
 import {
   AccountCircle,
@@ -59,7 +61,7 @@ interface TopNavProps {
 export default function TopNav({ user, globalMode = false, onMenuClick }: TopNavProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
-  const { currentLanguage, changeLanguage } = useLanguage();
+  const { currentLanguage, changeLanguage, didUpdateFail, dismissUpdateError } = useLanguage();
   const logoutMutation = useLogout();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   // Separate anchor for the nested Language submenu so it can position itself
@@ -113,6 +115,7 @@ export default function TopNav({ user, globalMode = false, onMenuClick }: TopNav
   };
 
   return (
+    <>
     <AppBar
       position="fixed"
       sx={{
@@ -282,5 +285,21 @@ export default function TopNav({ user, globalMode = false, onMenuClick }: TopNav
         </Menu>
       </Toolbar>
     </AppBar>
+
+    {/* Surface a failed language sync. The new language already applied locally
+        (optimistic), but the PATCH /users/me did not persist it, so without this
+        the choice would silently revert on the next load. The banner lets the
+        user know it was not saved; picking a language again retries and clears it. */}
+    <Snackbar
+      open={didUpdateFail}
+      autoHideDuration={6000}
+      onClose={dismissUpdateError}
+      anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+    >
+      <Alert onClose={dismissUpdateError} severity="error" variant="filled" sx={{ width: '100%' }}>
+        {t('userMenu.languageUpdateFailed')}
+      </Alert>
+    </Snackbar>
+    </>
   );
 }

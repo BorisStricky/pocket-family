@@ -11,7 +11,8 @@
     "seeAllAccounts": "See All Accounts",
     "logout": "Logout",
     "loggingOut": "Logging out...",
-    "language": "Language"
+    "language": "Language",
+    "languageUpdateFailed": "Couldn't save your language preference. It applies for now but may not carry over to other devices."
   },
   "language": {
     "english": "English",

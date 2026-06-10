@@ -39,16 +39,23 @@ export function useLanguage() {
   // in sync and consumers re-render when the language changes.
   const { i18n: i18nInstance } = useTranslation();
 
-  const { mutate: mutateLanguage, isPending } = useMutation({
+  const {
+    mutate: mutateLanguage,
+    isPending,
+    isError: didUpdateFail,
+    reset: resetUpdateState,
+  } = useMutation({
     mutationFn: (language: LanguageCode) => updateLanguage(language),
     // Seed the cache with the server's authoritative profile so a later
     // useSyncUserLanguage read does not flip the language back.
     onSuccess: (updatedUser) => {
       queryClient.setQueryData(CURRENT_USER_QUERY_KEY, updatedUser);
     },
-    // The local language is already applied optimistically, so the UI is
-    // consistent. Log the failure so developers can catch backend issues;
-    // the choice persists in localStorage and will re-sync on next load.
+    // The local language is already applied optimistically, so the UI stays
+    // consistent for this session. Log for developers, and expose
+    // `didUpdateFail` so the UI can warn the user their choice was not saved
+    // server-side — on the next load it would otherwise silently revert to the
+    // (unchanged) server value with no explanation.
     onError: (error) => {
       console.error('Failed to persist language preference to server:', error);
     },
@@ -56,22 +63,30 @@ export function useLanguage() {
 
   const changeLanguage = useCallback(
     (language: LanguageCode) => {
+      // Clear any prior failure state so picking a language again starts clean
+      // and a stale error banner does not linger after a successful retry.
+      resetUpdateState();
       // Apply locally first for instant feedback, then persist to the backend.
       // If the PATCH fails the local choice still holds for this session and
       // will be re-synced from the server on the next load.
       applyLanguageLocally(language);
       mutateLanguage(language);
     },
-    // mutate (destructured as mutateLanguage) is stable across renders —
-    // React Query guarantees its reference identity, so this callback is
-    // only created once rather than on every render.
-    [mutateLanguage]
+    // mutate and reset (destructured here) are stable across renders — React
+    // Query guarantees their reference identity, so this callback is created
+    // once rather than on every render.
+    [mutateLanguage, resetUpdateState]
   );
 
   return {
     currentLanguage: i18nInstance.language as LanguageCode,
     changeLanguage,
     isUpdating: isPending,
+    // True when the most recent PATCH /users/me failed; the local choice still
+    // applied, but it was not persisted to the backend.
+    didUpdateFail,
+    // Dismiss the failure state (e.g. when the user closes the error banner).
+    dismissUpdateError: resetUpdateState,
   };
 }
 

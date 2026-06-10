@@ -11,7 +11,8 @@
     "seeAllAccounts": "Ver Todas as Contas",
     "logout": "Sair",
     "loggingOut": "Saindo...",
-    "language": "Idioma"
+    "language": "Idioma",
+    "languageUpdateFailed": "Não foi possível salvar sua preferência de idioma. Ela vale por agora, mas pode não ser mantida em outros dispositivos."
   },
   "language": {
     "english": "English",
