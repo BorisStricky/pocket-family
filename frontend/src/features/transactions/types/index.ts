@@ -76,6 +76,11 @@ export interface TransactionFilters {
   start_date?: string; // ISO date string (YYYY-MM-DD)
   end_date?: string; // ISO date string (YYYY-MM-DD)
   search?: string;
+  // Pagination: the backend bounds every list response to a maximum page size
+  // (Performance P-1). Pass offset to page through older transactions; limit lets
+  // callers request a smaller page than the backend default.
+  limit?: number;
+  offset?: number;
 }
 
 // Re-export enums for convenience
