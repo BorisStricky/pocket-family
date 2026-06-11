@@ -249,7 +249,7 @@ async def list_transactions(
     category_id: Optional[UUID] = Query(None),
     account_id: Optional[UUID] = Query(None),
     search: Optional[str] = Query(None),
-    scope: str = Query("tenant", regex="^(tenant|global)$"),
+    scope: str = Query("tenant", pattern="^(tenant|global)$"),
     limit: int = Query(MAX_TRANSACTIONS_PAGE_SIZE, ge=1, le=MAX_TRANSACTIONS_PAGE_SIZE),
     offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
