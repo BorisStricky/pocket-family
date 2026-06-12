@@ -1316,3 +1316,137 @@ class TestImportTenantIsolation:
 
         assert response.status_code == 403
         assert len(fake_celery_dispatch) == 0
+
+
+# ===========================================================================
+# Error-path branches (decode fallback + defensive parse guards)
+# ===========================================================================
+
+
+class TestImportErrorBranches:
+    """Cover the import wizard's error branches that the happy-path tests miss.
+
+    These exercise the parts of app/routers/imports.py that turn malformed
+    input into a clean 4xx (or a per-row parse_error) instead of an unhandled
+    500: the latin-1 decode fallback and the defensive parse guards.
+    """
+
+    async def test_upload_decodes_latin1_csv_when_not_valid_utf8(
+        self,
+        async_client: AsyncClient,
+        owner_token: str,
+        patched_storage: LocalAdapter,
+    ):
+        """A latin-1-encoded CSV (invalid UTF-8) decodes via the latin-1 fallback.
+
+        The accented header 'Descrição' encodes to bytes that raise
+        UnicodeDecodeError under utf-8-sig, forcing _decode_csv_bytes to fall
+        back to latin-1 (imports.py:83-84) instead of failing the upload.
+        """
+        # Arrange: header with an accented column name, encoded as latin-1 so the
+        # bytes are NOT valid UTF-8 and must hit the fallback branch.
+        csv_text = "data,valor,Descrição\n2024-01-01,-10.50,Café\n"
+        latin1_files = {
+            "file": ("statement.csv", BytesIO(csv_text.encode("latin-1")), "text/csv")
+        }
+
+        # Act
+        response = await async_client.post(
+            "/imports/upload", files=latin1_files, headers=_bearer(owner_token)
+        )
+
+        # Assert: upload succeeds and the accented header round-trips intact.
+        assert response.status_code == 200, response.text
+        assert "Descrição" in response.json()["detected_columns"]
+
+    async def test_analyze_rejects_start_row_beyond_end_of_file(
+        self,
+        async_client: AsyncClient,
+        owner_token: str,
+        imported_account: Account,
+        patched_storage: LocalAdapter,
+    ):
+        """A start_row past the last line yields a clean 422, not a 500.
+
+        _parse_csv raises HTTPException(422) when start_row exceeds the row count
+        (imports.py:90-94); the analyze guard re-raises it untouched via the
+        `except HTTPException: raise` branch (imports.py:290-291).
+        """
+        # Arrange: a two-line file, but the caller points start_row well past it.
+        csv_text = "date,amount\n2024-01-01,-10.50\n"
+        upload_response = await async_client.post(
+            "/imports/upload",
+            files=_csv_upload_files(csv_text),
+            headers=_bearer(owner_token),
+        )
+        assert upload_response.status_code == 200, upload_response.text
+        file_key = upload_response.json()["file_key"]
+
+        # Act
+        response = await async_client.post(
+            "/imports/analyze",
+            json={
+                "file_key": file_key,
+                "account_id": str(imported_account.id),
+                "column_mapping": {"date_column": "date", "amount_column": "amount"},
+                "start_row": 99,
+                "currency": "BRL",
+            },
+            headers=_bearer(owner_token),
+        )
+
+        # Assert: a graceful 422 referencing the offending start_row, never a 500.
+        assert response.status_code == 422, response.text
+        assert "start_row" in response.json()["detail"]
+
+    async def test_analyze_records_parse_error_for_malformed_amount_row(
+        self,
+        async_client: AsyncClient,
+        owner_token: str,
+        imported_account: Account,
+        patched_storage: LocalAdapter,
+    ):
+        """A row with a non-numeric amount is reported, not fatal to the request.
+
+        _parse_amount raises ValueError on 'abc'; the analyze loop catches it and
+        records that single row with a parse_error (imports.py:346-351) so the
+        remaining valid rows still process and the endpoint returns 200.
+        """
+        # Arrange: row index 1 has an unparseable amount; row 0 is valid.
+        csv_text = (
+            "date,amount,description\n"
+            "2024-01-01,-10.50,Coffee\n"
+            "2024-01-02,abc,Garbage\n"
+        )
+        upload_response = await async_client.post(
+            "/imports/upload",
+            files=_csv_upload_files(csv_text),
+            headers=_bearer(owner_token),
+        )
+        assert upload_response.status_code == 200, upload_response.text
+        file_key = upload_response.json()["file_key"]
+
+        # Act
+        response = await async_client.post(
+            "/imports/analyze",
+            json={
+                "file_key": file_key,
+                "account_id": str(imported_account.id),
+                "column_mapping": {
+                    "date_column": "date",
+                    "amount_column": "amount",
+                    "description_column": "description",
+                },
+                "start_row": 0,
+                "currency": "BRL",
+            },
+            headers=_bearer(owner_token),
+        )
+
+        # Assert: the bad row is flagged; the good row parses cleanly.
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["parse_error_count"] == 1
+        rows_by_index = {row["row_index"]: row for row in body["rows"]}
+        assert rows_by_index[1]["parse_error"] is not None
+        assert rows_by_index[0]["parse_error"] is None
