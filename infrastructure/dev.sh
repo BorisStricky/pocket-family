@@ -7,7 +7,7 @@
 #
 # Usage:
 #   ./infrastructure/dev.sh             # default: ACTION=up
-#   ACTION=down  ./infrastructure/dev.sh    # kill host processes + stop containers
+#   ACTION=down  ./infrastructure/dev.sh    # kill host processes + tear down containers AND wipe the dev DB volume
 #   ACTION=infra ./infrastructure/dev.sh    # only start Postgres + Redis
 #   ACTION=seed  ./infrastructure/dev.sh    # wipe + re-seed db-dev with QA data
 #   ACTION=logs  ./infrastructure/dev.sh    # tail container logs
@@ -159,8 +159,14 @@ case "$ACTION" in
     pkill -f "celery -A app.celery_app" || true
     pkill -f "vite" || true
 
-    echo "==> Stopping db-dev + redis-dev and removing .dev-uploads…"
-    "${COMPOSE[@]}" --file "$COMPOSE_FILE" down
+    # `down --volumes` also removes the named pgdata-dev volume, so the next
+    # `up` rebuilds a fresh schema from the current models via create_all
+    # (AUTO_CREATE_SCHEMA=1). Dev is intentionally ephemeral: it exercises the
+    # code against the latest models, never migrations — migration correctness is
+    # validated against a separate staging instance. The --volumes scope is the
+    # dev compose file only, so prod's `pgdata` volume is never touched.
+    echo "==> Stopping db-dev + redis-dev, wiping the dev DB volume, removing .dev-uploads…"
+    "${COMPOSE[@]}" --file "$COMPOSE_FILE" down --volumes
     rm -rf "$UPLOAD_DIR"
 
     echo "==> Verifying nothing is still listening on dev ports…"

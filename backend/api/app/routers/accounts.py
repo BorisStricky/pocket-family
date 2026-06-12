@@ -242,6 +242,38 @@ async def list_accounts(
     return [await _serialize_account(db, account_record, user) for account_record in my_account_records]
 
 
+async def _requestor_can_access_account(session: AsyncSession, account: Account, requestor) -> bool:
+    """Return True when the requestor is allowed to view the given account.
+
+    Access is granted only to the account owner, or to a user who is an active
+    member of a tenant the account has been shared with via AccountShare. This
+    prevents an IDOR where any authenticated user could read another user's
+    account metadata and owner PII by guessing/iterating UUIDs (Security H-1).
+    """
+    # Owner always has access.
+    if account.user_id == requestor.id:
+        return True
+
+    # Otherwise require an AccountShare to one of the requestor's active tenants.
+    membership_query_result = await session.execute(
+        select(Membership.tenant_id).where(
+            Membership.user_id == requestor.id,
+            Membership.status == MembershipStatus.ACTIVE,
+        )
+    )
+    tenant_ids = [row[0] for row in membership_query_result.all()]
+    if not tenant_ids:
+        return False
+
+    share_query_result = await session.execute(
+        select(AccountShare.id).where(
+            AccountShare.account_id == account.id,
+            AccountShare.tenant_id.in_(tenant_ids),
+        )
+    )
+    return share_query_result.first() is not None
+
+
 @router.get("/{account_id}", response_model=AccountRead)
 async def get_account(account_id: UUID, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
     """Get a single account by id and serialize according to requestor privileges.
@@ -255,11 +287,18 @@ async def get_account(account_id: UUID, db: AsyncSession = Depends(get_db), user
         Serialized account dict (balance may be masked).
 
     Raises:
-        HTTPException 404 when account does not exist.
+        HTTPException 404 when the account does not exist OR the requestor has no
+            access to it. We return 404 (not 403) so the endpoint does not reveal
+            whether an account UUID exists to an unauthorized caller.
     """
     account_record = await db.get(Account, account_id)
     if not account_record:
         raise HTTPException(status_code=404)
+
+    # Enforce access control before returning any account fields (anti-IDOR).
+    if not await _requestor_can_access_account(db, account_record, user):
+        raise HTTPException(status_code=404)
+
     return await _serialize_account(db, account_record, user)
 
 

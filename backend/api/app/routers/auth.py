@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from sqlmodel import select
+from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
 from typing import Optional
@@ -243,22 +244,46 @@ async def refresh(request: Request, response: Response, db: AsyncSession = Depen
             detail="Refresh token missing"
         )
 
-    # validate opaque refresh token by hash and rotate
+    # Look up the presented token by hash, regardless of its revoked state, so we
+    # can distinguish "unknown token" from "known-but-already-rotated token". The
+    # latter is a reuse attempt (the legitimate client rotated long ago) and is a
+    # strong signal the token was stolen.
     refresh_token_hash = hash_token(refresh_token)
-    refresh_token_lookup_query = select(RefreshToken).where(RefreshToken.token_hash == refresh_token_hash, RefreshToken.revoked == False)
+    refresh_token_lookup_query = select(RefreshToken).where(RefreshToken.token_hash == refresh_token_hash)
     refresh_token_query_result = await db.execute(refresh_token_lookup_query)
     refresh_token_record = refresh_token_query_result.scalars().first()
+
+    # Unknown or expired token: reject without side effects.
     if not refresh_token_record or refresh_token_record.expires_at < datetime.now(timezone.utc).replace(tzinfo=None):
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid refresh token")
+
+    # Reuse detection: a refresh token is single-use. If it was already revoked
+    # (i.e. previously rotated), someone is replaying an old token — revoke the
+    # entire token family so neither the attacker's nor the victim's descendant
+    # tokens remain valid, forcing a fresh login (Security H-2).
+    if refresh_token_record.revoked:
+        await db.execute(
+            update(RefreshToken)
+            .where(RefreshToken.family_id == refresh_token_record.family_id)
+            .values(revoked=True)
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Refresh token reuse detected; session revoked",
+        )
+
     user = await db.get(User, refresh_token_record.user_id)
     if not user:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="User missing")
-    # revoke current and create new
+    # revoke current and create new — the new token inherits the same family so a
+    # later replay of any token in this chain triggers the reuse path above.
     refresh_token_record.revoked = True
     new_raw_refresh_token = make_refresh_token()
     new_rt = RefreshToken(
         user_id=user.id,
         token_hash=hash_token(new_raw_refresh_token),
+        family_id=refresh_token_record.family_id,
         issued_at=datetime.now(timezone.utc).replace(tzinfo=None),
         expires_at=datetime.now(timezone.utc).replace(tzinfo=None) + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS),
         revoked=False,

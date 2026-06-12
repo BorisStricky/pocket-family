@@ -5,15 +5,77 @@ from sqlmodel import select, delete
 from typing import List, Optional, Any
 from uuid import UUID
 from datetime import date
+from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_
 
-from ..models import Transaction, Account, Category, Membership, MembershipRole, MembershipStatus, TransactionSource, CategoryKind, AccountShare, User
+from ..models import Transaction, Account, Category, Membership, MembershipRole, MembershipStatus, TransactionSource, TransactionType, CategoryKind, AccountShare, User, Tenant
 from ..schemas import TransactionCreate, TransactionRead, TransactionUpdate, ActiveContext
 from ..deps import get_db, get_current_user, get_active_context
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
+
+# Hard upper bound on how many transactions a single list request may return.
+# This is both the default and the maximum, so the read path is always bounded —
+# the grid/dashboard/reports cannot accidentally pull an unbounded result set
+# (Performance P-1). Clients page through older rows with ?offset=.
+MAX_TRANSACTIONS_PAGE_SIZE = 500
+
+
+async def _authorize_account_for_tenant(
+    db: AsyncSession,
+    account_id: UUID,
+    active_user: User,
+    active_tenant: Tenant,
+) -> Account:
+    """Return the account only if it is writable from the active tenant context.
+
+    Access rule (mirrors imports.py /imports/execute): the active user must own
+    the account directly, OR the account must be shared with the active tenant
+    via an AccountShare record. Without this guard any authenticated member could
+    POST a transaction against an arbitrary account UUID and mutate another user's
+    balance (cross-tenant write — Security C-1).
+
+    Raises:
+        HTTPException 404 when the account does not exist.
+        HTTPException 403 when the account is not accessible from the active tenant.
+    """
+    account = await db.get(Account, account_id)
+    if not account:
+        raise HTTPException(status_code=404, detail="account not found")
+
+    # Owner access is always permitted.
+    if account.user_id == active_user.id:
+        return account
+
+    # Otherwise the account must be explicitly shared with the active tenant.
+    share_result = await db.execute(
+        select(AccountShare).where(
+            AccountShare.account_id == account.id,
+            AccountShare.tenant_id == active_tenant.id,
+        )
+    )
+    if share_result.scalars().first() is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is not accessible from the active family",
+        )
+    return account
+
+
+def _balance_delta(transaction_type: "CategoryKind | TransactionType", amount: Decimal) -> Decimal:
+    """Compute the signed balance delta a transaction applies to its account.
+
+    INCOME increases the balance, EXPENSE decreases it. Reversing a transaction's
+    effect is simply applying the negation of this delta.
+    """
+    if transaction_type == CategoryKind.INCOME:
+        return amount
+    if transaction_type == CategoryKind.EXPENSE:
+        return -amount
+    # Defensive default: unknown types apply no balance change.
+    return Decimal("0")
 
 
 async def _fetch_transaction_with_names(db: AsyncSession, tenant_id: UUID, transaction_id: UUID) -> Optional[dict]:
@@ -132,10 +194,10 @@ async def create_transaction(payload: TransactionCreate, db: AsyncSession = Depe
             detail="Viewers cannot create transactions",
         )
 
-    # Validate account exists
-    account = await db.get(Account, payload.account_id)
-    if not account:
-        raise HTTPException(status_code=404, detail="account not found")
+    # Validate the account exists AND is writable from the active tenant context.
+    # This blocks the cross-tenant write where any member could post against an
+    # arbitrary account UUID and mutate another user's balance (Security C-1).
+    account = await _authorize_account_for_tenant(db, payload.account_id, user, tenant)
 
     try:
         # Create transaction record
@@ -155,10 +217,7 @@ async def create_transaction(payload: TransactionCreate, db: AsyncSession = Depe
 
         # Update account balance based on transaction type
         # INCOME increases balance, EXPENSE decreases balance
-        if payload.transaction_type == CategoryKind.INCOME:
-            account.balance += payload.amount
-        elif payload.transaction_type == CategoryKind.EXPENSE:
-            account.balance -= payload.amount
+        account.balance += _balance_delta(payload.transaction_type, payload.amount)
 
         db.add(account)
 
@@ -190,7 +249,9 @@ async def list_transactions(
     category_id: Optional[UUID] = Query(None),
     account_id: Optional[UUID] = Query(None),
     search: Optional[str] = Query(None),
-    scope: str = Query("tenant", regex="^(tenant|global)$"),
+    scope: str = Query("tenant", pattern="^(tenant|global)$"),
+    limit: int = Query(MAX_TRANSACTIONS_PAGE_SIZE, ge=1, le=MAX_TRANSACTIONS_PAGE_SIZE),
+    offset: int = Query(0, ge=0),
     db: AsyncSession = Depends(get_db),
     active_context: ActiveContext = Depends(get_active_context)
 ):
@@ -203,6 +264,9 @@ async def list_transactions(
         account_id: Optional account id to filter by.
         search: Optional search term for case-insensitive full-text search across description field.
         scope: "tenant" (default) to filter by active tenant, "global" to query all user's tenants.
+        limit: Max rows to return. Bounded by MAX_TRANSACTIONS_PAGE_SIZE so a single
+            request can never trigger an unbounded scan/serialization (Performance P-1).
+        offset: Number of rows to skip, for cursor-less pagination.
         db: Async DB session.
         active_context: Current authenticated user and tenant context.
 
@@ -270,7 +334,10 @@ async def list_transactions(
         search_pattern = f"%{search}%"
         query = query.where(Transaction.description.ilike(search_pattern))
 
+    # Most-recent first, then bound the result window. ORDER BY before LIMIT keeps
+    # the newest transactions visible even when the result set is truncated.
     query = query.order_by(Transaction.transaction_date.desc())
+    query = query.offset(offset).limit(limit)
 
     result = await db.execute(query)
     rows = result.all()
@@ -343,22 +410,18 @@ async def update_transaction(transaction_id: UUID, payload: TransactionUpdate, d
     if transaction_record.created_by != user.id:
         raise HTTPException(status_code=403)
 
-    # Validate account_id update if provided
-    # Ensures multi-tenant safety by verifying account ownership
+    # Capture the transaction's CURRENT effect on its account before applying any
+    # changes. Editing amount/type/account must reverse the old effect and apply
+    # the new one, otherwise the account balance drifts permanently (money-
+    # correctness defect — Blocker 2).
+    previous_account_id = transaction_record.account_id
+    previous_delta = _balance_delta(transaction_record.transaction_type, transaction_record.amount)
+
+    # Validate account_id update if provided. Use the shared authorization guard
+    # so a transaction can only be reassigned to an account that is writable from
+    # the active tenant (owner or AccountShare) — never an arbitrary UUID.
     if payload.account_id is not None:
-        # Validate that new account exists
-        new_account = await db.get(Account, payload.account_id)
-        if not new_account:
-            raise HTTPException(status_code=404, detail="Account not found")
-
-        # Ensure account belongs to current user to prevent cross-user data manipulation
-        if new_account.user_id != user.id:
-            raise HTTPException(
-                status_code=403,
-                detail="Cannot assign transaction to another user's account"
-            )
-
-        # Update the account_id
+        await _authorize_account_for_tenant(db, payload.account_id, user, tenant)
         transaction_record.account_id = payload.account_id
 
     if payload.category_id is not None:
@@ -375,6 +438,31 @@ async def update_transaction(transaction_id: UUID, payload: TransactionUpdate, d
         transaction_record.description = payload.description
     if payload.reconciled is not None:
         transaction_record.reconciled = payload.reconciled
+
+    # Re-balance the affected account(s) in this same DB transaction.
+    new_account_id = transaction_record.account_id
+    new_delta = _balance_delta(transaction_record.transaction_type, transaction_record.amount)
+
+    if previous_account_id == new_account_id:
+        # Same account: apply only the net change so we don't double-count.
+        if new_account_id is not None and new_delta != previous_delta:
+            account = await db.get(Account, new_account_id)
+            if account is not None:
+                account.balance += new_delta - previous_delta
+                db.add(account)
+    else:
+        # Account changed: fully reverse from the old account, fully apply to the new.
+        if previous_account_id is not None:
+            previous_account = await db.get(Account, previous_account_id)
+            if previous_account is not None:
+                previous_account.balance -= previous_delta
+                db.add(previous_account)
+        if new_account_id is not None:
+            new_account = await db.get(Account, new_account_id)
+            if new_account is not None:
+                new_account.balance += new_delta
+                db.add(new_account)
+
     db.add(transaction_record)
     await db.commit()
     await db.refresh(transaction_record)
@@ -416,6 +504,18 @@ async def delete_transaction(transaction_id: UUID, db: AsyncSession = Depends(ge
         raise HTTPException(status_code=404)
     if transaction_record.created_by != user.id:
         raise HTTPException(status_code=403)
+
+    # Reverse this transaction's effect on its account before deleting, so the
+    # account balance stays correct (Blocker 2). account_id may be None when the
+    # owning account was already deleted (SET NULL) — nothing to reverse then.
+    if transaction_record.account_id is not None:
+        account = await db.get(Account, transaction_record.account_id)
+        if account is not None:
+            account.balance -= _balance_delta(
+                transaction_record.transaction_type, transaction_record.amount
+            )
+            db.add(account)
+
     await db.execute(delete(Transaction).where(Transaction.id == transaction_id))
     await db.commit()
     return

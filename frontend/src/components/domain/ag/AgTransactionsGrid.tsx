@@ -21,7 +21,17 @@ interface AgTransactionsGridProps {
   onRowClick?: (transaction: TransactionRead) => void;
   onSelectionChange?: (selectedIds: string[]) => void;
   height?: string | number;
+  // Pagination is enabled by default. The grid paginates client-side over the
+  // rows it receives; the backend already bounds each response to a maximum page
+  // size (Performance P-1), so this keeps the DOM light without loading an
+  // unbounded set. Callers can disable it (e.g. embedded summary views).
+  pagination?: boolean;
+  paginationPageSize?: number;
 }
+
+// Page-size choices offered in the grid footer. The active paginationPageSize
+// must be one of these for AG Grid's selector to render correctly.
+const PAGINATION_PAGE_SIZE_OPTIONS = [25, 50, 100];
 
 /**
  * AG Grid wrapper for displaying transaction data in a table
@@ -128,6 +138,8 @@ export function AgTransactionsGrid({
   onRowClick,
   onSelectionChange,
   height = 600,
+  pagination = true,
+  paginationPageSize = 25,
 }: AgTransactionsGridProps) {
   // Define column configurations with formatters and custom renderers
   // These columns match the TransactionRead interface and provide proper display
@@ -296,7 +308,9 @@ export function AgTransactionsGrid({
         loadingOverlayComponent={loadingOverlayComponent}
         noRowsOverlayComponent={noRowsOverlayComponent}
         animateRows={true}
-        pagination={false} // Pagination can be added later if needed
+        pagination={pagination}
+        paginationPageSize={paginationPageSize}
+        paginationPageSizeSelector={PAGINATION_PAGE_SIZE_OPTIONS}
         domLayout="normal" // Use normal layout with fixed height
       />
     </Box>
