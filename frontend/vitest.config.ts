@@ -19,6 +19,13 @@ export default defineConfig({
     // Timeout settings to prevent hanging tests
     testTimeout: 30000,      // 30 seconds per test (AG Grid + MUI dialog tests need extra time under load)
     hookTimeout: 30000,      // 30 seconds for beforeEach/afterEach hooks
+    // Cap parallel test-file workers. The heaviest integration tests (nested MUI
+    // dialogs + Autocomplete, e.g. the inline category-create flow) take ~14s on
+    // their own. With unbounded parallelism those workers starve each other for
+    // CPU and exceed testTimeout, even though every file passes in isolation.
+    // Capping at 3 removes the contention while keeping most of the parallel speed.
+    maxWorkers: 3,
+    minWorkers: 1,
     coverage: {
       provider: 'v8',
       reporter: ['text', 'json', 'html'],
