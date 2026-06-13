@@ -40,6 +40,13 @@ describe('jwtUtils', () => {
       expect(decodeJWT('')).toBeNull();
       expect(decodeJWT('only.two')).toBeNull();
     });
+
+    it('returns null when the payload segment is not decodable JSON', () => {
+      // A token with the right number of segments but a payload that is not
+      // valid base64/JSON must hit the decode catch and return null rather
+      // than throwing, so a corrupted token never crashes the caller.
+      expect(decodeJWT('header.!!!not-base64!!!.signature')).toBeNull();
+    });
   });
 
   describe('getUserFromToken', () => {
@@ -60,6 +67,11 @@ describe('jwtUtils', () => {
         roles: ['member'],
       });
     });
+
+    it('returns null when the token cannot be decoded', () => {
+      // No user can be derived from an undecodable token.
+      expect(getUserFromToken('garbage')).toBeNull();
+    });
   });
 
   describe('isTokenExpired', () => {
@@ -75,6 +87,26 @@ describe('jwtUtils', () => {
 
     it('returns true for a malformed token (conservative)', () => {
       expect(isTokenExpired('garbage')).toBe(true);
+    });
+
+    it('returns true when the token has no exp claim (conservative)', () => {
+      // A well-formed JWT whose payload omits `exp` must be treated as expired,
+      // so a token that can never be checked for freshness is never trusted.
+      const encode = (value: object) =>
+        btoa(JSON.stringify(value))
+          .replace(/\+/g, '-')
+          .replace(/\//g, '_')
+          .replace(/=+$/, '');
+      const header = encode({ alg: 'HS256', typ: 'JWT' });
+      const payloadWithoutExp = encode({
+        sub: 'user-123',
+        email: 'test@example.com',
+        tenant_id: 'tenant-456',
+        roles: ['member'],
+      });
+      const tokenWithoutExp = `${header}.${payloadWithoutExp}.mock-signature`;
+
+      expect(isTokenExpired(tokenWithoutExp)).toBe(true);
     });
   });
 });
