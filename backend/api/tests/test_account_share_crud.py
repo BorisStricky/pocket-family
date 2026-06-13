@@ -1,3 +1,5 @@
+from uuid import uuid4
+
 import pytest
 from tests.helpers import signup_and_auth, auth_header
 
@@ -119,3 +121,147 @@ def test_revoke_account_share_by_tenant_id(account_share_factory, client):
     shares_list_response = client.get(f"/accounts/{account['id']}/shares", headers=owner_header)
     assert shares_list_response.status_code == 200, shares_list_response.text
     assert not any(s["id"] == share_id for s in shares_list_response.json())
+
+
+# ---------------------------------------------------------------------------
+# Authorization of the target tenant on POST /accounts/{account_id}/shares
+# (QCSD Finding 1 — broken access control). The account owner may only share
+# INTO a family they are an active, non-viewer member of. These tests exercise
+# the dedicated /shares endpoint, which previously only checked account ownership.
+# ---------------------------------------------------------------------------
+
+
+def test_create_account_share_forbidden_when_caller_is_viewer_of_target_tenant(client):
+    """A viewer of the target tenant cannot share an account into it (403)."""
+    # Arrange: the actor owns an account AND is the owner of a tenant, but is only
+    # a VIEWER of a *different* tenant they want to share into.
+    actor = signup_and_auth(client, "viewer_sharer@test.com", "ViewerPw1!", "ViewerSharer")
+    actor_header = auth_header(actor["access_token"])
+
+    # A separate user owns the target tenant and invites the actor as a viewer.
+    target_owner = signup_and_auth(client, "viewer_target_owner@test.com", "OwnerPw1!", "TargetOwner")
+    target_owner_header = auth_header(target_owner["access_token"])
+    target_tenant_response = client.post("/tenants", json={"name": "ViewerTargetFamily"}, headers=target_owner_header)
+    assert target_tenant_response.status_code == 200, target_tenant_response.text
+    target_tenant = target_tenant_response.json()
+
+    switch_response = client.post(f"/tenants/{target_tenant['id']}/switch", headers=target_owner_header)
+    assert switch_response.status_code == 200, switch_response.text
+    target_tenant_header = auth_header(switch_response.json()["access_token"])
+    viewer_membership_response = client.post(
+        f"/tenants/{target_tenant['id']}/members",
+        json={"user_email": "viewer_sharer@test.com", "role": "viewer"},
+        headers=target_tenant_header,
+    )
+    assert viewer_membership_response.status_code == 200, viewer_membership_response.text
+
+    # Actor owns an account to share.
+    account_response = client.post(
+        "/accounts",
+        json={"name": "Viewer Account", "type": "cash", "currency": "USD", "balance": "10.00"},
+        headers=actor_header,
+    )
+    assert account_response.status_code == 200, account_response.text
+    account = account_response.json()
+
+    # Act: the viewer attempts to share the account into the target tenant.
+    share_response = client.post(
+        f"/accounts/{account['id']}/shares",
+        json={"tenant_id": target_tenant["id"], "visibility": "visible"},
+        headers=actor_header,
+    )
+
+    # Assert: rejected with the consolidated viewer message.
+    assert share_response.status_code == 403, share_response.text
+    assert "Viewers cannot share" in share_response.json()["detail"]
+
+
+def test_create_account_share_forbidden_when_caller_not_member_of_target_tenant(client):
+    """A non-member of the target tenant cannot share an account into it (403)."""
+    # Arrange: the actor owns an account but has no membership in the target tenant.
+    actor = signup_and_auth(client, "nonmember_sharer@test.com", "NonMemberPw1!", "NonMember")
+    actor_header = auth_header(actor["access_token"])
+
+    target_owner = signup_and_auth(client, "nonmember_target_owner@test.com", "OwnerPw1!", "TargetOwner2")
+    target_owner_header = auth_header(target_owner["access_token"])
+    target_tenant_response = client.post("/tenants", json={"name": "NonMemberFamily"}, headers=target_owner_header)
+    assert target_tenant_response.status_code == 200, target_tenant_response.text
+    target_tenant = target_tenant_response.json()
+
+    account_response = client.post(
+        "/accounts",
+        json={"name": "NonMember Account", "type": "cash", "currency": "USD", "balance": "10.00"},
+        headers=actor_header,
+    )
+    assert account_response.status_code == 200, account_response.text
+    account = account_response.json()
+
+    # Act: the non-member attempts to share into a tenant they don't belong to.
+    share_response = client.post(
+        f"/accounts/{account['id']}/shares",
+        json={"tenant_id": target_tenant["id"], "visibility": "visible"},
+        headers=actor_header,
+    )
+
+    # Assert: rejected as not an active member.
+    assert share_response.status_code == 403, share_response.text
+    assert "not an active member" in share_response.json()["detail"]
+
+
+def test_create_account_share_not_found_when_target_tenant_missing(client):
+    """Sharing into a non-existent target tenant returns 404."""
+    # Arrange: the actor owns an account; the target tenant id does not exist.
+    actor = signup_and_auth(client, "missing_tenant_sharer@test.com", "MissingPw1!", "MissingSharer")
+    actor_header = auth_header(actor["access_token"])
+
+    account_response = client.post(
+        "/accounts",
+        json={"name": "Missing Tenant Account", "type": "cash", "currency": "USD", "balance": "10.00"},
+        headers=actor_header,
+    )
+    assert account_response.status_code == 200, account_response.text
+    account = account_response.json()
+
+    # Act: share into a random (non-existent) tenant id.
+    share_response = client.post(
+        f"/accounts/{account['id']}/shares",
+        json={"tenant_id": str(uuid4()), "visibility": "visible"},
+        headers=actor_header,
+    )
+
+    # Assert: 404 with the consolidated target-tenant message.
+    assert share_response.status_code == 404, share_response.text
+    assert "Target tenant not found" in share_response.json()["detail"]
+
+
+def test_create_account_share_succeeds_when_caller_is_active_member_of_target_tenant(client):
+    """Happy path: an active member (owner) of the target tenant can share (200)."""
+    # Arrange: the actor owns both the account and the target tenant (owner role),
+    # so they are an active, non-viewer member authorized to share.
+    actor = signup_and_auth(client, "member_sharer@test.com", "MemberSharePw1!", "MemberSharer")
+    actor_header = auth_header(actor["access_token"])
+
+    target_tenant_response = client.post("/tenants", json={"name": "MemberShareFamily"}, headers=actor_header)
+    assert target_tenant_response.status_code == 200, target_tenant_response.text
+    target_tenant = target_tenant_response.json()
+
+    account_response = client.post(
+        "/accounts",
+        json={"name": "Member Share Account", "type": "cash", "currency": "USD", "balance": "10.00"},
+        headers=actor_header,
+    )
+    assert account_response.status_code == 200, account_response.text
+    account = account_response.json()
+
+    # Act: the active member shares the account into their own tenant.
+    share_response = client.post(
+        f"/accounts/{account['id']}/shares",
+        json={"tenant_id": target_tenant["id"], "visibility": "visible"},
+        headers=actor_header,
+    )
+
+    # Assert: the share is created and bound to the account + tenant.
+    assert share_response.status_code == 200, share_response.text
+    share = share_response.json()
+    assert share["account_id"] == account["id"]
+    assert share["tenant_id"] == target_tenant["id"]

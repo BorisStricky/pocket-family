@@ -2,17 +2,17 @@ import logging
 
 from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlmodel import select, delete
-from typing import List, Optional, Any
+from typing import List, Optional
 from uuid import UUID
 from datetime import date
-from decimal import Decimal
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import or_
 
-from ..models import Transaction, Account, Category, Membership, MembershipRole, MembershipStatus, TransactionSource, TransactionType, CategoryKind, AccountShare, User, Tenant
+from ..models import Transaction, Account, Category, Membership, MembershipStatus, TransactionSource, User
 from ..schemas import TransactionCreate, TransactionRead, TransactionUpdate, ActiveContext
-from ..deps import get_db, get_current_user, get_active_context
+from ..deps import get_db, get_current_user, get_active_context, require_writer
+from ..services import transactions as transaction_service
 
 router = APIRouter(prefix="/transactions", tags=["transactions"])
 
@@ -23,149 +23,8 @@ router = APIRouter(prefix="/transactions", tags=["transactions"])
 MAX_TRANSACTIONS_PAGE_SIZE = 500
 
 
-async def _authorize_account_for_tenant(
-    db: AsyncSession,
-    account_id: UUID,
-    active_user: User,
-    active_tenant: Tenant,
-) -> Account:
-    """Return the account only if it is writable from the active tenant context.
-
-    Access rule (mirrors imports.py /imports/execute): the active user must own
-    the account directly, OR the account must be shared with the active tenant
-    via an AccountShare record. Without this guard any authenticated member could
-    POST a transaction against an arbitrary account UUID and mutate another user's
-    balance (cross-tenant write — Security C-1).
-
-    Raises:
-        HTTPException 404 when the account does not exist.
-        HTTPException 403 when the account is not accessible from the active tenant.
-    """
-    account = await db.get(Account, account_id)
-    if not account:
-        raise HTTPException(status_code=404, detail="account not found")
-
-    # Owner access is always permitted.
-    if account.user_id == active_user.id:
-        return account
-
-    # Otherwise the account must be explicitly shared with the active tenant.
-    share_result = await db.execute(
-        select(AccountShare).where(
-            AccountShare.account_id == account.id,
-            AccountShare.tenant_id == active_tenant.id,
-        )
-    )
-    if share_result.scalars().first() is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is not accessible from the active family",
-        )
-    return account
-
-
-def _balance_delta(transaction_type: "CategoryKind | TransactionType", amount: Decimal) -> Decimal:
-    """Compute the signed balance delta a transaction applies to its account.
-
-    INCOME increases the balance, EXPENSE decreases it. Reversing a transaction's
-    effect is simply applying the negation of this delta.
-    """
-    if transaction_type == CategoryKind.INCOME:
-        return amount
-    if transaction_type == CategoryKind.EXPENSE:
-        return -amount
-    # Defensive default: unknown types apply no balance change.
-    return Decimal("0")
-
-
-async def _fetch_transaction_with_names(db: AsyncSession, tenant_id: UUID, transaction_id: UUID) -> Optional[dict]:
-    """Fetch a single transaction joined with account and optional category names.
-
-    Returns a dict shaped to match TransactionRead or None when not found.
-    """
-    query = (
-        select(
-            Transaction,
-            Account.name.label("account_name"),
-            Account.icon.label("account_icon"),
-            Account.color.label("account_color"),
-            Category.name.label("category_name"),
-            # Resolve icon and color from Category for visual display in the UI
-            Category.icon.label("category_icon"),
-            Category.color.label("category_color"),
-            # Resolve the creator's display name for the response payload
-            User.name.label("created_by_name"),
-        )
-        .outerjoin(Account, Account.id == Transaction.account_id)
-        .outerjoin(Category, Category.id == Transaction.category_id)
-        .outerjoin(User, User.id == Transaction.created_by)
-        .where(Transaction.tenant_id == tenant_id, Transaction.id == transaction_id)
-    )
-    result = await db.execute(query)
-    row = result.first()
-    if not row:
-        return None
-    transaction: Transaction = row[0]
-    return {
-        "id": transaction.id,
-        "tenant_id": transaction.tenant_id,
-        "account_id": transaction.account_id,
-        "account_name": row.account_name,
-        "account_icon": row.account_icon,
-        "account_color": row.account_color,
-        "category_id": transaction.category_id,
-        "category_name": row.category_name,
-        "category_icon": row.category_icon,
-        "category_color": row.category_color,
-        "amount": transaction.amount,
-        "currency": transaction.currency,
-        "transaction_date": transaction.transaction_date,
-        "transaction_type": transaction.transaction_type,
-        "description": transaction.description,
-        "created_by": transaction.created_by,
-        # Include the creator's display name resolved from the User join
-        "created_by_name": row.created_by_name,
-        "created_at": transaction.created_at,
-        "updated_at": transaction.updated_at,
-        "reconciled": transaction.reconciled,
-        "source": transaction.source,
-    }
-
-
-async def _rows_to_transaction_reads(rows: List[Any]) -> List[dict]:
-    """Convert executed joined rows into list of dicts matching TransactionRead."""
-    out: List[dict] = []
-    for row in rows:
-        transaction: Transaction = row[0]
-        out.append({
-            "id": transaction.id,
-            "tenant_id": transaction.tenant_id,
-            "account_id": transaction.account_id,
-            "account_name": row.account_name,
-            "account_icon": row.account_icon,
-            "account_color": row.account_color,
-            "category_id": transaction.category_id,
-            "category_name": row.category_name,
-            "category_icon": row.category_icon,
-            "category_color": row.category_color,
-            "amount": transaction.amount,
-            "currency": transaction.currency,
-            "transaction_date": transaction.transaction_date,
-            "transaction_type": transaction.transaction_type,
-            "description": transaction.description,
-            "created_by": transaction.created_by,
-            # Include the creator's display name resolved from the User join
-            "created_by_name": row.created_by_name,
-            "created_at": transaction.created_at,
-            "updated_at": transaction.updated_at,
-            "reconciled": transaction.reconciled,
-            "source": transaction.source,
-        })
-    return out
-
-
 @router.post("", response_model=TransactionRead)
-async def create_transaction(payload: TransactionCreate, db: AsyncSession = Depends(get_db), active_context: ActiveContext = Depends(get_active_context)):
+async def create_transaction(payload: TransactionCreate, db: AsyncSession = Depends(get_db), active_context: ActiveContext = Depends(require_writer)):
     """Create a transaction within a tenant and update the associated account balance.
 
     The account balance is updated based on the transaction_type:
@@ -187,17 +46,12 @@ async def create_transaction(payload: TransactionCreate, db: AsyncSession = Depe
     user = active_context.active_user
     tenant = active_context.active_tenant
 
-    # Viewers have read-only access to the family's data; only members and owners may write.
-    if active_context.active_membership.role == MembershipRole.VIEWER:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Viewers cannot create transactions",
-        )
+    # Viewers are blocked by the require_writer dependency; only members/owners reach here.
 
     # Validate the account exists AND is writable from the active tenant context.
     # This blocks the cross-tenant write where any member could post against an
     # arbitrary account UUID and mutate another user's balance (Security C-1).
-    account = await _authorize_account_for_tenant(db, payload.account_id, user, tenant)
+    account = await transaction_service.authorize_account_for_tenant(db, payload.account_id, user, tenant)
 
     try:
         # Create transaction record
@@ -217,7 +71,7 @@ async def create_transaction(payload: TransactionCreate, db: AsyncSession = Depe
 
         # Update account balance based on transaction type
         # INCOME increases balance, EXPENSE decreases balance
-        account.balance += _balance_delta(payload.transaction_type, payload.amount)
+        account.balance += transaction_service.balance_delta(payload.transaction_type, payload.amount)
 
         db.add(account)
 
@@ -237,7 +91,7 @@ async def create_transaction(payload: TransactionCreate, db: AsyncSession = Depe
         )
 
     # Return with names using a joined query
-    transaction_read = await _fetch_transaction_with_names(db, tenant.id, transaction_record.id)
+    transaction_read = await transaction_service.build_transaction_read(db, tenant.id, transaction_record.id)
     return transaction_read
 
 
@@ -341,7 +195,7 @@ async def list_transactions(
 
     result = await db.execute(query)
     rows = result.all()
-    return await _rows_to_transaction_reads(rows)
+    return await transaction_service.rows_to_transaction_reads(rows)
 
 
 @router.get("/{transaction_id}", response_model=TransactionRead)
@@ -363,7 +217,7 @@ async def get_transaction(transaction_id: UUID, db: AsyncSession = Depends(get_d
     user = active_context.active_user
     tenant = active_context.active_tenant
 
-    transaction_read = await _fetch_transaction_with_names(db, tenant.id, transaction_id)
+    transaction_read = await transaction_service.build_transaction_read(db, tenant.id, transaction_id)
 
     if not transaction_read:
         raise HTTPException(status_code=404)
@@ -372,7 +226,7 @@ async def get_transaction(transaction_id: UUID, db: AsyncSession = Depends(get_d
 
 
 @router.patch("/{transaction_id}", response_model=TransactionRead)
-async def update_transaction(transaction_id: UUID, payload: TransactionUpdate, db: AsyncSession = Depends(get_db), active_context: ActiveContext = Depends(get_active_context)):
+async def update_transaction(transaction_id: UUID, payload: TransactionUpdate, db: AsyncSession = Depends(get_db), active_context: ActiveContext = Depends(require_writer)):
     """Update a transaction. Only the creator may modify their transaction.
 
     Args:
@@ -391,12 +245,7 @@ async def update_transaction(transaction_id: UUID, payload: TransactionUpdate, d
     user = active_context.active_user
     tenant = active_context.active_tenant
 
-    # Viewers have read-only access to the family's data.
-    if active_context.active_membership.role == MembershipRole.VIEWER:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Viewers cannot modify transactions",
-        )
+    # Viewers are blocked by the require_writer dependency; only members/owners reach here.
 
     transaction_query = select(Transaction).where(
         Transaction.id == transaction_id,
@@ -415,13 +264,13 @@ async def update_transaction(transaction_id: UUID, payload: TransactionUpdate, d
     # the new one, otherwise the account balance drifts permanently (money-
     # correctness defect — Blocker 2).
     previous_account_id = transaction_record.account_id
-    previous_delta = _balance_delta(transaction_record.transaction_type, transaction_record.amount)
+    previous_delta = transaction_service.balance_delta(transaction_record.transaction_type, transaction_record.amount)
 
     # Validate account_id update if provided. Use the shared authorization guard
     # so a transaction can only be reassigned to an account that is writable from
     # the active tenant (owner or AccountShare) — never an arbitrary UUID.
     if payload.account_id is not None:
-        await _authorize_account_for_tenant(db, payload.account_id, user, tenant)
+        await transaction_service.authorize_account_for_tenant(db, payload.account_id, user, tenant)
         transaction_record.account_id = payload.account_id
 
     if payload.category_id is not None:
@@ -441,7 +290,7 @@ async def update_transaction(transaction_id: UUID, payload: TransactionUpdate, d
 
     # Re-balance the affected account(s) in this same DB transaction.
     new_account_id = transaction_record.account_id
-    new_delta = _balance_delta(transaction_record.transaction_type, transaction_record.amount)
+    new_delta = transaction_service.balance_delta(transaction_record.transaction_type, transaction_record.amount)
 
     if previous_account_id == new_account_id:
         # Same account: apply only the net change so we don't double-count.
@@ -466,12 +315,12 @@ async def update_transaction(transaction_id: UUID, payload: TransactionUpdate, d
     db.add(transaction_record)
     await db.commit()
     await db.refresh(transaction_record)
-    transaction_read = await _fetch_transaction_with_names(db, tenant.id, transaction_record.id)
+    transaction_read = await transaction_service.build_transaction_read(db, tenant.id, transaction_record.id)
     return transaction_read
 
 
 @router.delete("/{transaction_id}", status_code=status.HTTP_204_NO_CONTENT)
-async def delete_transaction(transaction_id: UUID, db: AsyncSession = Depends(get_db), active_context: ActiveContext = Depends(get_active_context)):
+async def delete_transaction(transaction_id: UUID, db: AsyncSession = Depends(get_db), active_context: ActiveContext = Depends(require_writer)):
     """Delete a transaction. Only the creator may delete their transaction.
 
     Args:
@@ -486,12 +335,7 @@ async def delete_transaction(transaction_id: UUID, db: AsyncSession = Depends(ge
     user = active_context.active_user
     tenant = active_context.active_tenant
 
-    # Viewers have read-only access to the family's data.
-    if active_context.active_membership.role == MembershipRole.VIEWER:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Viewers cannot delete transactions",
-        )
+    # Viewers are blocked by the require_writer dependency; only members/owners reach here.
 
     transaction_query = select(Transaction).where(
         Transaction.id == transaction_id,
@@ -511,7 +355,7 @@ async def delete_transaction(transaction_id: UUID, db: AsyncSession = Depends(ge
     if transaction_record.account_id is not None:
         account = await db.get(Account, transaction_record.account_id)
         if account is not None:
-            account.balance -= _balance_delta(
+            account.balance -= transaction_service.balance_delta(
                 transaction_record.transaction_type, transaction_record.amount
             )
             db.add(account)

@@ -355,8 +355,8 @@ class TestUploadEndpoint:
         """A user with VIEWER role must be denied upload access with 403.
 
         Verifies that the viewer role check fires on the upload endpoint
-        before any file processing occurs. The error detail must contain
-        "Viewers" to match the role-rejection message from the router.
+        before any file processing occurs. The error detail is the generic
+        role-rejection message from the require_writer dependency.
         """
         response = await async_client.post(
             "/imports/upload",
@@ -365,7 +365,7 @@ class TestUploadEndpoint:
         )
 
         assert response.status_code == 403
-        assert "Viewers" in response.json()["detail"]
+        assert response.json()["detail"] == "insufficient role for this action"
 
 
 # ===========================================================================
@@ -910,7 +910,7 @@ class TestExecuteEndpoint:
         )
 
         assert response.status_code == 403
-        assert "Viewers" in response.json()["detail"]
+        assert response.json()["detail"] == "insufficient role for this action"
         # No Celery dispatch must occur when the role check fails
         assert fake_celery_dispatch == []
 
@@ -1182,7 +1182,7 @@ class TestJobStatusEndpoint:
         )
 
         assert response.status_code == 403
-        assert "Viewers" in response.json()["detail"]
+        assert response.json()["detail"] == "insufficient role for this action"
 
 
 # ===========================================================================
@@ -1203,15 +1203,15 @@ class TestListImportJobsEndpoint:
         """A user with VIEWER role must be denied access to the job list with 403.
 
         Verifies that the viewer role check fires on the list endpoint before
-        any database query is made. The error detail must contain "Viewers" to
-        match the role-rejection message from the router.
+        any database query is made. The error detail is the generic
+        role-rejection message from the require_writer dependency.
         """
         response = await async_client.get(
             "/imports/jobs", headers=_bearer(viewer_token)
         )
 
         assert response.status_code == 403
-        assert "Viewers" in response.json()["detail"]
+        assert response.json()["detail"] == "insufficient role for this action"
 
     async def test_list_jobs_requires_authentication(
         self,

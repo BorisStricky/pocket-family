@@ -6,87 +6,20 @@ from typing import List, Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import User, Account, AccountShare, Membership, MembershipRole, MembershipStatus, ShareVisibility, Tenant
+from ..models import Account, AccountShare, Membership, MembershipStatus
 from ..schemas import AccountCreate, AccountRead, AccountUpdate, AccountShareRead, AccountShareCreate, AccountShareUpdate, AccountShareWith
 from ..deps import get_db, get_current_user
+from ..services import accounts as account_service
 
 router = APIRouter(prefix="/accounts", tags=["accounts"])
 
-
-async def _serialize_account(session: AsyncSession, account: Account, requestor) -> dict:
-    """Serialize an Account for API responses, masking balance when appropriate.
-
-    If the requestor is the account owner the balance is included. Otherwise the
-    function checks tenant-based AccountShare records to decide if the
-    balance should be visible to the requestor (based on the requestor's active
-    memberships/tenants).
-
-    Additionally this function now includes the owner's user_name so the
-    frontend can display the account owner without extra queries.
-    """
-    # Resolve owner's display name
-    owner = await session.get(User, account.user_id)
-    user_name = owner.name if owner and owner.name else ""
-
-    # Determine visibility of balance
-    if account.user_id == requestor.id:
-        balance_decimal = account.balance
-    else:
-        # find user's active memberships
-        membership_query_result = await session.execute(select(Membership).where(Membership.user_id == requestor.id, Membership.status == MembershipStatus.ACTIVE))
-        membership_records = membership_query_result.scalars().all()
-        tenant_ids = [m.tenant_id for m in membership_records] if membership_records else []
-        balance_decimal = None
-        if tenant_ids:
-            share_query = select(AccountShare).where(AccountShare.account_id == account.id, AccountShare.tenant_id.in_(tenant_ids))
-            share_query_result = await session.execute(share_query)
-            share = share_query_result.scalars().first()
-            if share and share.visibility == ShareVisibility.VISIBLE:
-                balance_decimal = account.balance
-
-    return {
-        "id": account.id,
-        "user_id": account.user_id,
-        "user_name": user_name,
-        "name": account.name,
-        "type": account.type,
-        "currency": account.currency,
-        "balance": balance_decimal,
-        "icon": account.icon,
-        "color": account.color,
-        "created_at": account.created_at,
-        "updated_at": account.updated_at,
-    }
-
-
-async def _serialize_account_share(session: AsyncSession, share: AccountShare) -> dict:
-    """Serialize an AccountShare for API responses, including tenant name.
-
-    Fetches the tenant (family) name to provide a human-readable display name
-    instead of just the tenant UUID, improving the frontend user experience.
-
-    Args:
-        session: Database session for fetching related tenant data.
-        share: AccountShare record to serialize.
-
-    Returns:
-        Dictionary with all share fields plus tenant_name for display.
-    """
-    # Fetch the tenant to get its name
-    tenant = await session.get(Tenant, share.tenant_id)
-    tenant_name = tenant.name if tenant and tenant.name else ""
-
-    return {
-        "id": share.id,
-        "account_id": share.account_id,
-        "tenant_id": share.tenant_id,
-        "tenant_name": tenant_name,
-        "visibility": share.visibility,
-        "granted_by": share.granted_by,
-        "granted_at": share.granted_at,
-    }
-
-
+# Account CRUD (create / update / delete) is authorized by ownership (account.user_id == user.id),
+# NOT by the caller's family/tenant role. This is intentional: accounts are personal financial
+# instruments that belong to the individual user, not to any family they happen to be a member of.
+# The "viewer" role restricts what a member can do with shared family data (transactions, categories,
+# budgets). It is not a global write gate over a user's own accounts. Adding require_role guards here
+# would incorrectly block viewers from managing their own personal finances.
+# See docs/north_star.md §9 "Finding 2" for the full invariant documentation.
 @router.post("", response_model=AccountRead)
 async def create_account(payload: AccountCreate, db: AsyncSession = Depends(get_db), user=Depends(get_current_user)):
     """Create a new account owned by the authenticated user.
@@ -107,39 +40,11 @@ async def create_account(payload: AccountCreate, db: AsyncSession = Depends(get_
         HTTPException 403 when share_with tenant provided but user is not an active member.
         HTTPException 404 when share_with tenant does not exist.
     """
-    # If share_with is provided, validate user membership in target tenant
+    # If share_with is provided, validate user membership/role in the target tenant.
+    # The shared authorization rule (active member + not a viewer) lives in the
+    # service layer so this path and the dedicated /shares endpoint stay in lock-step.
     if payload.share_with:
-        target_tenant_id = payload.share_with.tenant_id
-
-        # Validate tenant exists
-        target_tenant = await db.get(Tenant, target_tenant_id)
-        if not target_tenant:
-            raise HTTPException(
-                status_code=status.HTTP_404_NOT_FOUND,
-                detail="Target tenant not found"
-            )
-
-        # Validate user is active member of target tenant
-        membership_check_query = select(Membership).where(
-            Membership.user_id == user.id,
-            Membership.tenant_id == target_tenant_id,
-            Membership.status == MembershipStatus.ACTIVE
-        )
-        membership_check_result = await db.execute(membership_check_query)
-        target_membership = membership_check_result.scalars().first()
-
-        if not target_membership:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="User is not an active member of the target tenant"
-            )
-
-        # Viewers have read-only access and may not share accounts into the family.
-        if target_membership.role == MembershipRole.VIEWER:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Viewers cannot share accounts with a family",
-            )
+        await account_service.authorize_share_target(db, user, payload.share_with.tenant_id)
 
     # Begin atomic transaction: create account and optionally create share
     try:
@@ -179,7 +84,7 @@ async def create_account(payload: AccountCreate, db: AsyncSession = Depends(get_
         )
 
     # Serialize to include user_name and respect balance visibility
-    return await _serialize_account(db, account_record, user)
+    return await account_service.build_account_read(db, account_record, user)
 
 
 @router.get("", response_model=List[AccountRead])
@@ -229,7 +134,7 @@ async def list_accounts(
         shared_account_records = shared_accounts_result.scalars().all()
 
         # Serialize and return
-        return [await _serialize_account(db, account_record, user) for account_record in shared_account_records]
+        return [await account_service.build_account_read(db, account_record, user) for account_record in shared_account_records]
 
     # When no tenant_id filter is given, return ONLY accounts owned by this user.
     # Accounts shared with families (via AccountShare) are intentionally excluded here —
@@ -239,39 +144,7 @@ async def list_accounts(
     my_account_records = my_accounts_query_result.scalars().all()
 
     # Serialize and return
-    return [await _serialize_account(db, account_record, user) for account_record in my_account_records]
-
-
-async def _requestor_can_access_account(session: AsyncSession, account: Account, requestor) -> bool:
-    """Return True when the requestor is allowed to view the given account.
-
-    Access is granted only to the account owner, or to a user who is an active
-    member of a tenant the account has been shared with via AccountShare. This
-    prevents an IDOR where any authenticated user could read another user's
-    account metadata and owner PII by guessing/iterating UUIDs (Security H-1).
-    """
-    # Owner always has access.
-    if account.user_id == requestor.id:
-        return True
-
-    # Otherwise require an AccountShare to one of the requestor's active tenants.
-    membership_query_result = await session.execute(
-        select(Membership.tenant_id).where(
-            Membership.user_id == requestor.id,
-            Membership.status == MembershipStatus.ACTIVE,
-        )
-    )
-    tenant_ids = [row[0] for row in membership_query_result.all()]
-    if not tenant_ids:
-        return False
-
-    share_query_result = await session.execute(
-        select(AccountShare.id).where(
-            AccountShare.account_id == account.id,
-            AccountShare.tenant_id.in_(tenant_ids),
-        )
-    )
-    return share_query_result.first() is not None
+    return [await account_service.build_account_read(db, account_record, user) for account_record in my_account_records]
 
 
 @router.get("/{account_id}", response_model=AccountRead)
@@ -296,10 +169,10 @@ async def get_account(account_id: UUID, db: AsyncSession = Depends(get_db), user
         raise HTTPException(status_code=404)
 
     # Enforce access control before returning any account fields (anti-IDOR).
-    if not await _requestor_can_access_account(db, account_record, user):
+    if not await account_service.can_access_account(db, account_record, user):
         raise HTTPException(status_code=404)
 
-    return await _serialize_account(db, account_record, user)
+    return await account_service.build_account_read(db, account_record, user)
 
 
 @router.get("/{account_id}/shares", response_model=List[AccountShareRead])
@@ -329,7 +202,7 @@ async def get_account_shares(account_id: UUID, db: AsyncSession = Depends(get_db
     # Serialize each share to include tenant_name
     serialized_shares = []
     for share in account_share_records:
-        serialized_share = await _serialize_account_share(db, share)
+        serialized_share = await account_service.build_account_share_read(db, share)
         serialized_shares.append(serialized_share)
 
     return serialized_shares
@@ -347,9 +220,11 @@ async def create_account_share(account_id: UUID, payload: AccountShareCreate, db
     if account_record.user_id != user.id:
         raise HTTPException(status_code=403, detail="only account owner can share")
 
-    tenant_record = await db.get(Tenant, payload.tenant_id)
-    if not tenant_record:
-        raise HTTPException(status_code=404, detail="tenant not found")
+    # Authorize sharing INTO the target tenant: the caller must be an active member
+    # and not a viewer. This also validates the tenant exists (404), so it replaces
+    # the previous standalone tenant-existence lookup and closes the broken-access-
+    # control gap where an owner could share into a family they don't belong to.
+    await account_service.authorize_share_target(db, user, payload.tenant_id)
 
     # ensure uniqueness: only one share per (account, tenant)
     existing_share_query = select(AccountShare).where(
@@ -367,7 +242,7 @@ async def create_account_share(account_id: UUID, payload: AccountShareCreate, db
     await db.refresh(account_share_record)
 
     # Serialize to include tenant_name
-    return await _serialize_account_share(db, account_share_record)
+    return await account_service.build_account_share_read(db, account_share_record)
 
 
 @router.patch("/{account_id}/shares/{tenant_id}", response_model=AccountShareRead)
@@ -391,7 +266,7 @@ async def update_account_share(account_id: UUID, tenant_id: UUID, payload: Accou
     await db.refresh(account_share_record)
 
     # Serialize to include tenant_name
-    return await _serialize_account_share(db, account_share_record)
+    return await account_service.build_account_share_read(db, account_share_record)
 
 
 @router.delete("/{account_id}/shares/{tenant_id}", status_code=status.HTTP_204_NO_CONTENT)
@@ -447,7 +322,7 @@ async def update_account(account_id: UUID, payload: AccountUpdate, db: AsyncSess
     db.add(account_record)
     await db.commit()
     await db.refresh(account_record)
-    return await _serialize_account(db, account_record, user)
+    return await account_service.build_account_read(db, account_record, user)
 
 
 @router.delete("/{account_id}", status_code=status.HTTP_204_NO_CONTENT)

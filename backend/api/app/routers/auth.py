@@ -3,13 +3,11 @@ from sqlmodel import select
 from sqlalchemy import update
 from sqlalchemy.ext.asyncio import AsyncSession
 from datetime import datetime, timedelta, timezone
-from typing import Optional
-from uuid import UUID
 
 from ..db import get_db
 from ..models import User, Tenant, Membership, RefreshToken, Invite
 from ..schemas import SignupIn, LoginIn, TokenOut, InviteCreate, MembershipStatus, ActiveContext
-from ..deps import get_active_context
+from ..deps import require_owner
 from ..auth import (
     hash_password,
     verify_password,
@@ -23,54 +21,10 @@ from ..auth import (
 )
 from ..rate_limit import limiter
 from ..seed_defaults import seed_tenant_defaults
+from ..services import auth as auth_service
 
 router = APIRouter()
 
-
-async def get_membership_for_user(
-    user: User,
-    tenant_uuid: Optional[UUID],
-    db: AsyncSession
-) -> Optional[Membership]:
-    """Get membership for user, handling preferred tenant logic.
-
-    Logic:
-    1. If tenant_uuid provided: return that specific membership
-    2. If not provided and user has preferred_tenant_id: return preferred membership
-    3. Otherwise: fall back to first active membership
-
-    Returns None if no valid membership found.
-    """
-    if tenant_uuid:
-        # Case 1: Explicit tenant provided
-        membership_query = select(Membership).where(
-            Membership.user_id == user.id,
-            Membership.tenant_id == tenant_uuid
-        )
-        membership_query_result = await db.execute(membership_query)
-        return membership_query_result.scalars().first()
-
-    # Case 2: No explicit tenant - check preferred
-    if user.preferred_tenant_id:
-        membership_query = select(Membership).where(
-            Membership.user_id == user.id,
-            Membership.tenant_id == user.preferred_tenant_id,
-            Membership.status == MembershipStatus.ACTIVE
-        )
-        membership_query_result = await db.execute(membership_query)
-        membership = membership_query_result.scalars().first()
-
-        if membership:
-            return membership
-        # If preferred tenant membership is invalid, fall through to default
-
-    # Case 3: Fall back to first active membership
-    membership_query = select(Membership).where(
-        Membership.user_id == user.id,
-        Membership.status == MembershipStatus.ACTIVE
-    )
-    membership_query_result = await db.execute(membership_query)
-    return membership_query_result.scalars().first()
 
 @router.post("/signup", response_model=TokenOut, dependencies=[Depends(assert_not_demo)])
 async def signup(payload: SignupIn, response: Response, db: AsyncSession = Depends(get_db)):
@@ -176,7 +130,7 @@ async def login(request: Request, payload: LoginIn, response: Response, db: Asyn
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
     
     # Get membership using preferred tenant logic
-    membership = await get_membership_for_user(user, payload.tenant_uuid, db)
+    membership = await auth_service.resolve_membership_for_user(user, payload.tenant_uuid, db)
 
     # If explicit tenant was provided, validate it and update preferred
     if payload.tenant_uuid:
@@ -292,7 +246,7 @@ async def refresh(request: Request, response: Response, db: AsyncSession = Depen
     await db.commit()
     # issue access token
     # Get membership using preferred tenant logic (no explicit tenant in refresh)
-    membership = await get_membership_for_user(user, None, db)
+    membership = await auth_service.resolve_membership_for_user(user, None, db)
 
     tenant_id = membership.tenant_id if membership else None
     roles = [membership.role] if membership else []
@@ -356,7 +310,7 @@ async def create_invite(
     tenant_id: str,
     payload: InviteCreate,
     db: AsyncSession = Depends(get_db),
-    context: ActiveContext = Depends(get_active_context)
+    context: ActiveContext = Depends(require_owner)
 ):
     """Create an invite record for a tenant.
 
@@ -384,12 +338,9 @@ async def create_invite(
             detail="You can only create invites for your active tenant"
         )
 
-    # Authorization check: only tenant owners can create invites
-    if context.active_membership.role != "owner":
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Only tenant owners can create invites"
-        )
+    # Authorization: only tenant owners can create invites. Enforced by the
+    # require_owner dependency, which also fixes a latent bug where the role was
+    # compared against the raw string "owner" instead of the MembershipRole enum.
 
     # Generate secure invite token and create invite record
     raw_invite_token = make_refresh_token()
