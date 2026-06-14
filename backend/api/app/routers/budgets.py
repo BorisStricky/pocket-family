@@ -66,20 +66,12 @@ async def list_budgets(
     effective_month = month if month is not None else current_datetime.month
     effective_year = year if year is not None else current_datetime.year
 
-    # Fetch all budgets belonging to this tenant, then enrich each with its
-    # categories and spent total (intentionally per-budget — see module note).
-    budget_records = await budget_service.list_budgets_for_tenant(
-        database_session, tenant_id
+    # Fetch all budgets and enrich them (categories + spent) in a fixed number of
+    # queries — the service batches the category and spent lookups instead of paying
+    # a per-budget N+1.
+    return await budget_service.list_budget_reads_for_tenant(
+        database_session, tenant_id, effective_month, effective_year
     )
-
-    budget_read_list: List[dict] = []
-    for budget_record in budget_records:
-        budget_read = await budget_service.build_budget_read(
-            database_session, budget_record, tenant_id, effective_month, effective_year
-        )
-        budget_read_list.append(budget_read)
-
-    return budget_read_list
 
 
 @router.get("/{budget_id}", response_model=BudgetRead)

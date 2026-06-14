@@ -63,37 +63,24 @@ async def authorize_share_target(session: AsyncSession, user, target_tenant_id) 
     return target_membership
 
 
-async def build_account_read(session: AsyncSession, account: Account, requestor) -> dict:
-    """Serialize an Account for API responses, masking balance when appropriate.
+def _resolve_visible_balance(account: Account, requestor_id: UUID, has_visible_share: bool):
+    """Return the account balance when the requestor may see it, else None.
 
-    If the requestor is the account owner the balance is included. Otherwise the
-    function checks tenant-based AccountShare records to decide if the
-    balance should be visible to the requestor (based on the requestor's active
-    memberships/tenants).
-
-    Additionally this function now includes the owner's user_name so the
-    frontend can display the account owner without extra queries.
+    The single masking rule, centralized so the single-record builder and the list
+    builders cannot drift: the owner always sees their own balance; a non-owner sees
+    it only when the account is shared to them with VISIBLE visibility. Each caller
+    computes `has_visible_share` for its own context (all of the requestor's tenants
+    for the single-record path, the one path tenant for the family list).
     """
-    # Resolve owner's display name
-    owner = await session.get(User, account.user_id)
-    user_name = owner.name if owner and owner.name else ""
+    if account.user_id == requestor_id or has_visible_share:
+        return account.balance
+    return None
 
-    # Determine visibility of balance
-    if account.user_id == requestor.id:
-        balance_decimal = account.balance
-    else:
-        # find user's active memberships
-        membership_query_result = await session.execute(select(Membership).where(Membership.user_id == requestor.id, Membership.status == MembershipStatus.ACTIVE))
-        membership_records = membership_query_result.scalars().all()
-        tenant_ids = [m.tenant_id for m in membership_records] if membership_records else []
-        balance_decimal = None
-        if tenant_ids:
-            share_query = select(AccountShare).where(AccountShare.account_id == account.id, AccountShare.tenant_id.in_(tenant_ids))
-            share_query_result = await session.execute(share_query)
-            share = share_query_result.scalars().first()
-            if share and share.visibility == ShareVisibility.VISIBLE:
-                balance_decimal = account.balance
 
+def _account_read_dict(account: Account, user_name: str, balance) -> dict:
+    """Assemble the AccountRead-shaped dict from an account, owner name, and the
+    already-resolved (possibly masked) balance. One place so every account-read
+    path emits an identical shape."""
     return {
         "id": account.id,
         "user_id": account.user_id,
@@ -101,7 +88,7 @@ async def build_account_read(session: AsyncSession, account: Account, requestor)
         "name": account.name,
         "type": account.type,
         "currency": account.currency,
-        "balance": balance_decimal,
+        "balance": balance,
         "icon": account.icon,
         "color": account.color,
         "created_at": account.created_at,
@@ -109,23 +96,42 @@ async def build_account_read(session: AsyncSession, account: Account, requestor)
     }
 
 
-async def build_account_share_read(session: AsyncSession, share: AccountShare) -> dict:
-    """Serialize an AccountShare for API responses, including tenant name.
+async def build_account_read(session: AsyncSession, account: Account, requestor) -> dict:
+    """Serialize a single Account for API responses, masking balance when appropriate.
 
-    Fetches the tenant (family) name to provide a human-readable display name
-    instead of just the tenant UUID, improving the frontend user experience.
+    If the requestor is the account owner the balance is included. Otherwise the
+    function checks tenant-based AccountShare records to decide if the balance should
+    be visible to the requestor (based on the requestor's active memberships/tenants).
 
-    Args:
-        session: Database session for fetching related tenant data.
-        share: AccountShare record to serialize.
-
-    Returns:
-        Dictionary with all share fields plus tenant_name for display.
+    Single-record path only (get_account, post-create read). The list endpoints use
+    the batched list_accounts_* functions below, which fold this enrichment into one
+    joined query instead of paying these per-row lookups.
     """
-    # Fetch the tenant to get its name
-    tenant = await session.get(Tenant, share.tenant_id)
-    tenant_name = tenant.name if tenant and tenant.name else ""
+    # Resolve owner's display name.
+    owner = await session.get(User, account.user_id)
+    user_name = owner.name if owner and owner.name else ""
 
+    # Determine whether the requestor may see the balance. For a non-owner this means
+    # an AccountShare to one of their active tenants (preserving the original
+    # first-share-wins semantics).
+    has_visible_share = False
+    if account.user_id != requestor.id:
+        membership_query_result = await session.execute(select(Membership).where(Membership.user_id == requestor.id, Membership.status == MembershipStatus.ACTIVE))
+        membership_records = membership_query_result.scalars().all()
+        tenant_ids = [m.tenant_id for m in membership_records] if membership_records else []
+        if tenant_ids:
+            share_query = select(AccountShare).where(AccountShare.account_id == account.id, AccountShare.tenant_id.in_(tenant_ids))
+            share_query_result = await session.execute(share_query)
+            share = share_query_result.scalars().first()
+            has_visible_share = bool(share and share.visibility == ShareVisibility.VISIBLE)
+
+    balance_decimal = _resolve_visible_balance(account, requestor.id, has_visible_share)
+    return _account_read_dict(account, user_name, balance_decimal)
+
+
+def _account_share_read_dict(share: AccountShare, tenant_name: str) -> dict:
+    """Assemble the AccountShareRead-shaped dict from a share and its tenant name.
+    One place so the single-record and batched share builders emit identical shapes."""
     return {
         "id": share.id,
         "account_id": share.account_id,
@@ -135,6 +141,21 @@ async def build_account_share_read(session: AsyncSession, share: AccountShare) -
         "granted_by": share.granted_by,
         "granted_at": share.granted_at,
     }
+
+
+async def build_account_share_read(session: AsyncSession, share: AccountShare) -> dict:
+    """Serialize a single AccountShare for API responses, including tenant name.
+
+    Fetches the tenant (family) name to provide a human-readable display name
+    instead of just the tenant UUID. Single-record path (create/update share). The
+    list endpoint uses list_share_reads_for_account, which joins the tenant name in
+    one query instead of a per-share lookup.
+    """
+    # Fetch the tenant to get its name
+    tenant = await session.get(Tenant, share.tenant_id)
+    tenant_name = tenant.name if tenant and tenant.name else ""
+
+    return _account_share_read_dict(share, tenant_name)
 
 
 async def can_access_account(session: AsyncSession, account: Account, requestor) -> bool:
@@ -244,21 +265,51 @@ async def get_account_share_or_404(session: AsyncSession, account_id: UUID, tena
 # Read queries (return ORM records; the handler maps them through build_*_read)
 # ---------------------------------------------------------------------------
 
-async def list_accounts_owned_by_user(session: AsyncSession, user_id: UUID) -> List[Account]:
-    """Return every account personally owned by the user."""
-    result = await session.execute(select(Account).where(Account.user_id == user_id))
-    return result.scalars().all()
+async def list_accounts_owned_by_user(session: AsyncSession, requestor: User) -> List[dict]:
+    """Return AccountRead dicts for every account personally owned by the requestor.
+
+    The owner is the requestor, so the balance is always visible and the owner name
+    is just `requestor.name` — no per-row User lookup needed. One query for the whole
+    list (no N+1).
+    """
+    result = await session.execute(select(Account).where(Account.user_id == requestor.id))
+    owned_accounts = result.scalars().all()
+    owner_name = requestor.name if requestor.name else ""
+    # Owner always sees their own balance (has_visible_share is irrelevant here).
+    return [
+        _account_read_dict(account, owner_name, _resolve_visible_balance(account, requestor.id, True))
+        for account in owned_accounts
+    ]
 
 
-async def list_accounts_shared_with_tenant(session: AsyncSession, tenant_id: UUID) -> List[Account]:
-    """Return accounts shared into a tenant (family) via AccountShare."""
+async def list_accounts_shared_with_tenant(
+    session: AsyncSession, requestor: User, tenant_id: UUID
+) -> List[dict]:
+    """Return AccountRead dicts for accounts shared into a tenant (family).
+
+    A single joined query fetches each shared account, its owner's name, and the
+    share's visibility for this tenant — folding what build_account_read used to do
+    per row into one round-trip (no N+1). Balance visibility is resolved in memory:
+    visible if the requestor owns the account, or the share into this tenant is
+    VISIBLE. The requestor is an authorized active member of this tenant, so the
+    share to it is exactly what governs visibility.
+    """
     shared_accounts_query = (
-        select(Account)
+        select(Account, User.name, AccountShare.visibility)
         .join(AccountShare, AccountShare.account_id == Account.id)
+        # Outer-join the owner so an account whose owner row is somehow missing still
+        # appears (with an empty owner name), matching the old get-or-"" behavior.
+        .outerjoin(User, User.id == Account.user_id)
         .where(AccountShare.tenant_id == tenant_id)
     )
     result = await session.execute(shared_accounts_query)
-    return result.scalars().all()
+
+    account_reads: List[dict] = []
+    for account, owner_name, share_visibility in result.all():
+        has_visible_share = share_visibility == ShareVisibility.VISIBLE
+        balance = _resolve_visible_balance(account, requestor.id, has_visible_share)
+        account_reads.append(_account_read_dict(account, owner_name or "", balance))
+    return account_reads
 
 
 async def list_shares_for_account(session: AsyncSession, account_id: UUID) -> List[AccountShare]:
@@ -267,6 +318,26 @@ async def list_shares_for_account(session: AsyncSession, account_id: UUID) -> Li
         select(AccountShare).where(AccountShare.account_id == account_id)
     )
     return result.scalars().all()
+
+
+async def list_share_reads_for_account(session: AsyncSession, account_id: UUID) -> List[dict]:
+    """Return AccountShareRead dicts for an account, joining tenant names in one query.
+
+    Replaces the per-share session.get(Tenant) that build_account_share_read does
+    (an N+1 when listing an account's shares) with a single joined query.
+    """
+    shares_query = (
+        select(AccountShare, Tenant.name)
+        # Outer-join so a share whose tenant row is somehow missing still appears
+        # (with an empty name), matching the single-record get-or-"" behavior.
+        .outerjoin(Tenant, Tenant.id == AccountShare.tenant_id)
+        .where(AccountShare.account_id == account_id)
+    )
+    result = await session.execute(shares_query)
+    return [
+        _account_share_read_dict(share, tenant_name or "")
+        for share, tenant_name in result.all()
+    ]
 
 
 # ---------------------------------------------------------------------------

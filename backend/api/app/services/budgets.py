@@ -35,6 +35,24 @@ from ..models import (
 )
 
 
+def _budget_category_dict(category_record: Category, parent_name) -> dict:
+    """Shape a budget's linked Category into a CategoryRead-style dict. One place so
+    the single (fetch_categories_for_budget) and batched (fetch_categories_for_budgets)
+    loaders emit identical category shapes."""
+    return {
+        "id": category_record.id,
+        "tenant_id": category_record.tenant_id,
+        "name": category_record.name,
+        "kind": category_record.kind,
+        "parent_id": category_record.parent_id,
+        "parent_name": parent_name,
+        "icon": category_record.icon,
+        "color": category_record.color,
+        "created_at": category_record.created_at,
+        "updated_at": category_record.updated_at,
+    }
+
+
 async def fetch_categories_for_budget(
     session: AsyncSession,
     budget_id: UUID,
@@ -68,22 +86,44 @@ async def fetch_categories_for_budget(
     category_result = await session.execute(category_query)
     category_rows = category_result.all()
 
-    category_list: List[dict] = []
-    for row in category_rows:
-        category_record: Category = row[0]
-        category_list.append({
-            "id": category_record.id,
-            "tenant_id": category_record.tenant_id,
-            "name": category_record.name,
-            "kind": category_record.kind,
-            "parent_id": category_record.parent_id,
-            "parent_name": row.parent_name,
-            "icon": category_record.icon,
-            "color": category_record.color,
-            "created_at": category_record.created_at,
-            "updated_at": category_record.updated_at,
-        })
-    return category_list
+    return [_budget_category_dict(row[0], row.parent_name) for row in category_rows]
+
+
+async def fetch_categories_for_budgets(
+    session: AsyncSession,
+    budget_ids: List[UUID],
+    tenant_id: UUID,
+) -> dict:
+    """Batched fetch_categories_for_budget: load linked categories for MANY budgets
+    in one query, grouped into ``{budget_id: [category dict, ...]}``.
+
+    Same join and per-row shape as the single-budget version; only the budget filter
+    widens to ``budget_id IN (...)`` and the select carries the budget_id so rows can
+    be grouped. Budgets with no linked categories are simply absent from the map (the
+    caller treats those as universal budgets).
+    """
+    if not budget_ids:
+        return {}
+
+    ParentCategory = aliased(Category)
+    category_query = (
+        select(BudgetCategory.budget_id, Category, ParentCategory.name.label("parent_name"))
+        .join(BudgetCategory, BudgetCategory.category_id == Category.id)
+        .outerjoin(ParentCategory, ParentCategory.id == Category.parent_id)
+        .where(
+            BudgetCategory.budget_id.in_(budget_ids),
+            BudgetCategory.tenant_id == tenant_id,
+        )
+        .order_by(Category.name)
+    )
+    category_result = await session.execute(category_query)
+
+    categories_by_budget: dict = {}
+    for budget_id, category_record, parent_name in category_result.all():
+        categories_by_budget.setdefault(budget_id, []).append(
+            _budget_category_dict(category_record, parent_name)
+        )
+    return categories_by_budget
 
 
 async def calculate_spent_for_budget(
@@ -129,6 +169,85 @@ async def calculate_spent_for_budget(
     return spent_result.scalar_one()
 
 
+async def calculate_spent_for_budgets(
+    session: AsyncSession,
+    tenant_id: UUID,
+    budgets: List[Budget],
+    categories_by_budget: dict,
+    month: int,
+    year: int,
+) -> dict:
+    """Batched calculate_spent_for_budget: spent per budget with a fixed number of
+    queries (one per case) instead of one per budget.
+
+    Reproduces the single-budget rule exactly, preserving both cases:
+    - Category budgets (present in ``categories_by_budget``): one aggregate grouped
+      by ``BudgetCategory.budget_id``, joining Transaction on the linked category and
+      matching each budget's own currency (join Budget). The join fans a transaction
+      out to every budget whose linked category includes it — identical to the
+      per-budget ``category_id IN (...)`` sum.
+    - Universal budgets (no linked categories): the per-budget code sums ALL tenant
+      expense transactions in that budget's currency/month. Compute one aggregate of
+      tenant expenses for the month grouped by currency, then assign each universal
+      budget its currency's total.
+
+    Budgets with no matching transactions default to Decimal("0.00").
+    """
+    spent_by_budget: dict = {}
+
+    # A budget is a "category budget" iff the batched fetch found linked categories
+    # for it; everything else is a universal budget (matching how the single path
+    # derives linked_category_ids from the same inner-join fetch).
+    category_budget_ids = [budget.id for budget in budgets if categories_by_budget.get(budget.id)]
+    universal_budgets = [budget for budget in budgets if not categories_by_budget.get(budget.id)]
+
+    # Case 1: category budgets — sum grouped by budget, currency matched per budget.
+    if category_budget_ids:
+        category_spent_query = (
+            select(
+                BudgetCategory.budget_id,
+                func.coalesce(func.sum(Transaction.amount), Decimal("0.00")),
+            )
+            .join(Budget, Budget.id == BudgetCategory.budget_id)
+            .join(Transaction, Transaction.category_id == BudgetCategory.category_id)
+            .where(
+                BudgetCategory.budget_id.in_(category_budget_ids),
+                BudgetCategory.tenant_id == tenant_id,
+                Transaction.tenant_id == tenant_id,
+                Transaction.transaction_type == CategoryKind.EXPENSE,
+                Transaction.currency == Budget.currency,
+                extract("month", Transaction.transaction_date) == month,
+                extract("year", Transaction.transaction_date) == year,
+            )
+            .group_by(BudgetCategory.budget_id)
+        )
+        category_spent_result = await session.execute(category_spent_query)
+        for budget_id, spent_amount in category_spent_result.all():
+            spent_by_budget[budget_id] = spent_amount
+
+    # Case 2: universal budgets — sum all tenant expenses for the month, by currency.
+    if universal_budgets:
+        currency_spent_query = (
+            select(
+                Transaction.currency,
+                func.coalesce(func.sum(Transaction.amount), Decimal("0.00")),
+            )
+            .where(
+                Transaction.tenant_id == tenant_id,
+                Transaction.transaction_type == CategoryKind.EXPENSE,
+                extract("month", Transaction.transaction_date) == month,
+                extract("year", Transaction.transaction_date) == year,
+            )
+            .group_by(Transaction.currency)
+        )
+        currency_spent_result = await session.execute(currency_spent_query)
+        spent_by_currency = {currency: amount for currency, amount in currency_spent_result.all()}
+        for budget in universal_budgets:
+            spent_by_budget[budget.id] = spent_by_currency.get(budget.currency, Decimal("0.00"))
+
+    return spent_by_budget
+
+
 async def build_budget_read(
     session: AsyncSession,
     budget_record: Budget,
@@ -168,6 +287,15 @@ async def build_budget_read(
         year,
     )
 
+    return _budget_read_dict(budget_record, category_list, spent_amount, month, year)
+
+
+def _budget_read_dict(
+    budget_record: Budget, category_list: List[dict], spent_amount, month: int, year: int
+) -> dict:
+    """Assemble the BudgetRead-shaped dict from a budget plus its already-loaded
+    categories and spent total. One place so the single (build_budget_read) and
+    batched (list_budget_reads_for_tenant) paths emit identical shapes."""
     return {
         "id": budget_record.id,
         "tenant_id": budget_record.tenant_id,
@@ -183,6 +311,41 @@ async def build_budget_read(
         "created_at": budget_record.created_at,
         "updated_at": budget_record.updated_at,
     }
+
+
+async def list_budget_reads_for_tenant(
+    session: AsyncSession,
+    tenant_id: UUID,
+    month: int,
+    year: int,
+) -> List[dict]:
+    """Return BudgetRead dicts for every budget in the tenant in a fixed number of
+    queries (no per-budget N+1).
+
+    Loads all budgets once, batch-loads their categories and their spent totals,
+    then assembles each read in memory. Produces the same per-budget shape as
+    build_budget_read (single source via _budget_read_dict).
+    """
+    budget_records = await list_budgets_for_tenant(session, tenant_id)
+    if not budget_records:
+        return []
+
+    budget_ids = [budget_record.id for budget_record in budget_records]
+    categories_by_budget = await fetch_categories_for_budgets(session, budget_ids, tenant_id)
+    spent_by_budget = await calculate_spent_for_budgets(
+        session, tenant_id, budget_records, categories_by_budget, month, year
+    )
+
+    return [
+        _budget_read_dict(
+            budget_record,
+            categories_by_budget.get(budget_record.id, []),
+            spent_by_budget.get(budget_record.id, Decimal("0.00")),
+            month,
+            year,
+        )
+        for budget_record in budget_records
+    ]
 
 
 async def validate_category_ids_belong_to_tenant(

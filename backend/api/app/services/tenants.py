@@ -266,10 +266,12 @@ async def apply_membership_update(
 ) -> Membership:
     """Load the target membership (scoped to tenant) and apply role/status updates.
 
+    Raises 404 when no membership matches (id + tenant), mirroring the guard in
+    delete_membership_for_tenant so the two siblings behave consistently.
+
     KNOWN QUIRK (preserved, not fixed): there is no last-owner guard here, so an
-    owner can self-demote and orphan the family. There is also no not-found guard,
-    so a missing membership yields an AttributeError → 500 rather than a 404. Both
-    behaviors are intentionally relocated as-is per the behavior-preserving refactor.
+    owner can self-demote and orphan the family. That is a separate product decision
+    and is intentionally left as-is per the behavior-preserving refactor.
     """
     # This query loads membership for given user and tenant to validate membership.
     membership_query = select(Membership).where(
@@ -278,6 +280,11 @@ async def apply_membership_update(
     )
     membership_query_result = await session.execute(membership_query)
     membership_record = membership_query_result.scalars().first()
+
+    # Guard against a missing membership: without this, the attribute writes below
+    # would raise AttributeError → 500. Return a clean 404 instead.
+    if not membership_record:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Membership not found")
 
     if payload.role is not None:
         membership_record.role = payload.role

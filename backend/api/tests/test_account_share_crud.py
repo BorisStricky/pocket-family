@@ -265,3 +265,77 @@ def test_create_account_share_succeeds_when_caller_is_active_member_of_target_te
     share = share_response.json()
     assert share["account_id"] == account["id"]
     assert share["tenant_id"] == target_tenant["id"]
+
+
+def test_create_account_with_share_with_creates_account_and_one_share(client):
+    """create_account with share_with stays a 200 happy path creating exactly one share.
+
+    Guards that the new `except HTTPException` arm in the create_account handler does
+    not regress the atomic account+share creation path.
+    """
+    # Arrange: the actor owns a tenant they are an active owner of.
+    actor = signup_and_auth(client, "atomic_sharer@test.com", "AtomicPw1!", "AtomicSharer")
+    actor_header = auth_header(actor["access_token"])
+    target_tenant_response = client.post("/tenants", json={"name": "AtomicShareFamily"}, headers=actor_header)
+    assert target_tenant_response.status_code == 200, target_tenant_response.text
+    target_tenant = target_tenant_response.json()
+
+    # Act: create an account AND share it with the tenant in one request.
+    account_response = client.post(
+        "/accounts",
+        json={
+            "name": "Atomic Account",
+            "type": "cash",
+            "currency": "USD",
+            "balance": "25.00",
+            "share_with": {"tenant_id": target_tenant["id"], "visibility": "visible"},
+        },
+        headers=actor_header,
+    )
+
+    # Assert: account created, and exactly one share bound to the target tenant.
+    assert account_response.status_code == 200, account_response.text
+    account = account_response.json()
+
+    shares_list_response = client.get(f"/accounts/{account['id']}/shares", headers=actor_header)
+    assert shares_list_response.status_code == 200, shares_list_response.text
+    shares = shares_list_response.json()
+    assert len(shares) == 1
+    assert shares[0]["tenant_id"] == target_tenant["id"]
+
+
+def test_list_account_shares_returns_tenant_name_for_each_tenant(client):
+    """GET /accounts/{id}/shares returns the correct tenant_name per share when an
+    account is shared with multiple tenants (batched-join enrichment, item 5)."""
+    # Arrange: the actor owns two distinct tenants and one account.
+    actor = signup_and_auth(client, "multi_share@test.com", "MultiPw1!", "MultiSharer")
+    actor_header = auth_header(actor["access_token"])
+
+    first_tenant = client.post("/tenants", json={"name": "FirstShareFamily"}, headers=actor_header).json()
+    second_tenant = client.post("/tenants", json={"name": "SecondShareFamily"}, headers=actor_header).json()
+
+    account = client.post(
+        "/accounts",
+        json={"name": "Multi Share Account", "type": "cash", "currency": "USD", "balance": "50.00"},
+        headers=actor_header,
+    ).json()
+
+    # Share the account with both tenants.
+    for tenant in (first_tenant, second_tenant):
+        share_response = client.post(
+            f"/accounts/{account['id']}/shares",
+            json={"tenant_id": tenant["id"], "visibility": "visible"},
+            headers=actor_header,
+        )
+        assert share_response.status_code == 200, share_response.text
+
+    # Act: list the account's shares.
+    shares_list_response = client.get(f"/accounts/{account['id']}/shares", headers=actor_header)
+    assert shares_list_response.status_code == 200, shares_list_response.text
+
+    # Assert: each share carries its own tenant's name (correct join, no cross-up).
+    tenant_name_by_id = {
+        share["tenant_id"]: share["tenant_name"] for share in shares_list_response.json()
+    }
+    assert tenant_name_by_id[first_tenant["id"]] == "FirstShareFamily"
+    assert tenant_name_by_id[second_tenant["id"]] == "SecondShareFamily"

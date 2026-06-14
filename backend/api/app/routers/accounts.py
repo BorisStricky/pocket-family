@@ -58,6 +58,12 @@ async def create_account(payload: AccountCreate, db: AsyncSession = Depends(get_
             )
         await db.commit()
         await db.refresh(account_record)
+    except HTTPException:
+        # A deliberate HTTP error (e.g. create_share's 409 duplicate) must surface
+        # with its real status, not be re-wrapped as a generic 500. Roll back the
+        # staged work first, then re-raise it untouched.
+        await db.rollback()
+        raise
     except Exception as error:
         await db.rollback()
         raise HTTPException(
@@ -92,16 +98,15 @@ async def list_accounts(
     """
     # Family-scoped view: only accounts shared with the requested tenant, and only
     # for active members of it (viewers included — they may see shared accounts).
+    # The service folds owner-name + balance-visibility into one joined query.
     if tenant_id:
         await account_service.authorize_active_member(db, user, tenant_id)
-        shared_account_records = await account_service.list_accounts_shared_with_tenant(db, tenant_id)
-        return [await account_service.build_account_read(db, account_record, user) for account_record in shared_account_records]
+        return await account_service.list_accounts_shared_with_tenant(db, user, tenant_id)
 
     # Global view: ONLY accounts owned by this user. Accounts shared with families
     # are intentionally excluded here — they appear in the family-scoped view above,
     # so a user never sees other members' accounts in the global "All Accounts" list.
-    my_account_records = await account_service.list_accounts_owned_by_user(db, user.id)
-    return [await account_service.build_account_read(db, account_record, user) for account_record in my_account_records]
+    return await account_service.list_accounts_owned_by_user(db, user)
 
 
 @router.get("/{account_id}", response_model=AccountRead)
@@ -149,8 +154,8 @@ async def get_account_shares(account_id: UUID, db: AsyncSession = Depends(get_db
         HTTPException 403 when requester is not the owner.
     """
     await account_service.authorize_account_owner(db, account_id, user)
-    account_share_records = await account_service.list_shares_for_account(db, account_id)
-    return [await account_service.build_account_share_read(db, share) for share in account_share_records]
+    # One joined query (tenant names included) instead of a per-share lookup.
+    return await account_service.list_share_reads_for_account(db, account_id)
 
 
 @router.post("/{account_id}/shares", response_model=AccountShareRead)
