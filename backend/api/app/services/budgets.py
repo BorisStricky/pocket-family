@@ -17,10 +17,13 @@ from sqlmodel import select, delete
 from typing import List
 from uuid import UUID
 from decimal import Decimal
+from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import func, extract
 from sqlalchemy.orm import aliased
+
+from ..schemas import BudgetCreate, BudgetUpdate
 
 from ..models import (
     Budget,
@@ -251,3 +254,192 @@ async def sync_budget_categories(
             category_id=category_id,
         )
         session.add(budget_category_record)
+
+
+# ---------------------------------------------------------------------------
+# Fetch + read queries
+#
+# These centralize the "load this budget or 404 (scoped to tenant)" and the
+# tenant-scoped listing blocks that previously lived inline in the handlers.
+# They raise HTTPException so a handler stays a thin orchestrator; they never
+# commit.
+# ---------------------------------------------------------------------------
+
+async def get_budget_or_404(
+    session: AsyncSession,
+    budget_id: UUID,
+    tenant_id: UUID,
+) -> Budget:
+    """Load a budget by id scoped to the tenant, raising 404 if absent.
+
+    The tenant_id filter is part of the lookup (not a separate check) so a
+    budget belonging to another tenant is indistinguishable from a missing one
+    — this preserves multi-tenant isolation and avoids leaking existence.
+
+    Args:
+        session: Active async database session.
+        budget_id: UUID of the budget to load.
+        tenant_id: Active tenant context for isolation filtering.
+
+    Returns:
+        The matching Budget ORM instance.
+
+    Raises:
+        HTTPException 404 when no budget matches the id within the tenant.
+    """
+    budget_result = await session.execute(
+        select(Budget).where(
+            Budget.id == budget_id,
+            Budget.tenant_id == tenant_id,
+        )
+    )
+    budget_record = budget_result.scalar_one_or_none()
+    if not budget_record:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Budget not found",
+        )
+    return budget_record
+
+
+async def list_budgets_for_tenant(
+    session: AsyncSession,
+    tenant_id: UUID,
+) -> List[Budget]:
+    """Return every budget belonging to the tenant, ordered by name.
+
+    Args:
+        session: Active async database session.
+        tenant_id: Active tenant context for isolation filtering.
+
+    Returns:
+        List of Budget ORM instances ordered by name. The caller maps each
+        through build_budget_read for spent/category enrichment.
+    """
+    budget_query = (
+        select(Budget)
+        .where(Budget.tenant_id == tenant_id)
+        .order_by(Budget.name)
+    )
+    budget_result = await session.execute(budget_query)
+    return budget_result.scalars().all()
+
+
+# ---------------------------------------------------------------------------
+# Persistence (build / add / delete records — pure staging).
+#
+# These never call flush or commit. They stage work on the request-scoped
+# session; the calling handler owns the unit-of-work boundary (commit / rollback
+# / refresh) so a budget row plus its category links land atomically under one
+# commit. See backend/CLAUDE.md "Transaction ownership".
+# ---------------------------------------------------------------------------
+
+# Fields that map to nullable DB columns and may legitimately be cleared to None.
+# name/amount/currency are NOT NULL, so a None for them is ignored to avoid an
+# IntegrityError at commit time.
+_NULLABLE_BUDGET_FIELDS = {"icon", "color"}
+
+
+async def create_budget(
+    session: AsyncSession,
+    tenant_id: UUID,
+    payload: BudgetCreate,
+) -> Budget:
+    """Stage a new budget and its category links (build + add only — no commit).
+
+    Validates that any provided category_ids belong to the tenant before staging
+    the join rows. Budget.id is a client-side uuid4 default, so the category
+    links can reference it without an intervening flush. The handler owns the
+    single commit that lands the budget row and its links atomically.
+
+    Args:
+        session: Active async database session.
+        tenant_id: Active tenant context (set as the budget's tenant).
+        payload: BudgetCreate with name, amount, currency, optional category_ids.
+
+    Returns:
+        The staged Budget ORM instance.
+
+    Raises:
+        HTTPException 400 when one or more category IDs are invalid.
+    """
+    # Validate that all provided categories belong to this tenant before staging.
+    if payload.category_ids:
+        await validate_category_ids_belong_to_tenant(
+            session, payload.category_ids, tenant_id
+        )
+
+    budget_record = Budget(
+        tenant_id=tenant_id,
+        name=payload.name,
+        amount=payload.amount,
+        currency=payload.currency or Currency.BRL,
+        icon=payload.icon,
+        color=payload.color,
+    )
+    session.add(budget_record)
+
+    # Create BudgetCategory join rows if categories were specified.
+    if payload.category_ids:
+        await sync_budget_categories(
+            session, budget_record.id, tenant_id, payload.category_ids
+        )
+
+    return budget_record
+
+
+async def apply_budget_update(
+    session: AsyncSession,
+    budget_record: Budget,
+    tenant_id: UUID,
+    payload: BudgetUpdate,
+) -> Budget:
+    """Apply a partial update to a budget in place (no commit).
+
+    Scalar fields are applied with exclude_unset so absent fields are untouched;
+    None is ignored for NOT NULL columns (name/amount/currency) and only allowed
+    to clear the nullable icon/color columns. When category_ids is explicitly
+    provided (not None) the entire category set is replaced after validation;
+    when omitted the existing categories remain unchanged.
+
+    Args:
+        session: Active async database session.
+        budget_record: The Budget ORM instance to mutate.
+        tenant_id: Active tenant context for category validation/sync.
+        payload: BudgetUpdate with optional fields.
+
+    Returns:
+        The updated Budget ORM instance.
+
+    Raises:
+        HTTPException 400 when provided category IDs are invalid.
+    """
+    scalar_updates = payload.model_dump(exclude_unset=True, exclude={"category_ids"})
+    for field_name, field_value in scalar_updates.items():
+        if field_value is None and field_name not in _NULLABLE_BUDGET_FIELDS:
+            continue
+        setattr(budget_record, field_name, field_value)
+
+    # Update the modification timestamp.
+    budget_record.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
+
+    # Replace the category set when category_ids is explicitly provided.
+    if payload.category_ids is not None:
+        await validate_category_ids_belong_to_tenant(
+            session, payload.category_ids, tenant_id
+        )
+        await sync_budget_categories(
+            session, budget_record.id, tenant_id, payload.category_ids
+        )
+
+    session.add(budget_record)
+    return budget_record
+
+
+async def delete_budget(session: AsyncSession, budget_record: Budget) -> None:
+    """Stage a budget for deletion (no commit).
+
+    The CASCADE foreign key on BudgetCategory removes the join rows when the
+    budget is deleted, so only the budget record needs to be staged here.
+    """
+    await session.delete(budget_record)

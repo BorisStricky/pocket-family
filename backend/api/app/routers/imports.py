@@ -11,9 +11,9 @@
 # file_key and column_mapping are re-sent on each request so no server session is needed.
 
 import asyncio
-from datetime import date, datetime
+from datetime import date
 from typing import List
-from uuid import uuid4, UUID
+from uuid import uuid4
 
 from dateutil.parser import parse as dateutil_parse, ParserError
 # NOTE (follow-up): starlette 1.x renamed the status constants used below
@@ -23,19 +23,12 @@ from dateutil.parser import parse as dateutil_parse, ParserError
 # because FastAPI itself still references them internally; rename once
 # FastAPI drops them, to silence the DeprecationWarnings (values unchanged).
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
-from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..celery_client import celery_client
 from ..db import get_db
 from ..deps import get_active_context, require_writer
-from ..models import (
-    Account,
-    AccountShare,
-    ImportJob,
-    ImportJobStatus,
-    Transaction,
-)
+from ..models import ImportJobStatus
 from ..schemas import (
     ActiveContext,
     AnalyzeRequest,
@@ -218,35 +211,15 @@ async def analyze_csv(
             ))
 
     # Deduplicate against existing transactions in the relevant date range.
-    # Match criteria: same account + same date + same absolute amount.
-    if valid_dates:
-        min_date = min(valid_dates)
-        max_date = max(valid_dates)
-
-        existing_result = await db.execute(
-            select(Transaction.id, Transaction.transaction_date, Transaction.amount)
-            .where(
-                Transaction.tenant_id == context.active_tenant.id,
-                Transaction.account_id == request.account_id,
-                Transaction.transaction_date >= min_date,
-                Transaction.transaction_date <= max_date,
-            )
-        )
-        existing_transactions = existing_result.all()
-
-        # Build a lookup: (date, abs_amount) → transaction_id
-        existing_dedup: dict[tuple, UUID] = {
-            (row.transaction_date, abs(row.amount)): row.id
-            for row in existing_transactions
-        }
-
-        # Flag duplicates in the parsed rows
-        for parsed_row in parsed_rows:
-            if parsed_row.transaction_date and parsed_row.amount is not None:
-                dedup_key = (parsed_row.transaction_date, parsed_row.amount)
-                if dedup_key in existing_dedup:
-                    parsed_row.is_duplicate = True
-                    parsed_row.matching_transaction_id = existing_dedup[dedup_key]
+    # Match criteria: same account + same date + same absolute amount. The query
+    # and flagging live in the service; the handler just delegates.
+    await import_service.flag_duplicate_rows(
+        db,
+        context.active_tenant.id,
+        request.account_id,
+        parsed_rows,
+        valid_dates,
+    )
 
     duplicate_count = sum(1 for row in parsed_rows if row.is_duplicate)
     parse_error_count = sum(1 for row in parsed_rows if row.parse_error is not None)
@@ -281,46 +254,29 @@ async def execute_import(
 
     import_service.validate_file_key_ownership(request.file_key, context.active_tenant.id)
 
-    # Verify the target account is writable from the active tenant context.
-    # Access rule: the active user must own the account directly, OR the account
-    # must be shared with the active tenant via an AccountShare record.
-    account_result = await db.execute(
-        select(Account).where(Account.id == request.account_id)
+    # Verify the target account is writable from the active tenant context
+    # (ownership or an AccountShare into the active tenant). The query and the
+    # 404/403 rules live in the service.
+    await import_service.authorize_account_for_import(
+        db,
+        request.account_id,
+        context.active_user.id,
+        context.active_tenant.id,
     )
-    account = account_result.scalars().first()
-    if not account:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Account not found",
-        )
-
-    if account.user_id != context.active_user.id:
-        share_result = await db.execute(
-            select(AccountShare).where(
-                AccountShare.account_id == account.id,
-                AccountShare.tenant_id == context.active_tenant.id,
-            )
-        )
-        if share_result.scalars().first() is None:
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Account is not accessible from the active family",
-            )
 
     # Persist a history row before dispatch so the user can see this import
     # even if the worker crashes before recording its own state. The worker
     # updates this same row (status, imported_rows, completed_at, error).
-    import_job = ImportJob(
+    # Service stages the row; the handler owns the commit/refresh boundary.
+    import_job = import_service.create_import_job(
+        db,
         tenant_id=context.active_tenant.id,
         account_id=request.account_id,
         created_by=context.active_user.id,
         file_key=request.file_key,
         filename=request.filename,
         total_rows=len(request.rows),
-        imported_rows=0,
-        status=ImportJobStatus.PENDING,
     )
-    db.add(import_job)
     await db.commit()
     await db.refresh(import_job)
 
@@ -376,21 +332,11 @@ async def get_job_status(
 
     Viewers are blocked by the require_writer dependency.
     """
-    # Fetch the full ImportJob row and enforce tenant ownership in one query.
-    # The celery_task_id is what the frontend received from /execute and uses
-    # as the polling key; mapping back through the DB ensures cross-tenant isolation.
-    job_result = await db.execute(
-        select(ImportJob).where(
-            ImportJob.celery_task_id == job_id,
-            ImportJob.tenant_id == context.active_tenant.id,
-        )
+    # Fetch the full ImportJob row and enforce tenant ownership. The lookup and
+    # the 403-on-missing rule (cross-tenant isolation) live in the service.
+    import_job = await import_service.get_import_job_or_403(
+        db, job_id, context.active_tenant.id
     )
-    import_job = job_result.scalars().first()
-    if import_job is None:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied to this import job",
-        )
 
     status_map = {
         ImportJobStatus.PENDING: "pending",
@@ -421,13 +367,9 @@ async def list_import_jobs(
 
     Viewers are blocked by the require_writer dependency.
     """
-    result = await db.execute(
-        select(ImportJob, Account.name)
-        .join(Account, Account.id == ImportJob.account_id, isouter=True)
-        .where(ImportJob.tenant_id == context.active_tenant.id)
-        .order_by(ImportJob.created_at.desc())
+    rows = await import_service.list_import_jobs_for_tenant(
+        db, context.active_tenant.id
     )
-    rows = result.all()
 
     return [
         ImportJobRead(

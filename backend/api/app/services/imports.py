@@ -8,7 +8,9 @@
 import csv
 import io
 import re
+from datetime import date
 from decimal import Decimal, InvalidOperation
+from typing import List, Optional, Tuple
 from uuid import UUID
 
 # NOTE (follow-up): starlette 1.x renamed the status constants used below
@@ -18,6 +20,16 @@ from uuid import UUID
 # because FastAPI itself still references them internally; rename once
 # FastAPI drops them, to silence the DeprecationWarnings (values unchanged).
 from fastapi import HTTPException, status
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from ..models import (
+    Account,
+    AccountShare,
+    ImportJob,
+    ImportJobStatus,
+    Transaction,
+)
 
 # Type normalization — maps common bank statement type column values to
 # "expense" or "income". Covers English and Portuguese variations.
@@ -135,3 +147,179 @@ def validate_file_key_ownership(file_key: str, tenant_id: UUID) -> None:
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Access denied to this file",
         )
+
+
+# ---------------------------------------------------------------------------
+# DB-interacting helpers relocated from routers/imports.py.
+#
+# These take a plain AsyncSession as their first parameter and do all the
+# query / staging work for the import wizard. They never call flush/commit/
+# rollback — the router owns the transaction boundary (see backend/CLAUDE.md
+# "Transaction ownership"). They raise HTTPException for authorization /
+# not-found cases so handlers stay thin.
+# ---------------------------------------------------------------------------
+
+
+async def flag_duplicate_rows(
+    session: AsyncSession,
+    tenant_id: UUID,
+    account_id: UUID,
+    parsed_rows: List,
+    valid_dates: List[date],
+) -> None:
+    """Flag rows that duplicate existing transactions, in place.
+
+    Deduplicates the already-parsed wizard rows against existing transactions in
+    the relevant account and date range. Match criteria: same account + same date
+    + same absolute amount. Rows that match get ``is_duplicate=True`` and their
+    ``matching_transaction_id`` set. Tenant isolation is preserved by filtering on
+    ``tenant_id`` (never dropped).
+
+    No-op when there are no successfully parsed dates to bound the lookup.
+    """
+    if not valid_dates:
+        return
+
+    min_date = min(valid_dates)
+    max_date = max(valid_dates)
+
+    existing_result = await session.execute(
+        select(Transaction.id, Transaction.transaction_date, Transaction.amount)
+        .where(
+            Transaction.tenant_id == tenant_id,
+            Transaction.account_id == account_id,
+            Transaction.transaction_date >= min_date,
+            Transaction.transaction_date <= max_date,
+        )
+    )
+    existing_transactions = existing_result.all()
+
+    # Build a lookup: (date, abs_amount) → transaction_id
+    existing_dedup: dict[tuple, UUID] = {
+        (row.transaction_date, abs(row.amount)): row.id
+        for row in existing_transactions
+    }
+
+    # Flag duplicates in the parsed rows
+    for parsed_row in parsed_rows:
+        if parsed_row.transaction_date and parsed_row.amount is not None:
+            dedup_key = (parsed_row.transaction_date, parsed_row.amount)
+            if dedup_key in existing_dedup:
+                parsed_row.is_duplicate = True
+                parsed_row.matching_transaction_id = existing_dedup[dedup_key]
+
+
+async def authorize_account_for_import(
+    session: AsyncSession,
+    account_id: UUID,
+    user_id: UUID,
+    tenant_id: UUID,
+) -> Account:
+    """Load the target account and assert it is writable from the active context.
+
+    Access rule: the active user must own the account directly, OR the account
+    must be shared with the active tenant via an AccountShare record. Returns the
+    validated account.
+
+    Raises:
+        HTTPException 404 when the account does not exist.
+        HTTPException 403 when the account is not accessible from the active family.
+    """
+    account_result = await session.execute(
+        select(Account).where(Account.id == account_id)
+    )
+    account = account_result.scalars().first()
+    if not account:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Account not found",
+        )
+
+    if account.user_id != user_id:
+        share_result = await session.execute(
+            select(AccountShare).where(
+                AccountShare.account_id == account.id,
+                AccountShare.tenant_id == tenant_id,
+            )
+        )
+        if share_result.scalars().first() is None:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Account is not accessible from the active family",
+            )
+
+    return account
+
+
+def create_import_job(
+    session: AsyncSession,
+    tenant_id: UUID,
+    account_id: UUID,
+    created_by: UUID,
+    file_key: str,
+    filename: Optional[str],
+    total_rows: int,
+) -> ImportJob:
+    """Stage a PENDING ImportJob history row (build + add only — no commit).
+
+    Pure staging: the handler owns the unit of work (commit/refresh). Persisting
+    this row before dispatch lets the user see the import even if the worker
+    crashes before recording its own state; the worker updates this same row.
+    """
+    import_job = ImportJob(
+        tenant_id=tenant_id,
+        account_id=account_id,
+        created_by=created_by,
+        file_key=file_key,
+        filename=filename,
+        total_rows=total_rows,
+        imported_rows=0,
+        status=ImportJobStatus.PENDING,
+    )
+    session.add(import_job)
+    return import_job
+
+
+async def get_import_job_or_403(
+    session: AsyncSession,
+    celery_task_id: str,
+    tenant_id: UUID,
+) -> ImportJob:
+    """Load an ImportJob by its Celery task id, enforcing tenant ownership.
+
+    The celery_task_id is what the frontend received from /execute and uses as
+    the polling key; mapping back through the DB with the tenant filter ensures
+    cross-tenant isolation. Raises 403 (not 404) so the endpoint does not reveal
+    whether a job id exists in another tenant.
+    """
+    job_result = await session.execute(
+        select(ImportJob).where(
+            ImportJob.celery_task_id == celery_task_id,
+            ImportJob.tenant_id == tenant_id,
+        )
+    )
+    import_job = job_result.scalars().first()
+    if import_job is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied to this import job",
+        )
+    return import_job
+
+
+async def list_import_jobs_for_tenant(
+    session: AsyncSession,
+    tenant_id: UUID,
+) -> List[Tuple[ImportJob, Optional[str]]]:
+    """Return (ImportJob, account_name) pairs for the tenant, newest first.
+
+    The account name is left-joined so the history grid can render the column
+    without N+1 follow-up requests.
+    """
+    result = await session.execute(
+        select(ImportJob, Account.name)
+        .join(Account, Account.id == ImportJob.account_id, isouter=True)
+        .where(ImportJob.tenant_id == tenant_id)
+        .order_by(ImportJob.created_at.desc())
+    )
+    return result.all()

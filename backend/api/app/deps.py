@@ -21,8 +21,8 @@ async def get_active_context(db: AsyncSession = Depends(get_db), authorization: 
         authorization: Raw Authorization header value expected as "Bearer <token>".
 
     Returns:
-        Dictonary with User and Tenant records extracted from the token
-        {"user":User, "tenant":Tenant}
+        ActiveContext with the resolved records extracted from the token:
+        active_user (User), active_tenant (Tenant), active_membership (Membership).
 
     Raises:
         HTTPException with status 401 when credentials are missing, invalid, expired,

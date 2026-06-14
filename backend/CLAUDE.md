@@ -154,7 +154,15 @@ async def create_category(
 
 #### Transaction ownership (atomicity invariant)
 
-The request-scoped `AsyncSession` flows from the router into every service it calls within a single request. Services and dependencies may read, `session.add()`, and `await session.flush()`, but **only the handler commits** (`await session.commit()`). This single-commit discipline is what keeps multi-step handlers — such as `create_account` (account creation + optional AccountShare) or transaction creation (insert row + update account balance) — atomic. Never call `session.commit()` inside a service function.
+The request-scoped `AsyncSession` flows from the router into every service it calls within a single request. The division of labour:
+
+- **Services stage and prepare**: they read (`select`/`get`), `session.add(...)`, and `session.delete(...)`, and return records. They **never** call `commit` or `rollback` — those are *transaction-boundary control*, not data access, and a service does not know whether it is the whole unit of work or one step of a larger one.
+- **The handler owns the unit-of-work boundary**: it decides when the work is finished and calls `commit` / `rollback` / `refresh`.
+- **`flush` belongs wherever the dependency that needs it lives** — it is unit-of-work *mechanics*, not a boundary:
+  - A service **may** flush when its *own internal* multi-step write requires earlier rows materialized first — e.g. a FOREIGN KEY dependency (`stage_signup` flushes the tenant before seeding its FK-referencing categories) or a parent→child insert (`seed_tenant_defaults`). This stays inside the service because the handler should not know the service's internal write order.
+  - The **handler** flushes when it must order writes *across* the service calls it sequences. With client-side `uuid4` ids and autoflush on, this is usually unnecessary (a later query autoflushes pending rows), so most handlers just stage and commit.
+
+This single-commit discipline is what keeps multi-step handlers — such as `create_account` (account creation + optional `AccountShare`) or transaction creation (insert row + update account balance) — atomic: one commit, one rollback point. `routers/accounts.py` + `services/accounts.py` are the reference implementation. **Never call `commit` or `rollback` inside a service; only flush inside a service for its own internal write ordering.**
 
 ---
 

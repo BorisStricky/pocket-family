@@ -1,4 +1,7 @@
-# Budget CRUD router with multi-category spent calculation.
+# HTTP boundary for /budgets. Handlers stay thin: they resolve dependencies,
+# call services/budgets.py for all queries / record building / business rules,
+# and own only the transaction boundary (commit / rollback / refresh). No raw
+# SQL or session.add/get/delete lives here — that is the service layer's job.
 #
 # Budgets are monthly spending limits scoped to a tenant. Each budget can
 # be linked to one or more categories via the BudgetCategory join table.
@@ -8,18 +11,13 @@
 # Spent amounts are calculated on-read by aggregating expense transactions
 # that match the budget's currency for the requested calendar month.
 
-from fastapi import APIRouter, Depends, HTTPException, status, Query
-from sqlmodel import select
+from fastapi import APIRouter, Depends, status, Query
 from typing import List, Optional
 from uuid import UUID
 from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import (
-    Budget,
-    Currency,
-)
 from ..schemas import (
     BudgetCreate,
     BudgetRead,
@@ -68,16 +66,12 @@ async def list_budgets(
     effective_month = month if month is not None else current_datetime.month
     effective_year = year if year is not None else current_datetime.year
 
-    # Fetch all budgets belonging to this tenant
-    budget_query = (
-        select(Budget)
-        .where(Budget.tenant_id == tenant_id)
-        .order_by(Budget.name)
+    # Fetch all budgets belonging to this tenant, then enrich each with its
+    # categories and spent total (intentionally per-budget — see module note).
+    budget_records = await budget_service.list_budgets_for_tenant(
+        database_session, tenant_id
     )
-    budget_result = await database_session.execute(budget_query)
-    budget_records = budget_result.scalars().all()
 
-    # Build BudgetRead for each budget with categories and spent
     budget_read_list: List[dict] = []
     for budget_record in budget_records:
         budget_read = await budget_service.build_budget_read(
@@ -121,20 +115,10 @@ async def get_budget(
     effective_month = month if month is not None else current_datetime.month
     effective_year = year if year is not None else current_datetime.year
 
-    # Fetch the budget ensuring tenant isolation
-    budget_result = await database_session.execute(
-        select(Budget).where(
-            Budget.id == budget_id,
-            Budget.tenant_id == tenant_id,
-        )
+    # Fetch the budget ensuring tenant isolation (404 on miss / wrong tenant).
+    budget_record = await budget_service.get_budget_or_404(
+        database_session, budget_id, tenant_id
     )
-    budget_record = budget_result.scalar_one_or_none()
-
-    if not budget_record:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Budget not found",
-        )
 
     return await budget_service.build_budget_read(
         database_session, budget_record, tenant_id, effective_month, effective_year
@@ -169,30 +153,11 @@ async def create_budget(
     # OWNER role is enforced by the require_owner dependency.
     tenant_id = active_context.active_tenant.id
 
-    # Validate that all provided categories belong to this tenant
-    if payload.category_ids:
-        await budget_service.validate_category_ids_belong_to_tenant(
-            database_session, payload.category_ids, tenant_id
-        )
-
-    # Create the budget record
-    budget_record = Budget(
-        tenant_id=tenant_id,
-        name=payload.name,
-        amount=payload.amount,
-        currency=payload.currency or Currency.BRL,
-        icon=payload.icon,
-        color=payload.color,
+    # Stage the budget plus its category links, then commit once so the budget
+    # row and its join rows land atomically under a single transaction boundary.
+    budget_record = await budget_service.create_budget(
+        database_session, tenant_id, payload
     )
-    database_session.add(budget_record)
-    await database_session.flush()
-
-    # Create BudgetCategory join rows if categories were specified
-    if payload.category_ids:
-        await budget_service.sync_budget_categories(
-            database_session, budget_record.id, tenant_id, payload.category_ids
-        )
-
     await database_session.commit()
     await database_session.refresh(budget_record)
 
@@ -237,49 +202,16 @@ async def update_budget(
     # OWNER role is enforced by the require_owner dependency.
     tenant_id = active_context.active_tenant.id
 
-    # Fetch the budget ensuring tenant isolation
-    budget_result = await database_session.execute(
-        select(Budget).where(
-            Budget.id == budget_id,
-            Budget.tenant_id == tenant_id,
-        )
+    # Fetch the budget ensuring tenant isolation (404 on miss / wrong tenant).
+    budget_record = await budget_service.get_budget_or_404(
+        database_session, budget_id, tenant_id
     )
-    budget_record = budget_result.scalar_one_or_none()
 
-    if not budget_record:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Budget not found",
-        )
-
-    # Apply scalar field updates from the payload. Use exclude_unset so fields absent
-    # from the request body are not touched, while fields explicitly set to None
-    # (e.g. clearing an icon) are applied. category_ids is excluded here because it
-    # requires special sync logic handled separately below.
-    # Guard against None being passed for NOT NULL columns (e.g. name, amount, currency)
-    # which would cause an IntegrityError at commit time. Only icon and color are
-    # genuinely nullable database columns and may legitimately be cleared to null.
-    NULLABLE_FIELDS = {'icon', 'color'}
-    scalar_updates = payload.model_dump(exclude_unset=True, exclude={"category_ids"})
-    for field_name, field_value in scalar_updates.items():
-        if field_value is None and field_name not in NULLABLE_FIELDS:
-            continue
-        setattr(budget_record, field_name, field_value)
-
-    # Update the modification timestamp
-    budget_record.updated_at = datetime.now(timezone.utc).replace(tzinfo=None)
-
-    # Replace the category set when category_ids is explicitly provided.
-    # When category_ids is None (omitted from payload), leave unchanged.
-    if payload.category_ids is not None:
-        await budget_service.validate_category_ids_belong_to_tenant(
-            database_session, payload.category_ids, tenant_id
-        )
-        await budget_service.sync_budget_categories(
-            database_session, budget_record.id, tenant_id, payload.category_ids
-        )
-
-    database_session.add(budget_record)
+    # Apply scalar updates and (optionally) replace the category set; the
+    # multi-step write stays atomic under the single commit below.
+    await budget_service.apply_budget_update(
+        database_session, budget_record, tenant_id, payload
+    )
     await database_session.commit()
     await database_session.refresh(budget_record)
 
@@ -318,21 +250,11 @@ async def delete_budget(
     # OWNER role is enforced by the require_owner dependency.
     tenant_id = active_context.active_tenant.id
 
-    # Fetch the budget ensuring tenant isolation
-    budget_result = await database_session.execute(
-        select(Budget).where(
-            Budget.id == budget_id,
-            Budget.tenant_id == tenant_id,
-        )
+    # Fetch the budget ensuring tenant isolation (404 on miss / wrong tenant).
+    budget_record = await budget_service.get_budget_or_404(
+        database_session, budget_id, tenant_id
     )
-    budget_record = budget_result.scalar_one_or_none()
 
-    if not budget_record:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Budget not found",
-        )
-
-    await database_session.delete(budget_record)
+    await budget_service.delete_budget(database_session, budget_record)
     await database_session.commit()
     return None
