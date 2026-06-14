@@ -295,20 +295,39 @@ async def execute_import(
 
     # Dispatch the background task — the worker picks it up from the queue.
     # import_job_id lets the worker update the ImportJob row directly.
-    task = celery_client.send_task(
-        "import_service.execute_import",
-        kwargs={
-            "payload": {
-                "import_job_id": str(import_job.id),
-                "tenant_id": str(context.active_tenant.id),
-                "account_id": str(request.account_id),
-                "created_by": str(context.active_user.id),
-                "currency": request.currency.value if request.currency else "BRL",
-                "file_key": request.file_key,
-                "rows": serialized_rows,
-            }
-        },
-    )
+    #
+    # The PENDING ImportJob row is already committed above. If the broker is
+    # unreachable at enqueue, send_task raises; without this guard FastAPI would
+    # return a bare 500 and leave that row stuck in PENDING forever (the frontend
+    # would poll a job no worker will ever run). Instead we flip the row to a
+    # terminal FAILED in its own commit, then surface 503 (a retryable signal)
+    # so the client knows to try again rather than treating it as a hard error.
+    try:
+        task = celery_client.send_task(
+            "import_service.execute_import",
+            kwargs={
+                "payload": {
+                    "import_job_id": str(import_job.id),
+                    "tenant_id": str(context.active_tenant.id),
+                    "account_id": str(request.account_id),
+                    "created_by": str(context.active_user.id),
+                    "currency": request.currency.value if request.currency else "BRL",
+                    "file_key": request.file_key,
+                    "rows": serialized_rows,
+                }
+            },
+        )
+    except Exception as dispatch_error:
+        import_service.mark_import_job_failed(
+            db,
+            import_job,
+            f"Dispatch failed: {type(dispatch_error).__name__}: {dispatch_error}",
+        )
+        await db.commit()
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Import queue is temporarily unavailable. Please retry.",
+        )
 
     # Store the Celery task id back on the ImportJob for traceability with
     # the existing /imports/jobs/{job_id} polling endpoint.

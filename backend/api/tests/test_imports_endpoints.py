@@ -889,6 +889,53 @@ class TestExecuteEndpoint:
         # job_id in the response matches the stub task id
         assert response.json()["job_id"] == dispatched["task_id"]
 
+    async def test_execute_returns_503_and_marks_job_failed_when_broker_down(
+        self,
+        async_client: AsyncClient,
+        async_session: AsyncSession,
+        owner_token: str,
+        test_tenant: Tenant,
+        imported_account: Account,
+        patched_storage: LocalAdapter,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """A broker that is unreachable at enqueue must not strand a PENDING job.
+
+        Regression guard for the unwrapped send_task: when dispatch raises, the
+        already-committed ImportJob row must be flipped to a terminal FAILED (so the
+        frontend isn't left polling a job no worker will run) and the endpoint must
+        surface 503 (retryable), not a bare 500.
+        """
+        # Arrange: the broker is down — send_task raises a connection error.
+        def _raise_broker_down(name: str, *, kwargs: dict | None = None, **_ignored):
+            raise ConnectionError("broker down")
+
+        monkeypatch.setattr(
+            imports_module.celery_client, "send_task", _raise_broker_down
+        )
+        file_key = f"{test_tenant.id}/{uuid4()}.csv"
+        payload = self._execute_payload(
+            file_key=file_key, account_id=imported_account.id
+        )
+
+        # Act
+        response = await async_client.post(
+            "/imports/execute", json=payload, headers=_bearer(owner_token)
+        )
+
+        # Assert: retryable 503, and the persisted job is terminal FAILED — not PENDING.
+        assert response.status_code == 503, response.text
+
+        job_result = await async_session.execute(
+            select(ImportJob).where(ImportJob.account_id == imported_account.id)
+        )
+        import_jobs = job_result.scalars().all()
+        assert len(import_jobs) == 1
+        orphaned_job = import_jobs[0]
+        assert orphaned_job.status == ImportJobStatus.FAILED
+        assert orphaned_job.error_message is not None
+        assert orphaned_job.completed_at is not None
+
     async def test_execute_rejects_viewer_role(
         self,
         async_client: AsyncClient,

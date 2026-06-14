@@ -8,7 +8,7 @@
 import csv
 import io
 import re
-from datetime import date
+from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import List, Optional, Tuple
 from uuid import UUID
@@ -276,6 +276,29 @@ def create_import_job(
         imported_rows=0,
         status=ImportJobStatus.PENDING,
     )
+    session.add(import_job)
+    return import_job
+
+
+def mark_import_job_failed(
+    session: AsyncSession,
+    import_job: ImportJob,
+    error_message: str,
+) -> ImportJob:
+    """Flip an already-persisted ImportJob to FAILED (build/mutate only — no commit).
+
+    Used when dispatch to the broker fails *after* the PENDING row was committed: the
+    import would otherwise be stranded in PENDING forever and the frontend would poll
+    a job that no worker will ever pick up. Flipping it to a terminal FAILED gives the
+    user an honest "this import didn't start" state in the history grid. The handler
+    owns the commit boundary (see backend/CLAUDE.md "Transaction ownership").
+    """
+    import_job.status = ImportJobStatus.FAILED
+    # Truncate to match the worker's _mark_import_job behavior so an enormous broker
+    # error string can't blow up the row width or the history grid.
+    import_job.error_message = error_message[:1000]
+    import_job.updated_at = datetime.utcnow()
+    import_job.completed_at = datetime.utcnow()
     session.add(import_job)
     return import_job
 
