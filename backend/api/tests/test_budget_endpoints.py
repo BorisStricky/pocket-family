@@ -971,6 +971,84 @@ class TestSpentCalculation:
         assert Decimal(response.json()["spent"]) == Decimal("500.00")
 
     @pytest.mark.asyncio
+    async def test_list_budgets_batches_spent_for_category_and_universal_budgets(
+        self,
+        async_client: AsyncClient,
+        async_session: AsyncSession,
+        owner_token: str,
+        test_tenant: Tenant,
+        test_user: User,
+        test_account_brl: Account,
+        expense_category_food: Category,
+        expense_category_transport: Category,
+    ):
+        """The batched list endpoint reproduces per-budget spent for BOTH cases at once.
+
+        One category-scoped budget (Food) and one universal budget (no categories)
+        appear in the same GET /budgets response. A food expense and a transport
+        expense are created; the food budget must count only the food spend while
+        the universal budget counts every expense. This guards that the N+1 batch
+        rewrite preserves the original per-budget behavior (including the universal
+        sum-all rule) across a mixed list.
+        """
+        current_month = datetime.now(timezone.utc).month
+        current_year = datetime.now(timezone.utc).year
+
+        # Category budget linked only to Food.
+        food_budget = Budget(
+            tenant_id=test_tenant.id, name="Food Budget",
+            amount=Decimal("500.00"), currency=Currency.BRL,
+        )
+        # Universal budget — no linked categories.
+        universal_budget = Budget(
+            tenant_id=test_tenant.id, name="Universal Budget",
+            amount=Decimal("5000.00"), currency=Currency.BRL,
+        )
+        async_session.add_all([food_budget, universal_budget])
+        await async_session.commit()
+        await async_session.refresh(food_budget)
+
+        async_session.add(BudgetCategory(
+            tenant_id=test_tenant.id, budget_id=food_budget.id,
+            category_id=expense_category_food.id,
+        ))
+
+        # Food expense (in the food budget) and transport expense (NOT in it).
+        async_session.add_all([
+            Transaction(
+                tenant_id=test_tenant.id, account_id=test_account_brl.id,
+                category_id=expense_category_food.id, amount=Decimal("100.00"),
+                currency=Currency.BRL, transaction_date=date(current_year, current_month, 5),
+                transaction_type=CategoryKind.EXPENSE, created_by=test_user.id,
+            ),
+            Transaction(
+                tenant_id=test_tenant.id, account_id=test_account_brl.id,
+                category_id=expense_category_transport.id, amount=Decimal("300.00"),
+                currency=Currency.BRL, transaction_date=date(current_year, current_month, 10),
+                transaction_type=CategoryKind.EXPENSE, created_by=test_user.id,
+            ),
+        ])
+        await async_session.commit()
+
+        response = await async_client.get(
+            f"/budgets?month={current_month}&year={current_year}",
+            headers=authorization_header(owner_token),
+        )
+
+        assert response.status_code == status.HTTP_200_OK, response.text
+        budgets_by_name = {budget["name"]: budget for budget in response.json()}
+
+        # Food budget: only the food expense counts; its one category is present.
+        food_read = budgets_by_name["Food Budget"]
+        assert Decimal(food_read["spent"]) == Decimal("100.00")
+        assert [category["id"] for category in food_read["categories"]] == [str(expense_category_food.id)]
+
+        # Universal budget: every expense counts; no categories.
+        universal_read = budgets_by_name["Universal Budget"]
+        assert Decimal(universal_read["spent"]) == Decimal("400.00")
+        assert universal_read["categories"] == []
+
+    @pytest.mark.asyncio
     async def test_spent_excludes_income_transactions(
         self,
         async_client: AsyncClient,

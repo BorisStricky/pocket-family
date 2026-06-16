@@ -61,6 +61,62 @@ class TestListAccountsWithTenantId:
         assert len(accounts) == 1
         assert accounts[0]["id"] == str(test_account2.id)
 
+    async def test_list_accounts_with_tenant_id_masks_balance_per_row(
+        self, async_client, async_session, test_user, test_user2, test_tenant, test_tenant2,
+        test_membership, test_membership2, auth_headers, test_account2
+    ):
+        """Family-scoped list masks each row's balance correctly in the batched query.
+
+        Three accounts shared into one tenant exercise all branches of the single
+        joined query: a VISIBLE share shows the balance, a HIDDEN share masks it to
+        null, and the requestor's OWN account shows its balance regardless of the
+        share visibility (owner override).
+        """
+        from app.models import AccountType, Currency
+
+        # Another user's account, shared HIDDEN -> balance must be masked.
+        hidden_other_account = Account(
+            id=uuid4(), user_id=test_user2.id, name="Hidden Other",
+            type=AccountType.CASH, currency=Currency.BRL, balance=Decimal("250.00"),
+        )
+        # The requestor's own account, shared HIDDEN -> owner still sees the balance.
+        own_shared_account = Account(
+            id=uuid4(), user_id=test_user.id, name="My Shared",
+            type=AccountType.CASH, currency=Currency.BRL, balance=Decimal("777.00"),
+        )
+        async_session.add_all([hidden_other_account, own_shared_account])
+        await async_session.commit()
+
+        # test_account2 (owned by test_user2, balance 500.00) shared VISIBLE.
+        async_session.add_all([
+            AccountShare(
+                id=uuid4(), account_id=test_account2.id, tenant_id=test_tenant2.id,
+                visibility=ShareVisibility.VISIBLE, granted_by=test_user2.id,
+            ),
+            AccountShare(
+                id=uuid4(), account_id=hidden_other_account.id, tenant_id=test_tenant2.id,
+                visibility=ShareVisibility.HIDDEN, granted_by=test_user2.id,
+            ),
+            AccountShare(
+                id=uuid4(), account_id=own_shared_account.id, tenant_id=test_tenant2.id,
+                visibility=ShareVisibility.HIDDEN, granted_by=test_user.id,
+            ),
+        ])
+        await async_session.commit()
+
+        response = await async_client.get(
+            f"/accounts?tenant_id={test_tenant2.id}", headers=auth_headers
+        )
+
+        assert response.status_code == 200, response.text
+        accounts_by_id = {account["id"]: account for account in response.json()}
+        # VISIBLE share from another owner -> balance present.
+        assert accounts_by_id[str(test_account2.id)]["balance"] == "500.00"
+        # HIDDEN share from another owner -> balance masked to null.
+        assert accounts_by_id[str(hidden_other_account.id)]["balance"] is None
+        # Requestor's own account -> balance shown despite the HIDDEN share.
+        assert accounts_by_id[str(own_shared_account.id)]["balance"] == "777.00"
+
     async def test_list_accounts_with_tenant_id_user_not_member_returns_403(
         self, async_client, async_session, test_user, test_tenant, test_membership, auth_headers
     ):

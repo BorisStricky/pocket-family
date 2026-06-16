@@ -1,9 +1,16 @@
+# backend/api/app/routers/users.py
+#
+# HTTP boundary for /users. Handlers stay thin: they resolve dependencies,
+# call services/users.py for all record building / business rules, and own only
+# the transaction boundary (commit / refresh). No raw SQL or session.add/get/
+# delete lives here — that is the service layer's job.
 from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from ..models import User
 from ..schemas import UserRead, UserUpdate
 from ..deps import get_db, get_authenticated_user
+from ..services import users as user_service
 
 # User-scoped (not tenant-scoped) profile endpoints. Language is a personal
 # preference that must work even when the user has no active family, so these
@@ -22,7 +29,7 @@ async def read_current_user(
     preference, so a returning user on a fresh device picks up their saved
     choice. No tenant scope is needed — identity from the JWT is sufficient.
     """
-    return current_user
+    return user_service.build_user_read(current_user)
 
 
 @router.patch("/me", response_model=UserRead)
@@ -33,16 +40,10 @@ async def update_current_user(
 ) -> User:
     """Update the authenticated user's own preferences (currently language).
 
-    Uses `model_dump(exclude_unset=True)` so only fields the client actually
-    sent are written — omitting a field leaves it unchanged. The Pydantic
-    validator on `UserUpdate.language` already rejected unsupported codes with
-    a 422 before reaching this handler.
+    Delegates field-application to the service layer and owns the transaction
+    boundary here (commit + refresh), keeping this handler a thin orchestrator.
     """
-    update_fields = payload.model_dump(exclude_unset=True)
-    for field_name, value in update_fields.items():
-        setattr(current_user, field_name, value)
-
-    database_session.add(current_user)
+    await user_service.apply_user_update(database_session, current_user, payload)
     await database_session.commit()
     await database_session.refresh(current_user)
     return current_user

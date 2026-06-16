@@ -414,7 +414,9 @@ describe('Inline create flows in Add Transaction modal', () => {
 
     // The Add Transaction dialog remains open — form context and other fields preserved
     expect(screen.getByRole('heading', { name: 'Add Transaction' })).toBeInTheDocument();
-  });
+    // This flow drives nested MUI dialogs + an Autocomplete and takes ~14s even in
+    // isolation, so give it a 60s budget (vs the 30s global) to stay safe under load.
+  }, 60000);
 
   it('shows the account creation sentinel in the Account dropdown and opens AddAccountModal on top of the form', async () => {
     const user = userEvent.setup();

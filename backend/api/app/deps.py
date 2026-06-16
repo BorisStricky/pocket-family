@@ -7,7 +7,7 @@ from fastapi import Depends, HTTPException, status, Header
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlmodel import select
 from .db import get_db
-from .models import User, Membership, Tenant, MembershipStatus
+from .models import User, Membership, Tenant, MembershipStatus, MembershipRole
 from .schemas import ActiveContext
 from .auth import decode_access_token
 from uuid import UUID as UUIDType
@@ -21,8 +21,8 @@ async def get_active_context(db: AsyncSession = Depends(get_db), authorization: 
         authorization: Raw Authorization header value expected as "Bearer <token>".
 
     Returns:
-        Dictonary with User and Tenant records extracted from the token
-        {"user":User, "tenant":Tenant}
+        ActiveContext with the resolved records extracted from the token:
+        active_user (User), active_tenant (Tenant), active_membership (Membership).
 
     Raises:
         HTTPException with status 401 when credentials are missing, invalid, expired,
@@ -172,3 +172,27 @@ async def get_current_tenant(active_context: ActiveContext = Depends(get_active_
         or when the user no longer exists.
     """
     return active_context.active_tenant
+
+
+def require_role(*allowed_roles: MembershipRole):
+    """Dependency factory: allow the request only when the caller's ACTIVE-tenant
+    membership role is in `allowed_roles`; otherwise 403. Returns the same
+    ActiveContext (so handlers keep user/tenant/membership). Centralizes the
+    role check that was previously re-implemented inline in every handler."""
+    async def _require_role(
+        active_context: ActiveContext = Depends(get_active_context),
+    ) -> ActiveContext:
+        # Authorize against the active-tenant membership role only. get_active_context
+        # has already proven the caller is an ACTIVE member of their active tenant, so
+        # here we just gate on the specific role the endpoint demands.
+        if active_context.active_membership.role not in allowed_roles:
+            raise HTTPException(status_code=403, detail="insufficient role for this action")
+        return active_context
+    return _require_role
+
+
+# Intent-revealing aliases so handlers read as policy, not mechanics.
+# require_owner: mutations that only an OWNER may perform (categories/budgets/invites).
+# require_writer: any non-viewer (OWNER or MEMBER) — i.e. blocks read-only VIEWERs.
+require_owner = require_role(MembershipRole.OWNER)
+require_writer = require_role(MembershipRole.OWNER, MembershipRole.MEMBER)  # i.e. "not viewer"
