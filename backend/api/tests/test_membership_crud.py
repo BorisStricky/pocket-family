@@ -1,4 +1,6 @@
 # tests/test_membership_crud.py
+import uuid
+
 import pytest
 from tests.helpers import signup_and_auth, auth_header
 
@@ -88,6 +90,26 @@ def test_update_membership(client, membership_setup):
     assert update_membership_response.status_code == 200
     assert updated_membership["role"] == "owner"
     assert updated_membership["id"] == invitee_membership["id"]
+
+
+def test_update_membership_returns_404_when_membership_missing(client, membership_setup):
+    """Patching a non-existent membership returns a clean 404, not a 500.
+
+    Regression guard for the not-found gap in apply_membership_update: without the
+    guard the missing membership produced an AttributeError -> 500, inconsistent with
+    its sibling delete_membership_for_tenant which already 404s.
+    """
+    owner_header = membership_setup["owner_header"]
+    tenant_id = membership_setup["tenant_id"]
+    bogus_membership_id = str(uuid.uuid4())
+
+    update_response = client.patch(
+        f"/tenants/{tenant_id}/members/{bogus_membership_id}",
+        json={"role": "owner"},
+        headers=owner_header,
+    )
+
+    assert update_response.status_code == 404, update_response.text
 
 
 def test_delete_membership(client, membership_setup):

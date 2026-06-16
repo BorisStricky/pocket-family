@@ -118,4 +118,30 @@ Phases evolve functionality without altering architectural anchors.
 
 ---
 
+## 9. Domain Invariants — QCSD Findings Resolution
+
+### Finding 2 — Accounts are user-scoped (personal), not tenant-scoped
+
+`Account` belongs to a `User` via `user_id`; it has **no `tenant_id` column**. This is intentional: an account (a bank card, a cash wallet, a debit account) is a personal financial instrument that exists independently of any family the user belongs to.
+
+Authorization for account CRUD (create, update, delete) is therefore based on **ownership** — `account.user_id == user.id` — not on family/tenant role. The `viewer` role restricts what a member can do with **shared family data** (transactions, categories, budgets). It is not a global write gate that prevents a user from creating or editing their own personal accounts. A viewer creating or updating their own account is entirely correct behavior.
+
+This is why `create_account`, `update_account`, and `delete_account` in `routers/accounts.py` use `Depends(get_current_user)` (identity only) rather than `Depends(require_role(...))` (active-tenant role gate). Tenant-scoped resources such as `Category` and `Budget` do use `require_owner` / `require_writer` because those resources genuinely belong to the tenant, not the individual. The distinction is load-bearing.
+
+**Resolution**: The prior concern that account CRUD lacked role checks is a **false positive**. The correct fix is to document this invariant (this section), not to add family-role guards to personal account operations. Adding such guards would incorrectly block viewers from managing their own finances.
+
+### Finding 3 — Any AccountShare grants full write delegation (known limitation)
+
+`AccountShare` links a personal account to a tenant (family) and controls one thing: `visibility` (HIDDEN / VISIBLE). Visibility determines whether the **account balance** is surfaced to other family members in the family view — it is a display preference, not a permission scope.
+
+Today, any **active non-viewer** member of a grantee tenant can **write** to a shared account: they may create, update, and delete transactions that mutate the account's balance. This applies regardless of the `visibility` setting. Write access is authorized in a single place: `services/transactions.py::authorize_account_for_tenant`. That function checks whether the requesting user owns the account directly (`account.user_id == active_user.id`) or whether an `AccountShare` row exists for the active tenant; if either is true, full write access is granted.
+
+In short: **sharing an account = full read-write delegation**. There is no read-only share today.
+
+**Known limitation / future work**: To support read-only shares, add a `SharePermission` enum (READ / READ_WRITE) to `AccountShare`, create the corresponding Alembic migration, and enforce `SharePermission.READ_WRITE` in `authorize_account_for_tenant` before allowing balance-mutating operations. Because all write-access enforcement is centralized in that single function, the future change has exactly one enforcement point.
+
+This is documented here as a known limitation, not a current security guarantee.
+
+---
+
 

@@ -1,13 +1,18 @@
 """
-Unit tests for the helper functions in app/routers/imports.py.
+Unit tests for the import helper functions in app/services/imports.py.
+
+These helpers were relocated out of app/routers/imports.py into the service
+layer (and renamed to drop the leading underscore). Behavior is unchanged; the
+tests below import the new names from app.services.imports but keep the original
+local aliases so the assertions read identically.
 
 Validates pure-function behavior independently of the FastAPI request path:
 
-- `_parse_amount` — handles international number formats, currency symbols,
+- `parse_amount` — handles international number formats, currency symbols,
   accounting negatives, and infers expense/income from sign.
-- `_normalize_type` — maps the wide variety of debit/credit/expense/income
+- `normalize_type` — maps the wide variety of debit/credit/expense/income
   values seen on bank statements to a canonical 'expense' or 'income'.
-- `_validate_file_key_ownership` — enforces that a file_key is prefixed with
+- `validate_file_key_ownership` — enforces that a file_key is prefixed with
   the requesting tenant's UUID, blocking cross-tenant file access.
 """
 
@@ -17,10 +22,10 @@ from uuid import uuid4
 import pytest
 from fastapi import HTTPException, status
 
-from app.routers.imports import (
-    _normalize_type,
-    _parse_amount,
-    _validate_file_key_ownership,
+from app.services.imports import (
+    normalize_type as _normalize_type,
+    parse_amount as _parse_amount,
+    validate_file_key_ownership as _validate_file_key_ownership,
 )
 
 

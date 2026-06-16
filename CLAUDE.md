@@ -163,7 +163,8 @@ backend/api/app/
   schemas.py           # Pydantic request/response schemas
   auth.py              # JWT utilities, password hashing
   db.py                # Database connection and init
-  deps.py              # Dependency injection (get_current_user_context)
+  deps.py              # Dependency injection (get_active_context, get_current_user, require_role)
+  services/            # Framework-agnostic domain logic (DB queries, business rules)
   routers/
     auth.py            # /auth endpoints (signup, login, refresh, logout)
     tenants.py         # /tenants endpoints (CRUD, switch)
@@ -172,9 +173,10 @@ backend/api/app/
     transactions.py    # /transactions endpoints
 ```
 
-**Key Backend Patterns**:
-- **Dependency Injection**: `Depends(get_current_user_context)` returns `ActiveContext` with user, tenant, and membership
-- **Tenant Filtering**: All queries include `.where(Model.tenant_id == tenant_id)` to enforce isolation
+**Key Backend Patterns** (the authoritative, detailed version lives in [backend/CLAUDE.md](backend/CLAUDE.md) — defer to it):
+- **Dependency Injection**: routes resolve auth/tenant context through a dependency — `Depends(get_active_context)` returns `ActiveContext` (`active_user`, `active_tenant`, `active_membership`); `require_owner`/`require_writer` add a role gate; `get_current_user` is for user-scoped routes
+- **Service layer**: DB queries and business rules live in `app/services/`, not in routers; handlers stay thin (routing + orchestration)
+- **Tenant Filtering**: All tenant-scoped queries include `.where(Model.tenant_id == tenant_id)` to enforce isolation
 - **Models vs Schemas**: SQLModel classes for DB, Pydantic schemas for API contracts
 - **TEST_MODE**: Environment variable enables returning raw refresh tokens in responses for testing
 
@@ -265,8 +267,8 @@ assert "refresh_token" in response.json()  # Only works in TEST_MODE
 
 ### Multi-Tenant Safety
 
-- **Every domain model** must include `tenant_id` column
-- **All tenant-scoped routes** must use `Depends(get_current_user_context)`
+- **Every domain model** must include a `tenant_id` column (exception: `Account` is user-scoped — see [backend/CLAUDE.md](backend/CLAUDE.md))
+- **All tenant-scoped routes** must resolve context via a dependency (`Depends(get_active_context)`, or `require_owner`/`require_writer` for role-gated writes) — never re-implement auth inline
 - **All queries** must filter by `tenant_id` to prevent cross-tenant data leaks
 - **JWT tokens** include both `sub` (user_id) and `tenant_id` claims
 
@@ -326,26 +328,9 @@ const { mutate: createTransaction } = useMutation({
 });
 ```
 
-### Backend Dependency Pattern
+### Backend Dependency & Service Pattern
 
-```python
-from .deps import get_current_user_context, ActiveContext
-
-@router.get("/transactions")
-async def list_transactions(
-    context: ActiveContext = Depends(get_current_user_context),
-    db: AsyncSession = Depends(get_db),
-):
-    # context.user - User object
-    # context.tenant - Tenant object
-    # context.membership - Membership object with role
-
-    result = await db.execute(
-        select(Transaction)
-        .where(Transaction.tenant_id == context.tenant.id)
-    )
-    return result.scalars().all()
-```
+Routers stay thin: resolve context via a dependency, then delegate DB work to a service in `app/services/`. The canonical, copy-pasteable example (read vs. role-gated write, where the tenant filter lives, the atomicity rule) is maintained in **[backend/CLAUDE.md](backend/CLAUDE.md)** under *Multi-tenant safety* and *Service layer & authorization conventions*. That module doc is the source of truth; this section intentionally does not duplicate it to avoid drift.
 
 ## Domain Model (Key Entities)
 

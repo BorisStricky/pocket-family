@@ -60,6 +60,14 @@ export async function fetchTransactions(
   if (filters?.search) {
     queryParameters.append('search', filters.search);
   }
+  // Pagination params (optional). When omitted the backend applies its bounded
+  // default page size, so existing callers keep working unchanged.
+  if (filters?.limit !== undefined) {
+    queryParameters.append('limit', String(filters.limit));
+  }
+  if (filters?.offset !== undefined) {
+    queryParameters.append('offset', String(filters.offset));
+  }
 
   // Construct URL with query string
   const url = `/transactions?${queryParameters.toString()}`;

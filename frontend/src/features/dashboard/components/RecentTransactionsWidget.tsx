@@ -69,6 +69,9 @@ export default function RecentTransactionsWidget({ recentTransactions, dateRange
             transactions={recentTransactions}
             onRowClick={handleRowClick}
             height={400}
+            // This is a compact "recent" widget showing a small, already-capped
+            // list — a pagination footer would be noise here.
+            pagination={false}
           />
         )}
       </CardContent>

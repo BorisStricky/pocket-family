@@ -35,6 +35,20 @@ frontend/.vite/
 frontend/dist
 frontend/coverage/
 
+# Backend test coverage artifacts (generated on demand, never committed).
+# Produced by running coverage from the backend/ dir (where the coverage
+# config in pyproject.toml is discoverable):
+#   cd backend && uv run pytest --cov=app --cov-report=xml --cov-report=html
+# Patterns cover both the canonical backend/ run and any backend/api/ run.
+backend/**/coverage.xml
+backend/**/coverage.json
+backend/**/htmlcov/
+backend/**/.coverage
+backend/coverage.xml
+backend/coverage.json
+backend/htmlcov/
+backend/.coverage
+
 # Logs
 *.log
 

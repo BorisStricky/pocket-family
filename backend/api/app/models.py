@@ -8,7 +8,7 @@ from decimal import Decimal
 from enum import Enum
 
 from sqlmodel import SQLModel, Field
-from sqlalchemy import Column, Enum as SAEnum, Numeric, UniqueConstraint, ForeignKey, String
+from sqlalchemy import Column, Enum as SAEnum, Numeric, UniqueConstraint, ForeignKey, String, Index
 from sqlalchemy.dialects.postgresql import UUID as PGUUID
 
 # --------------------
@@ -240,6 +240,15 @@ class Transaction(SQLModel, table=True):
         reconciled: Whether the transaction has been reconciled.
         source: Origin of the transaction (manual/recurring).
     """
+    # Composite indexes for the hot read paths. The list/report queries filter by
+    # tenant_id and order/range by transaction_date, and the per-account views add
+    # account_id — single-column indexes can't serve these efficiently at scale
+    # (Performance P-2).
+    __table_args__ = (
+        Index("ix_transaction_tenant_date", "tenant_id", "transaction_date"),
+        Index("ix_transaction_tenant_account_date", "tenant_id", "account_id", "transaction_date"),
+    )
+
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     tenant_id: UUID = Field(
         sa_column=Column(
@@ -406,6 +415,10 @@ class RefreshToken(SQLModel, table=True):
     id: UUID = Field(default_factory=uuid4, primary_key=True)
     user_id: UUID = Field(foreign_key="user.id", nullable=False, index=True)
     token_hash: str
+    # All tokens rotated from a single login share one family_id. When a revoked
+    # token is presented again (theft/replay), the whole family is revoked at once
+    # so a stolen-then-rotated token cannot keep minting sessions (Security H-2).
+    family_id: UUID = Field(default_factory=uuid4, index=True)
     issued_at: datetime = Field(default_factory=datetime.utcnow)
     expires_at: datetime
     revoked: bool = Field(default=False)

@@ -41,7 +41,7 @@ services:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
     volumes:
-      - pgdata-dev:/var/lib/postgresql/data-dev
+      - pgdata-dev:/var/lib/postgresql/data
     networks:
       - pfin-dev-net
     healthcheck:

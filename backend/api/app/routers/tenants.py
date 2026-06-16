@@ -1,15 +1,25 @@
 # backend/api/app/routers/tenants.py
-from fastapi import APIRouter, Depends, HTTPException, status
-from sqlmodel import select, delete
+#
+# HTTP boundary for /tenants. Handlers stay thin: they resolve dependencies,
+# call services/tenants.py for all queries / record building / business rules /
+# authorization, and own only the transaction boundary (commit / rollback /
+# refresh). No raw SQL or session.add/get/delete lives here — that is the
+# service layer's job.
+#
+# Authorization note: several member-management / tenant endpoints authorize
+# against the PATH parameter tenant_id, which may differ from the caller's
+# active-tenant. These deliberately do NOT use require_role (it gates on the
+# active tenant only) and keep their explicit path-tenant membership checks,
+# relocated into the service layer with byte-for-byte identical semantics.
+from fastapi import APIRouter, Depends, status
 from typing import List
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from ..models import User, Tenant, Membership, MembershipRole, MembershipStatus, Account, AccountShare
 from ..schemas import TenantCreate, TenantRead, TenantUpdate, MembershipCreate, MembershipRead, MembershipUpdate, ActiveContext
-from ..deps import get_db, get_active_context, get_current_user, get_authenticated_user
+from ..deps import get_db, get_active_context, get_authenticated_user
 from ..auth import create_access_token, assert_not_demo
-from ..seed_defaults import seed_tenant_defaults
+from ..services import tenants as tenant_service
 
 router = APIRouter(prefix="/tenants", tags=["tenants"])
 
@@ -31,30 +41,10 @@ async def create_tenant(payload: TenantCreate, db: AsyncSession = Depends(get_db
     Returns:
         The created Tenant object.
     """
-    # Create new_tenant_record: set minimal required fields and validate owner has capacity to create.
-    # Persist and then create default resources (e.g., default account or categories) in the same transaction when possible.
-    new_tenant_record = Tenant(name=payload.name)
-    db.add(new_tenant_record)
-    # Flush instead of commit so tenant ID is available but the transaction
-    # remains open — we want tenant + membership + seeded data to be atomic.
-    await db.flush()
-
-    # create owner membership for creator
-    owner_membership_record = Membership(
-        tenant_id=new_tenant_record.id,
-        user_id=user.id,
-        user_email=user.email,
-        role=MembershipRole.OWNER,
-        status=MembershipStatus.ACTIVE,
-    )
-    db.add(owner_membership_record)
-
-    # Seed default categories and budget for the new tenant.
-    # Accounts are NOT seeded here — only signup creates starter accounts.
-    # Users can manually share or create accounts for additional tenants.
-    await seed_tenant_defaults(db, new_tenant_record, user, include_accounts=False)
-
-    # Single commit persists tenant, membership, and all seeded data atomically
+    # Stage tenant + owner membership + seeded defaults, then commit once so they
+    # land atomically. The service owns its internal flush (FK ordering); the
+    # handler owns the single commit.
+    new_tenant_record = await tenant_service.stage_tenant_with_owner(db, user, payload)
     await db.commit()
     await db.refresh(new_tenant_record)
 
@@ -72,14 +62,7 @@ async def list_tenants(db: AsyncSession = Depends(get_db), user=Depends(get_auth
     Returns:
         List of Tenant objects the user is a member of.
     """
-    # This joined query loads tenant + membership data to validate membership in one round-trip.
-    # Keep it small to avoid loading large collections into memory.
-    tenant_query = select(Tenant).join(Membership, Membership.tenant_id == Tenant.id).where(
-        Membership.user_id == user.id, Membership.status == MembershipStatus.ACTIVE
-    )
-    tenant_query_result = await db.execute(tenant_query)
-    tenant_records = tenant_query_result.scalars().all()
-    return tenant_records
+    return await tenant_service.list_tenants_for_user(db, user)
 
 
 @router.get("/{tenant_id}", response_model=TenantRead)
@@ -98,18 +81,12 @@ async def get_tenant(tenant_id: UUID, db: AsyncSession = Depends(get_db), active
         HTTPException 403 when the user is not a member.
         HTTPException 404 when the tenant does not exist.
     """
-    user = active_context.active_user
     tenant = active_context.active_tenant
     membership_record = active_context.active_membership
 
-    #Check if the user is signed in to the tenant in the path params
-    if str(tenant.id) != str(tenant_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token tenant does not match path tenant")
+    # Authorize against the PATH tenant: token must match and membership must be active.
+    tenant_service.authorize_active_member_of_path_tenant(tenant, membership_record, tenant_id)
 
-    # enforce role (only owner can invite)
-    if membership_record.status != MembershipStatus.ACTIVE:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="must be a member")
-    
     return tenant
 
 
@@ -130,21 +107,13 @@ async def update_tenant(tenant_id: UUID, payload: TenantUpdate, db: AsyncSession
         HTTPException 403 when the user is not the owner.
         HTTPException 404 when the tenant does not exist.
     """
-    user = active_context.active_user
     tenant = active_context.active_tenant
     membership_record = active_context.active_membership
 
-    #Check if the user is signed in to the tenant in the path params
-    if str(tenant.id) != str(tenant_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token tenant does not match path tenant")
+    # Authorize against the PATH tenant: token must match and caller must be OWNER.
+    tenant_service.authorize_owner_of_path_tenant(tenant, membership_record, tenant_id)
 
-    # enforce role (only owner can invite)
-    if membership_record.role != MembershipRole.OWNER:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="only tenant owner can update")
-    
-    if payload.name is not None:
-        tenant.name = payload.name
-    db.add(tenant)
+    await tenant_service.apply_tenant_update(db, tenant, payload)
     await db.commit()
     await db.refresh(tenant)
     return tenant
@@ -163,22 +132,16 @@ async def delete_tenant(tenant_id: UUID, db: AsyncSession = Depends(get_db), act
         HTTPException 403 when the user is not the owner.
         HTTPException 404 when the tenant does not exist.
     """
-    user = active_context.active_user
     tenant = active_context.active_tenant
     membership_record = active_context.active_membership
 
-    #Check if the user is signed in to the tenant in the path params
-    if str(tenant.id) != str(tenant_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token tenant does not match path tenant")
+    # Authorize against the PATH tenant: token must match and caller must be OWNER.
+    tenant_service.authorize_owner_of_path_tenant(tenant, membership_record, tenant_id)
 
-    # enforce role (only owner can invite)
-    if membership_record.role != MembershipRole.OWNER:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="only tenant owner can update")
-
-    # Tenant-scoped records are removed by DB-level ON DELETE CASCADE constraints.
-    await db.delete(tenant)
+    await tenant_service.delete_tenant_record(db, tenant)
     await db.commit()
     return
+
 
 @router.post("/{tenant_id}/switch", response_model=dict)
 async def switch_active_tenant(tenant_id: str, db: AsyncSession = Depends(get_db), current_user = Depends(get_authenticated_user)):
@@ -191,37 +154,10 @@ async def switch_active_tenant(tenant_id: str, db: AsyncSession = Depends(get_db
         403 if user is not an active member of the requested tenant.
         404 if tenant not found.
     """
-    # Authorization check: current_user must be owner or hold an administrative membership for this tenant.
-    # This prevents accidental cross-tenant modifications.
-    # Convert tenant id for DB comparison
-    try:
-        tenant_uuid = UUID(tenant_id)
-    except Exception:
-        tenant_uuid = tenant_id
-
-    # optional: verify tenant exists (nice to fail with 404 if invalid id)
-    db_session = db
-    tenant_record = await db_session.get(Tenant, tenant_uuid)
-    if not tenant_record:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
-    
-    # This joined query loads membership for given user and tenant to validate membership.
-    # Keep it small to avoid loading large collections into memory.
-    membership_query = select(Membership).where(
-        Membership.user_id == current_user.id,
-        Membership.tenant_id == tenant_uuid,
-        Membership.status == MembershipStatus.ACTIVE,
-    )
-    membership_query_result = await db_session.execute(membership_query)
-    membership_record = membership_query_result.scalars().first()
-    if not membership_record:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Not a member of tenant")
-
-    # Update user's preferred tenant to persist the switch across login sessions.
-    # This ensures when users log out and back in, they continue with their last active tenant.
-    current_user.preferred_tenant_id = tenant_uuid
-    db_session.add(current_user)
-    await db_session.commit()
+    # Service validates membership against the path tenant and stages the
+    # preferred-tenant update; the handler commits and mints the new token.
+    tenant_uuid, membership_record = await tenant_service.authorize_switch_to_tenant(db, current_user, tenant_id)
+    await db.commit()
 
     roles = [membership_record.role] if membership_record and membership_record.role else []
     access_token = create_access_token({"sub": str(current_user.id), "tenant_id": str(tenant_uuid), "roles": roles})
@@ -230,64 +166,28 @@ async def switch_active_tenant(tenant_id: str, db: AsyncSession = Depends(get_db
 #####################################################################
 # Membership operations (invite, accept, list, revoke)              #
 #####################################################################
-# Insert inside backend/api/app/routers/tenants.py (near other tenant endpoints)
-from fastapi import Path
 
 # Router: Tenant management (create, update, list, delete)
 # Important invariants:
 # - Tenants are the primary scope for data isolation (accounts, transactions, memberships).
 # - Deleting a tenant must cascade or block dependent objects to avoid orphaned data.
 
-# Create membership endpoints nested under tenants
-# Create new_tenant_record: set minimal required fields and validate owner has capacity to create.
-# Persist and then create default resources (e.g., default account or categories) in the same transaction when possible.
-
-# Note: this block assumes Membership, User, MembershipRole, MembershipStatus, and MembershipCreate/Read/Update schemas are imported
 
 @router.post("/{tenant_id}/members", response_model=MembershipRead, dependencies=[Depends(assert_not_demo)])
 async def create_membership_for_tenant(
     tenant_id: UUID,
-    payload: MembershipCreate, 
+    payload: MembershipCreate,
     db: AsyncSession = Depends(get_db),
     active_context:ActiveContext = Depends(get_active_context)
 ):
     """Create a membership or invite for a tenant. Only tenant owners may invite."""
-    # Authorization check: current_user must be owner or hold an administrative membership for this tenant.
-    # This prevents accidental cross-tenant modifications.
-    # owner_membership_query: check actor is owner
-    actor = active_context.active_user
     tenant = active_context.active_tenant
     membership_record = active_context.active_membership
 
-    #Check if the user is signed in to the tenant in the path params
-    if str(tenant.id) != str(tenant_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token tenant does not match path tenant")
+    # Authorize against the PATH tenant: token must match and caller must be OWNER.
+    tenant_service.authorize_owner_can_invite(tenant, membership_record, tenant_id)
 
-    # enforce role (only owner can invite)
-    if membership_record.role != MembershipRole.OWNER:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="only tenant owner can invite")
-
-    # Check whether invited user exists to decide ACTIVE vs PENDING invite
-    user_query = select(User).where(User.email == payload.user_email)
-    user_query_result = await db.execute(user_query)
-    user_record = user_query_result.scalars().first()
-    if user_record:
-        membership_record = Membership(
-            tenant_id=tenant.id,
-            user_id=user_record.id,
-            user_email=user_record.email,
-            role=payload.role,
-            status=MembershipStatus.ACTIVE,
-        )
-    else: #User not existing, send invite to app
-        membership_record = Membership(
-            tenant_id=tenant.id,
-            user_email=payload.user_email,
-            role=payload.role,
-            status=MembershipStatus.PENDING,
-        )
-
-    db.add(membership_record)
+    membership_record = await tenant_service.stage_membership_for_tenant(db, tenant, payload)
     await db.commit()
     await db.refresh(membership_record)
     return membership_record
@@ -300,24 +200,13 @@ async def list_members_for_tenant(
     active_context:ActiveContext = Depends(get_active_context)
 ):
     """List all memberships for a tenant. Requester must be an active member."""
-    # This joined query loads tenant + membership data to validate membership in one round-trip.
-    # Keep it small to avoid loading large collections into memory.
-    user = active_context.active_user
     tenant = active_context.active_tenant
     membership_record = active_context.active_membership
 
-    #Check if the user is signed in to the tenant in the path params
-    if str(tenant.id) != str(tenant_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token tenant does not match path tenant")
+    # Authorize against the PATH tenant: token must match and membership must be active.
+    tenant_service.authorize_active_member_of_path_tenant(tenant, membership_record, tenant_id)
 
-    # Reject requests from users whose membership is not active
-    if membership_record.status != MembershipStatus.ACTIVE:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="not a member")
-
-    tenant_membership_query = select(Membership).where(Membership.tenant_id == tenant_id)
-    tenant_membership_query_result = await db.execute(tenant_membership_query)
-    membership_records = tenant_membership_query_result.scalars().all()
-    return membership_records
+    return await tenant_service.list_memberships_for_tenant(db, tenant_id)
 
 
 @router.patch("/{tenant_id}/members/{membership_id}", response_model=MembershipRead, dependencies=[Depends(assert_not_demo)])
@@ -329,38 +218,15 @@ async def update_membership_for_tenant(
     active_context:ActiveContext = Depends(get_active_context),
 ):
     """Update membership properties such as role or status. Only tenant owners may update."""
-    active_user = active_context.active_user
     active_tenant = active_context.active_tenant
     owner_membership_record = active_context.active_membership
 
-    #Check if the user is signed in to the tenant in the path params
-    if str(active_tenant.id) != str(tenant_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token tenant does not match path tenant")
+    # Authorize against the PATH tenant: token must match and caller must be OWNER.
+    tenant_service.authorize_owner_of_path_tenant(active_tenant, owner_membership_record, tenant_id)
 
-    # enforce role (only owner can update)
-    if owner_membership_record.role != MembershipRole.OWNER:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="only tenant owner can update")
-    
-    # Owner may update other users memberships
-    # if str(membership_record.id) != str(membership_id):
-    #     raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token membership does not match path membership")
-
-    # This query loads membership for given user and tenant to validate membership.
-    db_session = db
-    membership_query = select(Membership).where(
-        Membership.id == membership_id,
-        Membership.tenant_id == tenant_id,
-    )
-    membership_query_result = await db_session.execute(membership_query)
-    membership_record = membership_query_result.scalars().first()
-
-    if payload.role is not None:
-        membership_record.role = payload.role
-    if payload.status is not None:
-        membership_record.status = payload.status
-    db_session.add(membership_record)
-    await db_session.commit()
-    await db_session.refresh(membership_record)
+    membership_record = await tenant_service.apply_membership_update(db, tenant_id, membership_id, payload)
+    await db.commit()
+    await db.refresh(membership_record)
     return membership_record
 
 
@@ -381,53 +247,9 @@ async def delete_membership_for_tenant(
     tenant = active_context.active_tenant
     actor_membership = active_context.active_membership
 
-    # Verify the actor's token matches the tenant in the URL path
-    if str(tenant.id) != str(tenant_id):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Token tenant does not match path tenant")
+    # Authorize against the PATH tenant: token match, then owner-or-self rule.
+    tenant_service.authorize_membership_deletion(tenant, actor_membership, tenant_id, membership_id)
 
-    # Non-owners can only delete their own membership (leave)
-    is_self_removal = str(actor_membership.id) == str(membership_id)
-    if actor_membership.role != MembershipRole.OWNER and not is_self_removal:
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Only owners can remove other members")
-
-    # Fetch the membership to delete
-    membership_query = select(Membership).where(
-        Membership.id == membership_id,
-        Membership.tenant_id == tenant_id,
-    )
-    membership_query_result = await db.execute(membership_query)
-    membership_record_to_delete = membership_query_result.scalars().first()
-
-    if not membership_record_to_delete:
-        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Membership not found")
-
-    # Prevent removing the last owner to avoid orphaned tenants
-    if membership_record_to_delete.role == MembershipRole.OWNER:
-        owner_count_query = select(Membership).where(
-            Membership.tenant_id == tenant_id,
-            Membership.role == MembershipRole.OWNER,
-            Membership.status == MembershipStatus.ACTIVE,
-        )
-        owner_count_result = await db.execute(owner_count_query)
-        owner_count = len(owner_count_result.scalars().all())
-        if owner_count <= 1:
-            raise HTTPException(
-                status_code=status.HTTP_400_BAD_REQUEST,
-                detail="Cannot remove the last owner. Transfer ownership first or delete the family.",
-            )
-
-    # When a user leaves (or is removed from) a family, unshare all of their accounts
-    # that were shared with this tenant. This prevents their private accounts from
-    # remaining visible to family members after they depart.
-    departing_user_id = membership_record_to_delete.user_id
-    owned_account_ids_subquery = select(Account.id).where(Account.user_id == departing_user_id)
-    await db.execute(
-        delete(AccountShare).where(
-            AccountShare.tenant_id == tenant_id,
-            AccountShare.account_id.in_(owned_account_ids_subquery),
-        )
-    )
-
-    await db.delete(membership_record_to_delete)
+    await tenant_service.delete_membership_for_tenant(db, tenant_id, membership_id)
     await db.commit()
     return

@@ -355,8 +355,8 @@ class TestUploadEndpoint:
         """A user with VIEWER role must be denied upload access with 403.
 
         Verifies that the viewer role check fires on the upload endpoint
-        before any file processing occurs. The error detail must contain
-        "Viewers" to match the role-rejection message from the router.
+        before any file processing occurs. The error detail is the generic
+        role-rejection message from the require_writer dependency.
         """
         response = await async_client.post(
             "/imports/upload",
@@ -365,7 +365,7 @@ class TestUploadEndpoint:
         )
 
         assert response.status_code == 403
-        assert "Viewers" in response.json()["detail"]
+        assert response.json()["detail"] == "insufficient role for this action"
 
 
 # ===========================================================================
@@ -889,6 +889,53 @@ class TestExecuteEndpoint:
         # job_id in the response matches the stub task id
         assert response.json()["job_id"] == dispatched["task_id"]
 
+    async def test_execute_returns_503_and_marks_job_failed_when_broker_down(
+        self,
+        async_client: AsyncClient,
+        async_session: AsyncSession,
+        owner_token: str,
+        test_tenant: Tenant,
+        imported_account: Account,
+        patched_storage: LocalAdapter,
+        monkeypatch: pytest.MonkeyPatch,
+    ):
+        """A broker that is unreachable at enqueue must not strand a PENDING job.
+
+        Regression guard for the unwrapped send_task: when dispatch raises, the
+        already-committed ImportJob row must be flipped to a terminal FAILED (so the
+        frontend isn't left polling a job no worker will run) and the endpoint must
+        surface 503 (retryable), not a bare 500.
+        """
+        # Arrange: the broker is down — send_task raises a connection error.
+        def _raise_broker_down(name: str, *, kwargs: dict | None = None, **_ignored):
+            raise ConnectionError("broker down")
+
+        monkeypatch.setattr(
+            imports_module.celery_client, "send_task", _raise_broker_down
+        )
+        file_key = f"{test_tenant.id}/{uuid4()}.csv"
+        payload = self._execute_payload(
+            file_key=file_key, account_id=imported_account.id
+        )
+
+        # Act
+        response = await async_client.post(
+            "/imports/execute", json=payload, headers=_bearer(owner_token)
+        )
+
+        # Assert: retryable 503, and the persisted job is terminal FAILED — not PENDING.
+        assert response.status_code == 503, response.text
+
+        job_result = await async_session.execute(
+            select(ImportJob).where(ImportJob.account_id == imported_account.id)
+        )
+        import_jobs = job_result.scalars().all()
+        assert len(import_jobs) == 1
+        orphaned_job = import_jobs[0]
+        assert orphaned_job.status == ImportJobStatus.FAILED
+        assert orphaned_job.error_message is not None
+        assert orphaned_job.completed_at is not None
+
     async def test_execute_rejects_viewer_role(
         self,
         async_client: AsyncClient,
@@ -910,7 +957,7 @@ class TestExecuteEndpoint:
         )
 
         assert response.status_code == 403
-        assert "Viewers" in response.json()["detail"]
+        assert response.json()["detail"] == "insufficient role for this action"
         # No Celery dispatch must occur when the role check fails
         assert fake_celery_dispatch == []
 
@@ -1182,7 +1229,7 @@ class TestJobStatusEndpoint:
         )
 
         assert response.status_code == 403
-        assert "Viewers" in response.json()["detail"]
+        assert response.json()["detail"] == "insufficient role for this action"
 
 
 # ===========================================================================
@@ -1203,15 +1250,15 @@ class TestListImportJobsEndpoint:
         """A user with VIEWER role must be denied access to the job list with 403.
 
         Verifies that the viewer role check fires on the list endpoint before
-        any database query is made. The error detail must contain "Viewers" to
-        match the role-rejection message from the router.
+        any database query is made. The error detail is the generic
+        role-rejection message from the require_writer dependency.
         """
         response = await async_client.get(
             "/imports/jobs", headers=_bearer(viewer_token)
         )
 
         assert response.status_code == 403
-        assert "Viewers" in response.json()["detail"]
+        assert response.json()["detail"] == "insufficient role for this action"
 
     async def test_list_jobs_requires_authentication(
         self,
@@ -1316,3 +1363,137 @@ class TestImportTenantIsolation:
 
         assert response.status_code == 403
         assert len(fake_celery_dispatch) == 0
+
+
+# ===========================================================================
+# Error-path branches (decode fallback + defensive parse guards)
+# ===========================================================================
+
+
+class TestImportErrorBranches:
+    """Cover the import wizard's error branches that the happy-path tests miss.
+
+    These exercise the parts of app/routers/imports.py that turn malformed
+    input into a clean 4xx (or a per-row parse_error) instead of an unhandled
+    500: the latin-1 decode fallback and the defensive parse guards.
+    """
+
+    async def test_upload_decodes_latin1_csv_when_not_valid_utf8(
+        self,
+        async_client: AsyncClient,
+        owner_token: str,
+        patched_storage: LocalAdapter,
+    ):
+        """A latin-1-encoded CSV (invalid UTF-8) decodes via the latin-1 fallback.
+
+        The accented header 'Descrição' encodes to bytes that raise
+        UnicodeDecodeError under utf-8-sig, forcing _decode_csv_bytes to fall
+        back to latin-1 (imports.py:83-84) instead of failing the upload.
+        """
+        # Arrange: header with an accented column name, encoded as latin-1 so the
+        # bytes are NOT valid UTF-8 and must hit the fallback branch.
+        csv_text = "data,valor,Descrição\n2024-01-01,-10.50,Café\n"
+        latin1_files = {
+            "file": ("statement.csv", BytesIO(csv_text.encode("latin-1")), "text/csv")
+        }
+
+        # Act
+        response = await async_client.post(
+            "/imports/upload", files=latin1_files, headers=_bearer(owner_token)
+        )
+
+        # Assert: upload succeeds and the accented header round-trips intact.
+        assert response.status_code == 200, response.text
+        assert "Descrição" in response.json()["detected_columns"]
+
+    async def test_analyze_rejects_start_row_beyond_end_of_file(
+        self,
+        async_client: AsyncClient,
+        owner_token: str,
+        imported_account: Account,
+        patched_storage: LocalAdapter,
+    ):
+        """A start_row past the last line yields a clean 422, not a 500.
+
+        _parse_csv raises HTTPException(422) when start_row exceeds the row count
+        (imports.py:90-94); the analyze guard re-raises it untouched via the
+        `except HTTPException: raise` branch (imports.py:290-291).
+        """
+        # Arrange: a two-line file, but the caller points start_row well past it.
+        csv_text = "date,amount\n2024-01-01,-10.50\n"
+        upload_response = await async_client.post(
+            "/imports/upload",
+            files=_csv_upload_files(csv_text),
+            headers=_bearer(owner_token),
+        )
+        assert upload_response.status_code == 200, upload_response.text
+        file_key = upload_response.json()["file_key"]
+
+        # Act
+        response = await async_client.post(
+            "/imports/analyze",
+            json={
+                "file_key": file_key,
+                "account_id": str(imported_account.id),
+                "column_mapping": {"date_column": "date", "amount_column": "amount"},
+                "start_row": 99,
+                "currency": "BRL",
+            },
+            headers=_bearer(owner_token),
+        )
+
+        # Assert: a graceful 422 referencing the offending start_row, never a 500.
+        assert response.status_code == 422, response.text
+        assert "start_row" in response.json()["detail"]
+
+    async def test_analyze_records_parse_error_for_malformed_amount_row(
+        self,
+        async_client: AsyncClient,
+        owner_token: str,
+        imported_account: Account,
+        patched_storage: LocalAdapter,
+    ):
+        """A row with a non-numeric amount is reported, not fatal to the request.
+
+        _parse_amount raises ValueError on 'abc'; the analyze loop catches it and
+        records that single row with a parse_error (imports.py:346-351) so the
+        remaining valid rows still process and the endpoint returns 200.
+        """
+        # Arrange: row index 1 has an unparseable amount; row 0 is valid.
+        csv_text = (
+            "date,amount,description\n"
+            "2024-01-01,-10.50,Coffee\n"
+            "2024-01-02,abc,Garbage\n"
+        )
+        upload_response = await async_client.post(
+            "/imports/upload",
+            files=_csv_upload_files(csv_text),
+            headers=_bearer(owner_token),
+        )
+        assert upload_response.status_code == 200, upload_response.text
+        file_key = upload_response.json()["file_key"]
+
+        # Act
+        response = await async_client.post(
+            "/imports/analyze",
+            json={
+                "file_key": file_key,
+                "account_id": str(imported_account.id),
+                "column_mapping": {
+                    "date_column": "date",
+                    "amount_column": "amount",
+                    "description_column": "description",
+                },
+                "start_row": 0,
+                "currency": "BRL",
+            },
+            headers=_bearer(owner_token),
+        )
+
+        # Assert: the bad row is flagged; the good row parses cleanly.
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["parse_error_count"] == 1
+        rows_by_index = {row["row_index"]: row for row in body["rows"]}
+        assert rows_by_index[1]["parse_error"] is not None
+        assert rows_by_index[0]["parse_error"] is None

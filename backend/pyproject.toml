@@ -37,17 +37,49 @@ dependencies = [
 [project.optional-dependencies]
 dev = [
     # Testing
-    "pytest==8.3.3",
+    "pytest==9.0.3",
     "pytest-asyncio==1.3.0",
+    "pytest-cov==7.0.0",
     "httpx==0.27.2",
     "aiosqlite==0.20.0",
 
     # Linting & formatting
-    "black==24.10.0",
+    "black==26.3.1",
     "isort==5.13.2",
 ]
 
 [tool.pytest.ini_options]
+# Coverage is intentionally NOT in addopts: the default `pytest` run stays fast.
+# Generate a report explicitly, running from the backend/ dir so coverage.py
+# discovers the [tool.coverage.*] config below (it auto-discovers from CWD):
+#   cd backend && uv run pytest --cov=app --cov-report=term-missing --cov-report=xml --cov-report=html
 addopts = "-v"
 testpaths = ["api/tests"]
 asyncio_mode = "auto"
+
+[tool.coverage.run]
+# Measure the application package only — exclude the test suite and migrations
+# from the denominator so the percentage reflects real source coverage.
+source = ["app"]
+# SQLAlchemy's async session bridges to the sync DBAPI via greenlets, so an
+# endpoint coroutine resumes inside a greenlet after every `await session.…`.
+# The sync tests also drive the app through Starlette's TestClient portal
+# thread. Without greenlet+thread aware collection, coverage misses nearly
+# every line after the first DB await — badly under-reporting routers that are
+# in fact well tested (e.g. the transaction rebalance paths).
+concurrency = ["greenlet", "thread"]
+omit = [
+    "*/tests/*",
+    "*/alembic/*",
+    "*/__pycache__/*",
+]
+
+[tool.coverage.report]
+# Show line numbers that are not exercised so gaps are actionable.
+show_missing = true
+# Lines that never need coverage (defensive/unreachable guards, debug entrypoints).
+exclude_lines = [
+    "pragma: no cover",
+    "if __name__ == .__main__.:",
+    "raise NotImplementedError",
+]
