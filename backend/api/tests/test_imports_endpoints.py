@@ -628,6 +628,189 @@ class TestAnalyzeEndpoint:
         assert duplicate_row["matching_transaction_id"] == str(existing_transaction.id)
         assert non_dup_row["is_duplicate"] is False
 
+    async def test_analyze_flags_possible_duplicate_when_match_one_or_two_days_earlier(
+        self,
+        async_client: AsyncClient,
+        async_session: AsyncSession,
+        owner_token: str,
+        test_user: User,
+        test_tenant: Tenant,
+        imported_account: Account,
+        patched_storage: LocalAdapter,
+    ):
+        """A row whose amount matches a transaction logged 1–2 days earlier is a possible duplicate.
+
+        Credit-card settlement lag: the same charge appears on the export a day or
+        two after it was first recorded. Such rows are flagged (not auto-excluded),
+        and the earlier candidate transaction(s) are returned for the user to inspect.
+        """
+        # Existing transaction logged on Jan 1; the import row is dated Jan 3 (2 days later).
+        earlier_transaction = Transaction(
+            tenant_id=test_tenant.id,
+            account_id=imported_account.id,
+            transaction_date=date(2024, 1, 1),
+            amount=Decimal("42.00"),
+            currency=Currency.BRL,
+            transaction_type=CategoryKind.EXPENSE,
+            created_by=test_user.id,
+            source=TransactionSource.MANUAL,
+            description="Bookstore",
+        )
+        async_session.add(earlier_transaction)
+        await async_session.commit()
+        await async_session.refresh(earlier_transaction)
+
+        csv_text = (
+            "date,amount,description\n"
+            "2024-01-03,-42.00,Bookstore\n"   # 2 days after the logged transaction
+        )
+        file_key = await self._upload_csv(async_client, owner_token, csv_text)
+
+        response = await async_client.post(
+            "/imports/analyze",
+            json={
+                "file_key": file_key,
+                "account_id": str(imported_account.id),
+                "column_mapping": {
+                    "date_column": "date",
+                    "amount_column": "amount",
+                    "description_column": "description",
+                },
+            },
+            headers=_bearer(owner_token),
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["possible_duplicate_count"] == 1
+        assert body["duplicate_count"] == 0
+
+        flagged_row = next(r for r in body["rows"] if r["row_index"] == 0)
+        # Possible duplicates are flagged but NOT auto-excluded (is_duplicate stays False).
+        assert flagged_row["possible_duplicate"] is True
+        assert flagged_row["is_duplicate"] is False
+        matches = flagged_row["possible_duplicate_matches"]
+        assert len(matches) == 1
+        assert matches[0]["transaction_id"] == str(earlier_transaction.id)
+        assert matches[0]["transaction_date"] == "2024-01-01"
+        assert matches[0]["description"] == "Bookstore"
+
+    async def test_analyze_does_not_flag_possible_duplicate_outside_lookback_window(
+        self,
+        async_client: AsyncClient,
+        async_session: AsyncSession,
+        owner_token: str,
+        test_user: User,
+        test_tenant: Tenant,
+        imported_account: Account,
+        patched_storage: LocalAdapter,
+    ):
+        """A same-amount transaction logged 3+ days earlier is outside the window — not flagged."""
+        # Existing transaction 3 days before the import row — beyond the 2-day look-back.
+        old_transaction = Transaction(
+            tenant_id=test_tenant.id,
+            account_id=imported_account.id,
+            transaction_date=date(2024, 1, 1),
+            amount=Decimal("42.00"),
+            currency=Currency.BRL,
+            transaction_type=CategoryKind.EXPENSE,
+            created_by=test_user.id,
+            source=TransactionSource.MANUAL,
+        )
+        async_session.add(old_transaction)
+        await async_session.commit()
+
+        csv_text = (
+            "date,amount,description\n"
+            "2024-01-04,-42.00,Bookstore\n"   # 3 days after — outside the window
+        )
+        file_key = await self._upload_csv(async_client, owner_token, csv_text)
+
+        response = await async_client.post(
+            "/imports/analyze",
+            json={
+                "file_key": file_key,
+                "account_id": str(imported_account.id),
+                "column_mapping": {
+                    "date_column": "date",
+                    "amount_column": "amount",
+                    "description_column": "description",
+                },
+            },
+            headers=_bearer(owner_token),
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        assert body["possible_duplicate_count"] == 0
+        assert body["rows"][0]["possible_duplicate"] is False
+
+    async def test_analyze_exact_duplicate_takes_precedence_over_possible(
+        self,
+        async_client: AsyncClient,
+        async_session: AsyncSession,
+        owner_token: str,
+        test_user: User,
+        test_tenant: Tenant,
+        imported_account: Account,
+        patched_storage: LocalAdapter,
+    ):
+        """When same-date and earlier matches both exist, the row is an exact duplicate only."""
+        # Two existing transactions of the same amount: one same-date, one a day earlier.
+        same_date_transaction = Transaction(
+            tenant_id=test_tenant.id,
+            account_id=imported_account.id,
+            transaction_date=date(2024, 1, 3),
+            amount=Decimal("42.00"),
+            currency=Currency.BRL,
+            transaction_type=CategoryKind.EXPENSE,
+            created_by=test_user.id,
+            source=TransactionSource.MANUAL,
+        )
+        earlier_transaction = Transaction(
+            tenant_id=test_tenant.id,
+            account_id=imported_account.id,
+            transaction_date=date(2024, 1, 2),
+            amount=Decimal("42.00"),
+            currency=Currency.BRL,
+            transaction_type=CategoryKind.EXPENSE,
+            created_by=test_user.id,
+            source=TransactionSource.MANUAL,
+        )
+        async_session.add(same_date_transaction)
+        async_session.add(earlier_transaction)
+        await async_session.commit()
+        await async_session.refresh(same_date_transaction)
+
+        csv_text = (
+            "date,amount,description\n"
+            "2024-01-03,-42.00,Bookstore\n"
+        )
+        file_key = await self._upload_csv(async_client, owner_token, csv_text)
+
+        response = await async_client.post(
+            "/imports/analyze",
+            json={
+                "file_key": file_key,
+                "account_id": str(imported_account.id),
+                "column_mapping": {
+                    "date_column": "date",
+                    "amount_column": "amount",
+                    "description_column": "description",
+                },
+            },
+            headers=_bearer(owner_token),
+        )
+
+        assert response.status_code == 200, response.text
+        body = response.json()
+        row = body["rows"][0]
+        assert row["is_duplicate"] is True
+        assert row["matching_transaction_id"] == str(same_date_transaction.id)
+        # Exact match wins outright — the row is not also flagged as a possible duplicate.
+        assert row["possible_duplicate"] is False
+        assert row["possible_duplicate_matches"] == []
+
     async def test_analyze_records_parse_errors_per_row(
         self,
         async_client: AsyncClient,

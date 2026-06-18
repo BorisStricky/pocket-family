@@ -27,7 +27,7 @@ import { AddCategoryModal } from '@/features/category/components/AddCategoryModa
 import { useCategories } from '@/features/category/hooks/useCategories';
 import { useCreateCategory } from '@/features/category/hooks/useCreateCategory';
 import type { CategoryRead, CategoryCreate } from '@/types/category';
-import type { ParsedRow, RowEdit } from '../../types';
+import type { ParsedRow, PossibleDuplicateMatch, RowEdit } from '../../types';
 
 interface ReviewStepProps {
   analyzedRows: ParsedRow[];
@@ -93,6 +93,32 @@ function TypeCellRenderer(params: ICellRendererParams<ParsedRow>) {
       <MenuItem value="expense">Expense</MenuItem>
       <MenuItem value="income">Income</MenuItem>
     </Select>
+  );
+}
+
+/**
+ * Hover content for a *possible* duplicate (same account + amount as a
+ * transaction logged 1–2 days earlier). Surfaced on the "Possible duplicate"
+ * status chip so the user can review the candidate match(es) and decide
+ * whether to uncheck (exclude) the row. Unlike exact duplicates, the row is
+ * left included by default.
+ */
+function possibleDuplicateTooltip(matches: PossibleDuplicateMatch[]) {
+  return (
+    <Box>
+      <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
+        Possible duplicate — a similar transaction was already logged 1–2 days earlier:
+      </Typography>
+      {matches.map((match) => (
+        <Typography key={match.transaction_id} variant="caption" component="div">
+          • {match.transaction_date} · {match.amount}
+          {match.description ? ` · ${match.description}` : ''}
+        </Typography>
+      ))}
+      <Typography variant="caption" component="div" sx={{ mt: 0.5, fontStyle: 'italic' }}>
+        Uncheck this row to exclude it.
+      </Typography>
+    </Box>
   );
 }
 
@@ -170,6 +196,23 @@ function StatusCellRenderer(params: ICellRendererParams<ParsedRow>) {
       </Tooltip>
     );
   }
+  // Possible (non-exact) duplicate: keep the row included but flag it here with
+  // a chip whose hover detail lists the earlier candidate(s), so users can
+  // review and uncheck if needed.
+  const possibleMatches = row.possible_duplicate ? row.possible_duplicate_matches ?? [] : [];
+  if (possibleMatches.length > 0) {
+    return (
+      <Tooltip title={possibleDuplicateTooltip(possibleMatches)} arrow>
+        <Chip
+          label="Possible duplicate"
+          color="warning"
+          size="small"
+          variant="outlined"
+          sx={{ cursor: 'help' }}
+        />
+      </Tooltip>
+    );
+  }
   return null;
 }
 
@@ -224,6 +267,7 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
 
   const parseErrorCount = analyzedRows.filter((row) => row.parse_error).length;
   const duplicateCount = analyzedRows.filter((row) => row.is_duplicate).length;
+  const possibleDuplicateCount = analyzedRows.filter((row) => row.possible_duplicate).length;
 
   // Recompute cell visuals (checkbox state, opacity) whenever the wizard's
   // shared rowEdits map changes — params.context is re-read on refresh.
@@ -318,6 +362,14 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
             variant="outlined"
           />
         )}
+        {possibleDuplicateCount > 0 && (
+          <Chip
+            label={`${possibleDuplicateCount} possible duplicates flagged`}
+            color="warning"
+            size="small"
+            variant="outlined"
+          />
+        )}
         {parseErrorCount > 0 && (
           <Chip
             label={`${parseErrorCount} parse errors`}
@@ -330,7 +382,9 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
 
       <Alert severity="info" sx={{ mb: 2 }}>
         Uncheck a row to skip it. Duplicate rows (matching an existing transaction by date and amount)
-        are pre-skipped — uncheck to include anyway.
+        are pre-skipped — uncheck to include anyway. Rows with a{' '}
+        <strong>Possible duplicate</strong> status may duplicate a transaction logged 1–2 days
+        earlier; hover the status to see the match and uncheck the row if it is a duplicate.
       </Alert>
 
       <Box className="ag-theme-alpine" sx={{ height: 480, width: '100%' }}>

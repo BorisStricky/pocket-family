@@ -39,6 +39,18 @@ export interface AnalyzeRequest {
 }
 
 /**
+ * An existing transaction that may be the same as an imported row.
+ * Surfaced when the imported row matches an earlier (1–2 day) transaction by
+ * account + amount — the credit-card settlement-lag case.
+ */
+export interface PossibleDuplicateMatch {
+  transaction_id: string;
+  transaction_date: string;   // YYYY-MM-DD (earlier than the imported row)
+  amount: string;             // decimal string, always positive
+  description?: string;
+}
+
+/**
  * A single transaction row parsed from the CSV.
  * parse_error is set when the row could not be parsed; other fields are null.
  */
@@ -48,8 +60,14 @@ export interface ParsedRow {
   amount?: string;             // decimal string, always positive
   transaction_type?: 'expense' | 'income';
   description?: string;
+  // Exact (same-date, same-amount) match against an existing transaction.
+  // These rows are pre-skipped in the Review step.
   is_duplicate: boolean;
   matching_transaction_id?: string;
+  // No exact match, but a same-amount transaction was logged 1–2 days earlier.
+  // Flagged in the Status column but NOT auto-excluded — the user decides.
+  possible_duplicate?: boolean;
+  possible_duplicate_matches?: PossibleDuplicateMatch[];
   parse_error?: string;
 }
 
@@ -59,6 +77,7 @@ export interface ParsedRow {
 export interface AnalyzeResponse {
   rows: ParsedRow[];
   duplicate_count: number;
+  possible_duplicate_count?: number;
   parse_error_count: number;
   date_range_start?: string;
   date_range_end?: string;

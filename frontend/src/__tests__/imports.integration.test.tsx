@@ -476,6 +476,61 @@ describe('ImportWizard Integration', () => {
       expect(screen.getByText(/1 parse errors/i)).toBeInTheDocument();
     });
 
+    it('flags possible duplicates with a status chip and keeps the row included', async () => {
+      // Override analyze with a single possible-duplicate row: same amount as a
+      // transaction logged 2 days earlier (credit-card settlement lag).
+      server.use(
+        http.post(`${API_BASE}/imports/analyze`, () =>
+          HttpResponse.json({
+            rows: [
+              {
+                row_index: 0,
+                transaction_date: '2025-01-17',
+                amount: '42.00',
+                transaction_type: 'expense',
+                description: 'Bookstore',
+                is_duplicate: false,
+                possible_duplicate: true,
+                possible_duplicate_matches: [
+                  {
+                    transaction_id: 'earlier-txn-uuid',
+                    transaction_date: '2025-01-15',
+                    amount: '42.00',
+                    description: 'Bookstore',
+                  },
+                ],
+              },
+            ],
+            duplicate_count: 0,
+            possible_duplicate_count: 1,
+            parse_error_count: 0,
+            date_range_start: '2025-01-17',
+            date_range_end: '2025-01-17',
+          }),
+        ),
+      );
+
+      const user = userEvent.setup();
+      renderImportWizard();
+      await advanceWizardToReviewStep(user);
+
+      // Possible duplicates are NOT auto-excluded — the row stays included.
+      expect(screen.getByText(/^1 of 1 rows will be imported$/i)).toBeInTheDocument();
+      expect(screen.getByText(/1 possible duplicates flagged/i)).toBeInTheDocument();
+
+      // The Status column shows a "Possible duplicate" chip on the row.
+      const possibleDuplicateRow = screen
+        .getByDisplayValue('Bookstore')
+        .closest('[role="row"]')!;
+      expect(
+        within(possibleDuplicateRow).getByText(/possible duplicate/i),
+      ).toBeInTheDocument();
+
+      // The row remains checked (included) by default — the user opts to exclude it.
+      const checkbox = within(possibleDuplicateRow).getByRole('checkbox');
+      expect(checkbox).toBeChecked();
+    });
+
     it('includes a duplicate row when the user unchecks its skip flag', async () => {
       const user = userEvent.setup();
       renderImportWizard();
