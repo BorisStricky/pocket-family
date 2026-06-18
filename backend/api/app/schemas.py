@@ -670,6 +670,27 @@ class AnalyzeRequest(SQLModel):
     positive_amounts_are_expenses: bool = False
 
 
+class PossibleDuplicateMatch(SQLModel):
+    """An existing transaction that *might* be the same as an imported row.
+
+    Surfaced when an imported row has the same account + absolute amount as a
+    transaction already logged 1–2 days *earlier*. This is the credit-card
+    settlement-lag case: a purchase shows on the export a day or two after it was
+    first recorded. Unlike exact (same-date) duplicates, these are not
+    auto-excluded — the user is shown the candidate(s) and decides.
+
+    Attributes:
+        transaction_id: UUID of the existing (possibly duplicate) transaction.
+        transaction_date: Date the existing transaction was logged (earlier than the row).
+        amount: Absolute amount of the existing transaction, as a decimal string.
+        description: Existing transaction's description, when present.
+    """
+    transaction_id: UUID
+    transaction_date: date
+    amount: Decimal
+    description: Optional[str] = None
+
+
 class ParsedRow(SQLModel):
     """A single transaction row parsed from the CSV during the analyze step.
 
@@ -679,8 +700,14 @@ class ParsedRow(SQLModel):
         amount: Absolute monetary amount as a decimal string.
         transaction_type: "expense" or "income".
         description: Extracted description text, or None.
-        is_duplicate: True when a matching transaction already exists in the DB.
+        is_duplicate: True when an exact (same-date, same-amount) match already
+            exists in the DB. These rows are pre-skipped in the review step.
         matching_transaction_id: UUID of the matching transaction when is_duplicate=True.
+        possible_duplicate: True when no exact match exists but a transaction with
+            the same account + amount was logged 1–2 days earlier (settlement lag).
+            These rows are flagged, not auto-excluded.
+        possible_duplicate_matches: The earlier transaction(s) that triggered the
+            possible_duplicate flag, shown to the user so they can decide to exclude.
         parse_error: Human-readable error message when the row could not be parsed.
     """
     row_index: int
@@ -690,6 +717,8 @@ class ParsedRow(SQLModel):
     description: Optional[str] = None
     is_duplicate: bool = False
     matching_transaction_id: Optional[UUID] = None
+    possible_duplicate: bool = False
+    possible_duplicate_matches: List[PossibleDuplicateMatch] = Field(default_factory=list)
     parse_error: Optional[str] = None
 
 
@@ -698,13 +727,16 @@ class AnalyzeResponse(SQLModel):
 
     Attributes:
         rows: All data rows from the CSV with parse results and duplicate flags.
-        duplicate_count: Number of rows that match existing transactions.
+        duplicate_count: Number of rows that exactly match an existing transaction.
+        possible_duplicate_count: Number of rows flagged as a possible duplicate of a
+            transaction logged 1–2 days earlier (settlement-lag detection).
         parse_error_count: Number of rows that could not be parsed.
         date_range_start: Earliest transaction date in the CSV.
         date_range_end: Latest transaction date in the CSV.
     """
     rows: List[ParsedRow]
     duplicate_count: int
+    possible_duplicate_count: int = 0
     parse_error_count: int
     date_range_start: Optional[date] = None
     date_range_end: Optional[date] = None

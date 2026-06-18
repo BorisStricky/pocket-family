@@ -222,11 +222,13 @@ async def analyze_csv(
     )
 
     duplicate_count = sum(1 for row in parsed_rows if row.is_duplicate)
+    possible_duplicate_count = sum(1 for row in parsed_rows if row.possible_duplicate)
     parse_error_count = sum(1 for row in parsed_rows if row.parse_error is not None)
 
     return AnalyzeResponse(
         rows=parsed_rows,
         duplicate_count=duplicate_count,
+        possible_duplicate_count=possible_duplicate_count,
         parse_error_count=parse_error_count,
         date_range_start=min(valid_dates) if valid_dates else None,
         date_range_end=max(valid_dates) if valid_dates else None,

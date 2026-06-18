@@ -8,7 +8,8 @@
 import csv
 import io
 import re
-from datetime import date, datetime
+from collections import defaultdict
+from datetime import date, datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from typing import List, Optional, Tuple
 from uuid import UUID
@@ -160,6 +161,13 @@ def validate_file_key_ownership(file_key: str, tenant_id: UUID) -> None:
 # ---------------------------------------------------------------------------
 
 
+# How many days *before* an imported row's date we still look for a same-amount
+# transaction when detecting possible (settlement-lag) duplicates. Credit-card
+# purchases often post to the statement export 1–2 days after they were first
+# recorded, so the same charge can appear on a slightly later date.
+POSSIBLE_DUPLICATE_LOOKBACK_DAYS = 2
+
+
 async def flag_duplicate_rows(
     session: AsyncSession,
     tenant_id: UUID,
@@ -170,21 +178,43 @@ async def flag_duplicate_rows(
     """Flag rows that duplicate existing transactions, in place.
 
     Deduplicates the already-parsed wizard rows against existing transactions in
-    the relevant account and date range. Match criteria: same account + same date
-    + same absolute amount. Rows that match get ``is_duplicate=True`` and their
-    ``matching_transaction_id`` set. Tenant isolation is preserved by filtering on
-    ``tenant_id`` (never dropped).
+    the relevant account and date range. Two tiers of matching, both scoped to the
+    same account + same absolute amount, with tenant isolation always enforced via
+    the ``tenant_id`` filter:
+
+    1. **Exact duplicate** — an existing transaction on the *same date*. The row gets
+       ``is_duplicate=True`` and ``matching_transaction_id`` set; the UI pre-skips it.
+    2. **Possible duplicate** — no same-date match, but a transaction with the same
+       amount was logged 1–2 days *earlier* (see ``POSSIBLE_DUPLICATE_LOOKBACK_DAYS``).
+       This is the credit-card settlement-lag case. The row gets
+       ``possible_duplicate=True`` and the candidate transaction(s) recorded on
+       ``possible_duplicate_matches``; the UI flags it but does **not** auto-exclude it.
+
+    An exact match always wins: a row flagged ``is_duplicate`` is never also flagged
+    ``possible_duplicate``.
 
     No-op when there are no successfully parsed dates to bound the lookup.
     """
+    # Imported locally to keep this DB helper's import surface small; PossibleDuplicateMatch
+    # lives in schemas (the API contract), which is fine to depend on from a service.
+    from ..schemas import PossibleDuplicateMatch
+
     if not valid_dates:
         return
 
-    min_date = min(valid_dates)
+    # Widen the lower bound by the look-back window so a settlement-lag candidate
+    # that predates every imported row is still fetched. The upper bound stays at
+    # the latest imported date — possible matches are always *earlier* than a row.
+    min_date = min(valid_dates) - timedelta(days=POSSIBLE_DUPLICATE_LOOKBACK_DAYS)
     max_date = max(valid_dates)
 
     existing_result = await session.execute(
-        select(Transaction.id, Transaction.transaction_date, Transaction.amount)
+        select(
+            Transaction.id,
+            Transaction.transaction_date,
+            Transaction.amount,
+            Transaction.description,
+        )
         .where(
             Transaction.tenant_id == tenant_id,
             Transaction.account_id == account_id,
@@ -194,19 +224,50 @@ async def flag_duplicate_rows(
     )
     existing_transactions = existing_result.all()
 
-    # Build a lookup: (date, abs_amount) → transaction_id
+    # Exact-match lookup: (date, abs_amount) → transaction_id.
     existing_dedup: dict[tuple, UUID] = {
         (row.transaction_date, abs(row.amount)): row.id
         for row in existing_transactions
     }
+    # Group existing transactions by absolute amount so the possible-duplicate scan
+    # only has to inspect candidates that share the row's amount.
+    existing_by_amount: dict[Decimal, list] = defaultdict(list)
+    for row in existing_transactions:
+        existing_by_amount[abs(row.amount)].append(row)
 
     # Flag duplicates in the parsed rows
     for parsed_row in parsed_rows:
-        if parsed_row.transaction_date and parsed_row.amount is not None:
-            dedup_key = (parsed_row.transaction_date, parsed_row.amount)
-            if dedup_key in existing_dedup:
-                parsed_row.is_duplicate = True
-                parsed_row.matching_transaction_id = existing_dedup[dedup_key]
+        if not (parsed_row.transaction_date and parsed_row.amount is not None):
+            continue
+
+        dedup_key = (parsed_row.transaction_date, parsed_row.amount)
+        if dedup_key in existing_dedup:
+            # Tier 1: exact same-date match wins outright.
+            parsed_row.is_duplicate = True
+            parsed_row.matching_transaction_id = existing_dedup[dedup_key]
+            continue
+
+        # Tier 2: same amount logged 1..LOOKBACK days before this row's date.
+        candidates = [
+            existing
+            for existing in existing_by_amount.get(parsed_row.amount, [])
+            if 1 <= (parsed_row.transaction_date - existing.transaction_date).days
+            <= POSSIBLE_DUPLICATE_LOOKBACK_DAYS
+        ]
+        if candidates:
+            parsed_row.possible_duplicate = True
+            parsed_row.possible_duplicate_matches = [
+                PossibleDuplicateMatch(
+                    transaction_id=existing.id,
+                    transaction_date=existing.transaction_date,
+                    amount=abs(existing.amount),
+                    description=existing.description,
+                )
+                # Show the most recent candidate first — it is the likeliest match.
+                for existing in sorted(
+                    candidates, key=lambda existing: existing.transaction_date, reverse=True
+                )
+            ]
 
 
 async def authorize_account_for_import(
