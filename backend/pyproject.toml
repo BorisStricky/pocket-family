@@ -31,7 +31,7 @@ dependencies = [
     # CSV import feature — date parsing and SQS queue support
     "python-dateutil>=2.9.0",
     "kombu[sqs]>=5.3.0",
-    "python-multipart>=0.0.29",
+    "python-multipart>=0.0.31",
 ]
 
 [project.optional-dependencies]
