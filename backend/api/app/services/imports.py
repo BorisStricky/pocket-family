@@ -14,12 +14,8 @@ from decimal import Decimal, InvalidOperation
 from typing import List, Optional, Tuple
 from uuid import UUID
 
-# NOTE (follow-up): starlette 1.x renamed the status constants used below
-# (HTTP_422_UNPROCESSABLE_ENTITY -> HTTP_422_UNPROCESSABLE_CONTENT,
-# HTTP_413_REQUEST_ENTITY_TOO_LARGE -> HTTP_413_CONTENT_TOO_LARGE) and
-# deprecates the old names. We intentionally keep the old names for now
-# because FastAPI itself still references them internally; rename once
-# FastAPI drops them, to silence the DeprecationWarnings (values unchanged).
+# starlette 1.x renamed HTTP_422_UNPROCESSABLE_ENTITY -> HTTP_422_UNPROCESSABLE_CONTENT
+# (value unchanged, 422); the old name emits StarletteDeprecationWarning. New name used below.
 from fastapi import HTTPException, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -58,7 +54,7 @@ def parse_csv(text: str, start_row: int) -> tuple[list[str], list[dict]]:
     all_lines = list(csv.reader(io.StringIO(text)))
     if start_row >= len(all_lines):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"start_row {start_row} exceeds number of rows in file",
         )
     headers = [col.strip() for col in all_lines[start_row]]

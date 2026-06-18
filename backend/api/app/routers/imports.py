@@ -16,12 +16,10 @@ from typing import List
 from uuid import uuid4
 
 from dateutil.parser import parse as dateutil_parse, ParserError
-# NOTE (follow-up): starlette 1.x renamed the status constants used below
-# (HTTP_422_UNPROCESSABLE_ENTITY -> HTTP_422_UNPROCESSABLE_CONTENT,
-# HTTP_413_REQUEST_ENTITY_TOO_LARGE -> HTTP_413_CONTENT_TOO_LARGE) and
-# deprecates the old names. We intentionally keep the old names for now
-# because FastAPI itself still references them internally; rename once
-# FastAPI drops them, to silence the DeprecationWarnings (values unchanged).
+# starlette 1.x renamed two status constants (values unchanged):
+#   HTTP_422_UNPROCESSABLE_ENTITY     -> HTTP_422_UNPROCESSABLE_CONTENT (422)
+#   HTTP_413_REQUEST_ENTITY_TOO_LARGE -> HTTP_413_CONTENT_TOO_LARGE     (413)
+# We use the new names; the old ones emit StarletteDeprecationWarning.
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -70,14 +68,14 @@ async def upload_csv(
     filename = file.filename or ""
     if not filename.lower().endswith(".csv"):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Only .csv files are accepted",
         )
 
     # Validate content type to ensure the file is actually CSV data
     if file.content_type not in ("text/csv", "application/csv", ""):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Only CSV content type accepted",
         )
 
@@ -85,7 +83,7 @@ async def upload_csv(
     csv_bytes = await file.read(MAX_UPLOAD_BYTES + 1)
     if len(csv_bytes) > MAX_UPLOAD_BYTES:
         raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE,
+            status_code=status.HTTP_413_CONTENT_TOO_LARGE,
             detail="File exceeds the 5 MB limit",
         )
 
@@ -104,7 +102,7 @@ async def upload_csv(
         raise
     except Exception as parse_error:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Could not parse CSV: {parse_error}",
         )
 
@@ -151,7 +149,7 @@ async def analyze_csv(
         raise
     except Exception as parse_error:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=f"Could not parse CSV: {parse_error}",
         )
 
@@ -250,7 +248,7 @@ async def execute_import(
     """
     if not request.rows:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="No rows to import",
         )
 
