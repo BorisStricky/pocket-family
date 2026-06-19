@@ -2,6 +2,7 @@
 // Confirmation dialog for deleting categories with transaction reassignment option
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogTitle,
@@ -65,6 +66,8 @@ export function DeleteCategoryConfirm({
   isLoading = false,
   error = null,
 }: DeleteCategoryConfirmProps) {
+  const { t } = useTranslation();
+
   // Track selected replacement category for reassignment
   const [reassignToCategoryId, setReassignToCategoryId] = useState<string | null>(
     null
@@ -128,7 +131,7 @@ export function DeleteCategoryConfirm({
         <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
           <AlertTriangle size={24} color="#d32f2f" />
           <Typography variant="h6" component="span">
-            Delete Category
+            {t('categories.deleteCategory')}
           </Typography>
         </Box>
       </DialogTitle>
@@ -144,21 +147,20 @@ export function DeleteCategoryConfirm({
 
           {/* Confirmation Message */}
           <DialogContentText id="delete-category-dialog-description">
-            Are you sure you want to delete the category{' '}
-            <strong>&quot;{category.name}&quot;</strong>?
+            {t('categories.deleteConfirmMessage', { name: category.name })}
           </DialogContentText>
 
-          {/* Transaction Count Warning */}
+          {/* Transaction Count Warning — uses plural interpolation */}
           {transactionCount > 0 ? (
             <>
               <Alert severity="warning">
-                This category is used by <strong>{transactionCount}</strong>{' '}
-                {transactionCount === 1 ? 'transaction' : 'transactions'}.
+                <strong>
+                  {t('categories.transactionsWarning', { count: transactionCount })}
+                </strong>
               </Alert>
 
               <DialogContentText>
-                To delete this category, you must first reassign all transactions to
-                another category. Select a replacement category below.
+                {t('categories.reassignRequired')}
               </DialogContentText>
 
               {/* Reassignment Category Select */}
@@ -168,22 +170,26 @@ export function DeleteCategoryConfirm({
                   onChange={setReassignToCategoryId}
                   kind={category.kind}
                   categories={availableReassignCategories}
-                  label="Reassign Transactions To"
-                  placeholder="Select a category"
+                  label={t('categories.reassignLabel')}
+                  placeholder={t('categorySelect.placeholder')}
                   required
                   disabled={isLoading}
-                  helperText={`Select which ${category.kind} category should replace "${category.name}"`}
+                  helperText={t('categories.reassignHelperText', {
+                    kind: t(`enums.transactionType.${category.kind}`).toLowerCase(),
+                    name: category.name,
+                  })}
                 />
               ) : (
                 <Alert severity="error">
-                  No other {category.kind} categories available. You must create another{' '}
-                  {category.kind} category before deleting this one.
+                  {t('categories.noOtherCategoriesAvailable', {
+                    kind: t(`enums.transactionType.${category.kind}`).toLowerCase(),
+                  })}
                 </Alert>
               )}
             </>
           ) : (
             <Alert severity="info">
-              This category is not used by any transactions and can be safely deleted.
+              {t('categories.safeToDelete')}
             </Alert>
           )}
 
@@ -191,8 +197,7 @@ export function DeleteCategoryConfirm({
           {hasChildren && (
             <Alert severity="warning">
               <Typography variant="body2">
-                <strong>Note:</strong> This category has subcategories. You must delete all
-                child categories first before deleting this parent category.
+                {t('categories.hasChildrenWarning')}
               </Typography>
             </Alert>
           )}
@@ -201,7 +206,7 @@ export function DeleteCategoryConfirm({
 
       <DialogActions>
         <Button onClick={handleClose} disabled={isLoading}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button
           onClick={handleConfirm}
@@ -214,10 +219,10 @@ export function DeleteCategoryConfirm({
           }
         >
           {isLoading
-            ? 'Deleting...'
+            ? t('common.deleting')
             : transactionCount > 0
-              ? 'Delete & Reassign'
-              : 'Delete Category'}
+              ? t('categories.deleteAndReassign')
+              : t('categories.deleteCategory')}
         </Button>
       </DialogActions>
     </Dialog>

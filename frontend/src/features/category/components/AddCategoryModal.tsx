@@ -2,6 +2,7 @@
 // Modal dialog for creating new categories with name, kind, and parent selection
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogTitle,
@@ -65,6 +66,8 @@ export function AddCategoryModal({
   error = null,
   initialName = '',
 }: AddCategoryModalProps) {
+  const { t } = useTranslation();
+
   // Form state
   const [name, setName] = useState('');
   const [selectedKind, setSelectedKind] = useState<CategoryKind>(kind);
@@ -96,11 +99,11 @@ export function AddCategoryModal({
    */
   const validateName = (value: string): boolean => {
     if (!value.trim()) {
-      setNameError('Category name is required');
+      setNameError(t('categories.categoryNameRequired'));
       return false;
     }
     if (value.trim().length < 2) {
-      setNameError('Category name must be at least 2 characters');
+      setNameError(t('categories.categoryNameMinLength'));
       return false;
     }
     setNameError(null);
@@ -165,7 +168,7 @@ export function AddCategoryModal({
       fullWidth
       aria-labelledby="add-category-dialog-title"
     >
-      <DialogTitle id="add-category-dialog-title">Add Category</DialogTitle>
+      <DialogTitle id="add-category-dialog-title">{t('categories.addCategory')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ marginTop: 1 }}>
           {/* Error Alert */}
@@ -177,7 +180,7 @@ export function AddCategoryModal({
 
           {/* Category Name Input */}
           <TextField
-            label="Category Name"
+            label={t('categories.categoryName')}
             value={name}
             onChange={(event) => {
               setName(event.target.value);
@@ -187,7 +190,7 @@ export function AddCategoryModal({
             }}
             onBlur={() => validateName(name)}
             error={!!nameError}
-            helperText={nameError || 'Enter a descriptive name for the category'}
+            helperText={nameError || t('categories.categoryNameHelper')}
             required
             autoFocus
             fullWidth
@@ -197,7 +200,7 @@ export function AddCategoryModal({
           {/* Category Kind Select */}
           <TextField
             select
-            label="Category Type"
+            label={t('categories.categoryType')}
             value={selectedKind}
             onChange={(event) => {
               setSelectedKind(event.target.value as CategoryKind);
@@ -207,10 +210,10 @@ export function AddCategoryModal({
             required
             fullWidth
             disabled={isLoading}
-            helperText="Choose whether this is an expense or income category"
+            helperText={t('categories.categoryTypeHelper')}
           >
-            <MenuItem value="expense">Expense</MenuItem>
-            <MenuItem value="income">Income</MenuItem>
+            <MenuItem value="expense">{t('enums.transactionType.expense')}</MenuItem>
+            <MenuItem value="income">{t('enums.transactionType.income')}</MenuItem>
           </TextField>
 
           {/* Parent Category Select (Optional) */}
@@ -219,8 +222,8 @@ export function AddCategoryModal({
             onChange={setSelectedParentId}
             kind={selectedKind}
             categories={parentCategoriesForKind}
-            label="Parent Category (Optional)"
-            placeholder="None - create as top-level category"
+            label={t('categories.parentCategory')}
+            placeholder={t('categories.parentCategoryPlaceholderAdd')}
             disabled={isLoading}
           />
 
@@ -239,14 +242,14 @@ export function AddCategoryModal({
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose} disabled={isLoading}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button
           onClick={handleSubmit}
           variant="contained"
           disabled={isLoading || !name.trim()}
         >
-          {isLoading ? 'Creating...' : 'Create Category'}
+          {isLoading ? t('categories.creating') : t('categories.createCategory')}
         </Button>
       </DialogActions>
     </Dialog>

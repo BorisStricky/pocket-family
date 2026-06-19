@@ -2,6 +2,7 @@
 // Modal dialog for editing existing categories with pre-filled data
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogTitle,
@@ -60,6 +61,8 @@ export function EditCategoryModal({
   isLoading = false,
   error = null,
 }: EditCategoryModalProps) {
+  const { t } = useTranslation();
+
   // Form state - initialize with current category values
   const [name, setName] = useState(category.name);
   const [selectedKind, setSelectedKind] = useState<CategoryKind>(category.kind);
@@ -91,11 +94,11 @@ export function EditCategoryModal({
    */
   const validateName = (value: string): boolean => {
     if (!value.trim()) {
-      setNameError('Category name is required');
+      setNameError(t('categories.categoryNameRequired'));
       return false;
     }
     if (value.trim().length < 2) {
-      setNameError('Category name must be at least 2 characters');
+      setNameError(t('categories.categoryNameMinLength'));
       return false;
     }
     setNameError(null);
@@ -203,7 +206,7 @@ export function EditCategoryModal({
       fullWidth
       aria-labelledby="edit-category-dialog-title"
     >
-      <DialogTitle id="edit-category-dialog-title">Edit Category</DialogTitle>
+      <DialogTitle id="edit-category-dialog-title">{t('categories.editCategory')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ marginTop: 1 }}>
           {/* Error Alert */}
@@ -215,7 +218,7 @@ export function EditCategoryModal({
 
           {/* Category Name Input */}
           <TextField
-            label="Category Name"
+            label={t('categories.categoryName')}
             value={name}
             onChange={(event) => {
               setName(event.target.value);
@@ -225,7 +228,7 @@ export function EditCategoryModal({
             }}
             onBlur={() => validateName(name)}
             error={!!nameError}
-            helperText={nameError || 'Enter a descriptive name for the category'}
+            helperText={nameError || t('categories.categoryNameHelper')}
             required
             autoFocus
             fullWidth
@@ -235,7 +238,7 @@ export function EditCategoryModal({
           {/* Category Kind Select */}
           <TextField
             select
-            label="Category Type"
+            label={t('categories.categoryType')}
             value={selectedKind}
             onChange={(event) => {
               setSelectedKind(event.target.value as CategoryKind);
@@ -245,10 +248,10 @@ export function EditCategoryModal({
             required
             fullWidth
             disabled={isLoading}
-            helperText="Changing type will reset parent category"
+            helperText={t('categories.categoryTypeHelperEdit')}
           >
-            <MenuItem value="expense">Expense</MenuItem>
-            <MenuItem value="income">Income</MenuItem>
+            <MenuItem value="expense">{t('enums.transactionType.expense')}</MenuItem>
+            <MenuItem value="income">{t('enums.transactionType.income')}</MenuItem>
           </TextField>
 
           {/* Parent Category Select (Optional) */}
@@ -257,8 +260,8 @@ export function EditCategoryModal({
             onChange={setSelectedParentId}
             kind={selectedKind}
             categories={availableParentCategories}
-            label="Parent Category (Optional)"
-            placeholder="None - keep as top-level category"
+            label={t('categories.parentCategory')}
+            placeholder={t('categories.parentCategoryPlaceholderEdit')}
             disabled={isLoading}
           />
 
@@ -277,14 +280,14 @@ export function EditCategoryModal({
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose} disabled={isLoading}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button
           onClick={handleSubmit}
           variant="contained"
           disabled={isLoading || !name.trim() || !hasChanges()}
         >
-          {isLoading ? 'Saving...' : 'Save Changes'}
+          {isLoading ? t('common.loading') : t('categories.saveChanges')}
         </Button>
       </DialogActions>
     </Dialog>

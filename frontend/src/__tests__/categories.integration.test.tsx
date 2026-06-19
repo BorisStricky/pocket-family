@@ -82,12 +82,15 @@ describe('Categories Integration - Settings Page', () => {
   it('displays expense and income section headers in the category tree', async () => {
     renderSettingsPage();
 
-    // Wait for both section headers to appear after categories load from MSW
+    // Wait for both section headers to appear after categories load from MSW.
+    // Use getByRole('heading') to scope to the h6 section headers — the category
+    // chips now also render "Income" / "Expense" translated labels so a plain
+    // getByText would find multiple matches.
     await waitFor(() => {
-      expect(screen.getByText('Expenses')).toBeInTheDocument();
+      expect(screen.getByRole('heading', { name: 'Expenses' })).toBeInTheDocument();
     });
 
-    expect(screen.getByText('Income')).toBeInTheDocument();
+    expect(screen.getByRole('heading', { name: 'Income' })).toBeInTheDocument();
   });
 
   it('shows category names from the mock data in the tree', async () => {
