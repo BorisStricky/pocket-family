@@ -6,6 +6,7 @@ import React from 'react';
 import { Card, CardContent, Typography, Button, Stack } from '@mui/material';
 import { Add, Assessment, Upload } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 
 /**
  * QuickActions - provides shortcut buttons for common user actions.
@@ -16,12 +17,13 @@ import { useNavigate, useParams } from 'react-router-dom';
  * - Import CSV: placeholder for future CSV import feature
  */
 export default function QuickActions() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { familyId } = useParams<{ familyId: string }>();
 
   const actions = [
     {
-      label: 'Add Transaction',
+      label: t('dashboard.addTransaction'),
       icon: <Add />,
       // Navigate to TransactionsPage with state flag to auto-open the add modal.
       // This avoids a nonexistent /transactions/new route and reuses the existing
@@ -30,13 +32,13 @@ export default function QuickActions() {
       color: 'primary' as const,
     },
     {
-      label: 'View Reports',
+      label: t('dashboard.viewReports'),
       icon: <Assessment />,
       onClick: () => navigate(`/app/${familyId}/reports`),
       color: 'secondary' as const,
     },
     {
-      label: 'Import CSV',
+      label: t('dashboard.importCsv'),
       icon: <Upload />,
       onClick: () => navigate(`/app/${familyId}/import-csv`),
       color: 'info' as const,
@@ -47,7 +49,7 @@ export default function QuickActions() {
     <Card sx={{ height: '100%' }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          Quick Actions
+          {t('dashboard.quickActions')}
         </Typography>
         <Stack direction="row" spacing={2} flexWrap="wrap" useFlexGap>
           {actions.map((action) => (

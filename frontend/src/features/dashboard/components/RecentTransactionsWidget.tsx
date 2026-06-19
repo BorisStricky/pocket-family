@@ -12,6 +12,7 @@ import {
   Box,
 } from '@mui/material';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type { TransactionRead } from '@/features/transactions/types';
 import { AgTransactionsGrid } from '@/components/domain/ag/AgTransactionsGrid';
 
@@ -27,9 +28,13 @@ interface RecentTransactionsWidgetProps {
  * AG Grid component as the full transactions page for consistent look and feel.
  * Includes a "View All" button that navigates to the full transactions page.
  */
-export default function RecentTransactionsWidget({ recentTransactions, dateRangeLabel = 'this period' }: RecentTransactionsWidgetProps) {
+export default function RecentTransactionsWidget({ recentTransactions, dateRangeLabel }: RecentTransactionsWidgetProps) {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { familyId } = useParams<{ familyId: string }>();
+
+  // Fall back to the translated "this period" when no specific label is provided.
+  const resolvedDateRangeLabel = dateRangeLabel ?? t('dashboard.periodThisPeriod');
 
   // Navigate to the full transactions page when "View All" is clicked
   const handleViewAll = () => {
@@ -45,9 +50,9 @@ export default function RecentTransactionsWidget({ recentTransactions, dateRange
     <Card sx={{ height: '100%' }}>
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2 }}>
-          <Typography variant="h6">Recent Transactions</Typography>
+          <Typography variant="h6">{t('dashboard.recentTransactions')}</Typography>
           <Button size="small" onClick={handleViewAll}>
-            View All
+            {t('dashboard.viewAll')}
           </Button>
         </Box>
 
@@ -61,7 +66,7 @@ export default function RecentTransactionsWidget({ recentTransactions, dateRange
               color: 'text.secondary',
             }}
           >
-            <Typography>No transactions in {dateRangeLabel}</Typography>
+            <Typography>{t('dashboard.noTransactionsInPeriod', { period: resolvedDateRangeLabel })}</Typography>
           </Box>
         ) : (
           /* AG Grid with compact height for dashboard widget context */

@@ -21,6 +21,7 @@ import {
   AccountBalanceWallet,
 } from '@mui/icons-material';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useFamily } from '@/features/family/hooks/useFamily';
 import OverviewCard from '@/components/ui/organisms/OverviewCard';
 import SpendingByCategory from '../components/SpendingByCategory';
@@ -56,6 +57,7 @@ function formatCurrency(amount: number): string {
  * The date range toggle controls which period's transactions are included.
  */
 export default function DashboardPage() {
+  const { t } = useTranslation();
   const { familyId } = useParams<{ familyId: string }>();
   const { currentFamily } = useFamily();
   const [dateRange, setDateRange] = useState<DateRangePreset>('month');
@@ -68,9 +70,9 @@ export default function DashboardPage() {
 
   // Human-readable label for the selected date range (used in empty state messages)
   const dateRangeLabelMap: Record<DateRangePreset, string> = {
-    '7d': 'the past 7 days',
-    '30d': 'the past 30 days',
-    'month': 'this month',
+    '7d': t('dashboard.periodPast7Days'),
+    '30d': t('dashboard.periodPast30Days'),
+    'month': t('dashboard.periodThisMonth'),
   };
   const dateRangeLabel = dateRangeLabelMap[dateRange];
 
@@ -99,7 +101,7 @@ export default function DashboardPage() {
     return (
       <Box sx={{ p: 3 }}>
         <Alert severity="error">
-          Failed to load dashboard data. Please try refreshing the page.
+          {t('dashboard.loadError')}
         </Alert>
       </Box>
     );
@@ -110,7 +112,7 @@ export default function DashboardPage() {
       {/* Page header with title and date range selector */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          Dashboard{!isMobileViewport && currentFamily ? ` - ${currentFamily.name}` : ''}
+          {t('dashboard.title')}{!isMobileViewport && currentFamily ? ` - ${currentFamily.name}` : ''}
         </Typography>
 
         {/* Date range toggle - controls which period's data is shown */}
@@ -120,9 +122,9 @@ export default function DashboardPage() {
           onChange={handleDateRangeChange}
           size="small"
         >
-          <ToggleButton value="7d">7 Days</ToggleButton>
-          <ToggleButton value="30d">30 Days</ToggleButton>
-          <ToggleButton value="month">This Month</ToggleButton>
+          <ToggleButton value="7d">{t('dashboard.range7Days')}</ToggleButton>
+          <ToggleButton value="30d">{t('dashboard.range30Days')}</ToggleButton>
+          <ToggleButton value="month">{t('dashboard.rangeThisMonth')}</ToggleButton>
         </ToggleButtonGroup>
       </Box>
 
@@ -135,7 +137,7 @@ export default function DashboardPage() {
       <Grid container spacing={3} sx={{ mb: 3 }}>
         <Grid size={{ xs: 12, md: 4 }}>
           <OverviewCard
-            title="Total Expenses"
+            title={t('dashboard.totalExpenses')}
             value={summary ? formatCurrency(summary.totalExpenses) : 'R$ 0,00'}
             icon={TrendingDown}
             color="error"
@@ -143,7 +145,7 @@ export default function DashboardPage() {
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <OverviewCard
-            title="Total Income"
+            title={t('dashboard.totalIncome')}
             value={summary ? formatCurrency(summary.totalIncome) : 'R$ 0,00'}
             icon={TrendingUp}
             color="success"
@@ -151,7 +153,7 @@ export default function DashboardPage() {
         </Grid>
         <Grid size={{ xs: 12, md: 4 }}>
           <OverviewCard
-            title="Net Balance"
+            title={t('dashboard.netBalance')}
             value={summary ? formatCurrency(summary.netBalance) : 'R$ 0,00'}
             icon={AccountBalanceWallet}
             color={summary && summary.netBalance >= 0 ? 'success' : 'error'}

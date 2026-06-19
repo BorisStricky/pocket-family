@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { Card, CardContent, Typography, Box, useMediaQuery, useTheme } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import {
   PieChart,
   Pie,
@@ -28,6 +29,7 @@ interface SpendingByCategoryProps {
  * Limits display to top 7 categories and groups the rest into "Other" for readability.
  */
 export default function SpendingByCategory({ spendingByCategory }: SpendingByCategoryProps) {
+  const { t } = useTranslation();
   const theme = useTheme();
   // Hide legend on mobile to prevent overcrowding the small chart area
   const isMobileViewport = useMediaQuery(theme.breakpoints.down('md'));
@@ -43,7 +45,7 @@ export default function SpendingByCategory({ spendingByCategory }: SpendingByCat
       .reduce((sum, category) => sum + category.total, 0);
     chartData = [
       ...topCategories,
-      { categoryName: 'Other', total: Math.round(otherTotal * 100) / 100, color: null },
+      { categoryName: t('dashboard.otherCategory'), total: Math.round(otherTotal * 100) / 100, color: null },
     ];
   }
 
@@ -53,7 +55,7 @@ export default function SpendingByCategory({ spendingByCategory }: SpendingByCat
       <Card sx={{ height: '100%' }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Spending by Category
+            {t('dashboard.spendingByCategory')}
           </Typography>
           <Box
             sx={{
@@ -64,7 +66,7 @@ export default function SpendingByCategory({ spendingByCategory }: SpendingByCat
               color: 'text.secondary',
             }}
           >
-            <Typography>No expense data for this period</Typography>
+            <Typography>{t('dashboard.noExpenseData')}</Typography>
           </Box>
         </CardContent>
       </Card>
@@ -75,7 +77,7 @@ export default function SpendingByCategory({ spendingByCategory }: SpendingByCat
     <Card sx={{ height: '100%' }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          Spending by Category
+          {t('dashboard.spendingByCategory')}
         </Typography>
         <ResponsiveContainer width="100%" height={300}>
           <PieChart>
