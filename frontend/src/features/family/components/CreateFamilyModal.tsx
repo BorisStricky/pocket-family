@@ -13,6 +13,7 @@ import {
   Alert,
   CircularProgress,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Props for CreateFamilyModal component
@@ -45,17 +46,18 @@ export function CreateFamilyModal({
   isLoading = false,
   error,
 }: CreateFamilyModalProps) {
+  const { t } = useTranslation();
   const [familyName, setFamilyName] = useState('');
   const [validationError, setValidationError] = useState('');
 
   // Validate family name meets minimum length requirement
   const validateName = (name: string): boolean => {
     if (!name.trim()) {
-      setValidationError('Family name is required');
+      setValidationError(t('family.familyNameRequired'));
       return false;
     }
     if (name.trim().length < 2) {
-      setValidationError('Family name must be at least 2 characters');
+      setValidationError(t('family.familyNameMinLength'));
       return false;
     }
     setValidationError('');
@@ -89,7 +91,7 @@ export function CreateFamilyModal({
       fullWidth
       aria-labelledby="create-family-dialog-title"
     >
-      <DialogTitle id="create-family-dialog-title">Create New Family</DialogTitle>
+      <DialogTitle id="create-family-dialog-title">{t('family.createDialogTitle')}</DialogTitle>
       <DialogContent>
         {/* Show API error if creation failed */}
         {error && (
@@ -101,7 +103,7 @@ export function CreateFamilyModal({
         <TextField
           autoFocus
           margin="dense"
-          label="Family Name"
+          label={t('family.familyNameLabel')}
           fullWidth
           value={familyName}
           onChange={(event) => {
@@ -112,7 +114,7 @@ export function CreateFamilyModal({
             }
           }}
           error={!!validationError}
-          helperText={validationError || 'Choose a name for your family or household'}
+          helperText={validationError || t('family.familyNameHelper')}
           disabled={isLoading}
           onKeyDown={(event) => {
             // Allow submitting with Enter key for convenience
@@ -124,7 +126,7 @@ export function CreateFamilyModal({
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose} disabled={isLoading}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button
           onClick={handleSubmit}
@@ -132,7 +134,7 @@ export function CreateFamilyModal({
           disabled={isLoading || !familyName.trim()}
           startIcon={isLoading ? <CircularProgress size={16} /> : undefined}
         >
-          {isLoading ? 'Creating...' : 'Create Family'}
+          {isLoading ? t('family.creating') : t('family.createFamilyButton')}
         </Button>
       </DialogActions>
     </Dialog>

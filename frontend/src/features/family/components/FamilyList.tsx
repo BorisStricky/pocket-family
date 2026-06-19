@@ -11,6 +11,7 @@ import {
   Chip,
 } from '@mui/material';
 import { Group } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import type { TenantRead } from '@/types/family';
 import { formatDisplayDate } from '@/lib/dateUtils';
 import { useSwitchFamily } from '../hooks/useSwitchFamily';
@@ -31,6 +32,7 @@ interface FamilyListProps {
  * - onSelect: Optional callback when family is selected (defaults to tenant switch)
  */
 export default function FamilyList({ families, onSelect }: FamilyListProps) {
+  const { t } = useTranslation();
   const { mutate: switchToFamily } = useSwitchFamily();
 
   const handleFamilyClick = (familyId: string) => {
@@ -46,10 +48,10 @@ export default function FamilyList({ families, onSelect }: FamilyListProps) {
     return (
       <Box sx={{ textAlign: 'center', py: 8 }}>
         <Typography variant="h6" color="text.secondary" gutterBottom>
-          No Families Found
+          {t('family.noFamiliesFound')}
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          You don't belong to any families yet.
+          {t('family.noFamiliesYet')}
         </Typography>
       </Box>
     );
@@ -97,12 +99,12 @@ export default function FamilyList({ families, onSelect }: FamilyListProps) {
                 </Box>
 
                 <Typography variant="body2" color="text.secondary" gutterBottom>
-                  Created: {formatDisplayDate(family.created_at)}
+                  {t('family.created')} {formatDisplayDate(family.created_at)}
                 </Typography>
 
                 <Box sx={{ mt: 2 }}>
                   <Chip
-                    label="Active"
+                    label={t('family.activeStatus')}
                     size="small"
                     color="success"
                     variant="outlined"

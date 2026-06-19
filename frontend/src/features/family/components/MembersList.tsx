@@ -24,6 +24,7 @@ import {
   Button,
 } from '@mui/material';
 import { MoreVertical, Crown, Clock, UserX } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { MembershipRead, MembershipRole } from '@/types/family';
 
 /**
@@ -77,6 +78,7 @@ export function MembersList({
   onRemoveMember,
   isRemoveLoading = false,
 }: MembersListProps) {
+  const { t } = useTranslation();
   // State for the action menu (which member's menu is open)
   const [menuAnchorElement, setMenuAnchorElement] = useState<null | HTMLElement>(null);
   const [selectedMembershipId, setSelectedMembershipId] = useState<string | null>(null);
@@ -135,10 +137,10 @@ export function MembersList({
     return (
       <Box sx={{ textAlign: 'center', paddingY: 4 }}>
         <Typography variant="body1" color="text.secondary">
-          No members yet
+          {t('family.noMembersYet')}
         </Typography>
         <Typography variant="body2" color="text.secondary" sx={{ marginTop: 1 }}>
-          Invite family members to start collaborating on finances
+          {t('family.invitePrompt')}
         </Typography>
       </Box>
     );
@@ -196,7 +198,7 @@ export function MembersList({
                           color="text.secondary"
                           sx={{ marginLeft: 0.5 }}
                         >
-                          (you)
+                          {t('family.youSuffix')}
                         </Typography>
                       )}
                     </Typography>
@@ -204,18 +206,18 @@ export function MembersList({
                 }
                 secondary={
                   <Box sx={{ display: 'flex', gap: 1, marginTop: 0.5 }}>
-                    {/* Role badge */}
+                    {/* Role badge — translate the raw backend role value to a display label */}
                     <Chip
-                      label={member.role}
+                      label={t(`family.role${member.role.charAt(0).toUpperCase()}${member.role.slice(1)}`)}
                       size="small"
                       color={roleColorMap[member.role]}
                       variant={member.role === 'owner' ? 'filled' : 'outlined'}
                       icon={member.role === 'owner' ? <Crown size={14} /> : undefined}
                     />
-                    {/* Status badge - only show for non-active statuses */}
+                    {/* Status badge — only show for non-active statuses; translate status value */}
                     {member.status !== 'active' && (
                       <Chip
-                        label={member.status}
+                        label={t(`family.status${member.status.charAt(0).toUpperCase()}${member.status.slice(1)}`)}
                         size="small"
                         color={statusColorMap[member.status] || 'default'}
                         variant="outlined"
@@ -245,7 +247,7 @@ export function MembersList({
           }}
           sx={{ color: 'error.main' }}
         >
-          Remove member
+          {t('family.removeMemberMenuItem')}
         </MenuItem>
       </Menu>
 
@@ -259,17 +261,18 @@ export function MembersList({
         }}
         aria-labelledby="remove-member-dialog-title"
       >
-        <DialogTitle id="remove-member-dialog-title">Remove Member</DialogTitle>
+        <DialogTitle id="remove-member-dialog-title">{t('family.removeMemberDialogTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to remove{' '}
-            <strong>{memberToRemove?.user_email || 'this member'}</strong> from the family?
-            They will lose access to all family data.
+            {/* Use email-interpolated message when available, fallback for members without email */}
+            {memberToRemove?.user_email
+              ? t('family.removeMemberConfirm', { email: memberToRemove.user_email })
+              : t('family.removeMemberConfirmFallback')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setRemoveDialogOpen(false)} disabled={isRemoveLoading}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleConfirmRemove}
@@ -277,7 +280,7 @@ export function MembersList({
             variant="contained"
             disabled={isRemoveLoading}
           >
-            {isRemoveLoading ? 'Removing...' : 'Remove'}
+            {isRemoveLoading ? t('family.removing') : t('common.remove')}
           </Button>
         </DialogActions>
       </Dialog>
