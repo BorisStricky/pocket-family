@@ -4,6 +4,7 @@
 // pick a month, optionally a currency, and cross-filter every chart by clicking a slice.
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Typography,
@@ -29,6 +30,8 @@ import BudgetProgressChart from '../components/BudgetProgressChart';
 
 export function ReportsPage() {
   const { familyId } = useParams<{ familyId: string }>();
+  // t() provides locale-aware strings; the reports namespace holds report-specific keys.
+  const { t } = useTranslation();
 
   // Period defaults to the current calendar month.
   const [period, setPeriod] = useState(getCurrentYearMonth());
@@ -66,7 +69,7 @@ export function ReportsPage() {
   if (error) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error">Failed to load report data. Please try refreshing the page.</Alert>
+        <Alert severity="error">{t('reports.loadError')}</Alert>
       </Box>
     );
   }
@@ -84,16 +87,16 @@ export function ReportsPage() {
         sx={{ mb: 3, alignItems: { md: 'center' }, justifyContent: 'space-between' }}
       >
         <Typography variant="h4" component="h1">
-          Reports
+          {t('reports.title')}
         </Typography>
 
         <Stack direction="row" spacing={2} alignItems="center">
           {availableCurrencies.length > 1 && (
             <FormControl size="small" sx={{ minWidth: 110 }}>
-              <InputLabel id="report-currency-label">Currency</InputLabel>
+              <InputLabel id="report-currency-label">{t('reports.currency')}</InputLabel>
               <Select
                 labelId="report-currency-label"
-                label="Currency"
+                label={t('reports.currency')}
                 value={activeCurrency}
                 onChange={(event) => setReportCurrency(event.target.value)}
               >

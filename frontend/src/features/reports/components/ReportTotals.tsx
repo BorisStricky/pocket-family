@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { Card, CardContent, Grid, Typography } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { formatReportAmount } from '../utils';
 
 export interface ReportTotalsProps {
@@ -41,18 +42,21 @@ export default function ReportTotals({
   netBalance,
   currency,
 }: ReportTotalsProps) {
+  // t() resolves locale-aware labels; reuse dashboard keys for identical English strings.
+  const { t } = useTranslation();
+
   return (
     <Grid container spacing={2}>
       <Grid size={{ xs: 12, sm: 4 }}>
-        <TotalCard label="Total Income" value={totalIncome} currency={currency} color="success.main" />
+        <TotalCard label={t('dashboard.totalIncome')} value={totalIncome} currency={currency} color="success.main" />
       </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
-        <TotalCard label="Total Expenses" value={totalExpenses} currency={currency} color="error.main" />
+        <TotalCard label={t('dashboard.totalExpenses')} value={totalExpenses} currency={currency} color="error.main" />
       </Grid>
       <Grid size={{ xs: 12, sm: 4 }}>
         {/* Net is green when positive (saved) and red when negative (overspent). */}
         <TotalCard
-          label="Net"
+          label={t('reports.net')}
           value={netBalance}
           currency={currency}
           color={netBalance >= 0 ? 'success.main' : 'error.main'}

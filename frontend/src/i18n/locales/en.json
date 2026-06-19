@@ -484,6 +484,24 @@
     "statusDone": "Done",
     "statusFailed": "Failed"
   },
+  "reports": {
+    "title": "Reports",
+    "currency": "Currency",
+    "loadError": "Failed to load report data. Please try refreshing the page.",
+    "net": "Net",
+    "dailyIncomeVsExpenses": "Daily Income vs Expenses",
+    "noTransactionsForPeriod": "No transactions for this period",
+    "dayLabel": "Day {{day}}",
+    "expensesByCategory": "Expenses by Category",
+    "rollUpSubcategories": "Roll up subcategories",
+    "categoryPrefix": "Category: ",
+    "expensesByUserAndAccount": "Expenses by User & Account",
+    "userPrefix": "User: ",
+    "accountPrefix": "Account: ",
+    "budgets": "Budgets",
+    "budgetsLoadError": "Failed to load budgets for this period.",
+    "noBudgetsForPeriod": "No budgets for this period"
+  },
   "transactions": {
     "title": "Transactions",
     "importCsv": "Import CSV",

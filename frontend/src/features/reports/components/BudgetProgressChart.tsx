@@ -17,6 +17,7 @@ import {
   CircularProgress,
   Alert,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { useBudgets } from '@/features/budgets/hooks/useBudgets';
 import { formatReportAmount } from '../utils';
 
@@ -43,12 +44,14 @@ export default function BudgetProgressChart({ familyId, year, month }: BudgetPro
   // The budgets endpoint recomputes `spent` per month/year, so passing the selected
   // period keeps the bars in sync with the month picker (and caches per month).
   const { data: budgets, isLoading, error } = useBudgets(familyId, month, year);
+  // t() resolves locale-aware strings for section title, error, and empty states.
+  const { t } = useTranslation();
 
   return (
     <Card sx={{ height: '100%' }}>
       <CardContent>
         <Typography variant="h6" sx={{ mb: 2 }}>
-          Budgets
+          {t('reports.budgets')}
         </Typography>
 
         {isLoading ? (
@@ -56,7 +59,7 @@ export default function BudgetProgressChart({ familyId, year, month }: BudgetPro
             <CircularProgress />
           </Box>
         ) : error ? (
-          <Alert severity="error">Failed to load budgets for this period.</Alert>
+          <Alert severity="error">{t('reports.budgetsLoadError')}</Alert>
         ) : !budgets || budgets.length === 0 ? (
           <Box
             sx={{
@@ -67,7 +70,7 @@ export default function BudgetProgressChart({ familyId, year, month }: BudgetPro
               color: 'text.secondary',
             }}
           >
-            <Typography>No budgets for this period</Typography>
+            <Typography>{t('reports.noBudgetsForPeriod')}</Typography>
           </Box>
         ) : (
           <Stack spacing={2}>

@@ -484,6 +484,24 @@
     "statusDone": "Concluído",
     "statusFailed": "Falhou"
   },
+  "reports": {
+    "title": "Relatórios",
+    "currency": "Moeda",
+    "loadError": "Não foi possível carregar os dados do relatório. Tente atualizar a página.",
+    "net": "Saldo Líquido",
+    "dailyIncomeVsExpenses": "Receitas vs Despesas Diárias",
+    "noTransactionsForPeriod": "Nenhuma transação para este período",
+    "dayLabel": "Dia {{day}}",
+    "expensesByCategory": "Despesas por Categoria",
+    "rollUpSubcategories": "Agrupar subcategorias",
+    "categoryPrefix": "Categoria: ",
+    "expensesByUserAndAccount": "Despesas por Usuário e Conta",
+    "userPrefix": "Usuário: ",
+    "accountPrefix": "Conta: ",
+    "budgets": "Orçamentos",
+    "budgetsLoadError": "Não foi possível carregar os orçamentos para este período.",
+    "noBudgetsForPeriod": "Nenhum orçamento para este período"
+  },
   "transactions": {
     "title": "Transações",
     "importCsv": "Importar CSV",
