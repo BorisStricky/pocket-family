@@ -3,6 +3,8 @@
 // Integrates with useTransactions hook and provides formatted columns for financial data
 
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Box, Typography } from '@mui/material';
@@ -55,10 +57,11 @@ const PAGINATION_PAGE_SIZE_OPTIONS = [25, 50, 100];
  *   onSelectionChange={(ids) => setSelectedIds(ids)}
  * />
  */
-// Cell renderer for account name that prepends the icon/color circle when set
-function AccountNameRenderer(params: ICellRendererParams<TransactionRead>) {
+// Cell renderer for account name that prepends the icon/color circle when set.
+// Takes the translate function so the "[Deleted Account]" fallback is localized.
+function AccountNameRenderer(params: ICellRendererParams<TransactionRead>, t: TFunction) {
   const transaction = params.data;
-  const accountName = params.value || '[Deleted Account]';
+  const accountName = params.value || t('transactions.deletedAccount');
 
   if (!transaction || (!transaction.account_icon && !transaction.account_color)) {
     return <span>{accountName}</span>;
@@ -93,10 +96,11 @@ function AccountNameRenderer(params: ICellRendererParams<TransactionRead>) {
   );
 }
 
-// Cell renderer for category that prepends the icon/color circle when set
-function CategoryNameRenderer(params: ICellRendererParams<TransactionRead>) {
+// Cell renderer for category that prepends the icon/color circle when set.
+// Takes the translate function so the "Uncategorized" fallback is localized.
+function CategoryNameRenderer(params: ICellRendererParams<TransactionRead>, t: TFunction) {
   const transaction = params.data;
-  const categoryName = params.value || 'Uncategorized';
+  const categoryName = params.value || t('transactions.uncategorized');
 
   if (!transaction || (!transaction.category_icon && !transaction.category_color)) {
     return <span>{categoryName}</span>;
@@ -141,12 +145,15 @@ export function AgTransactionsGrid({
   pagination = true,
   paginationPageSize = 25,
 }: AgTransactionsGridProps) {
+  const { t, i18n } = useTranslation();
+
   // Define column configurations with formatters and custom renderers
-  // These columns match the TransactionRead interface and provide proper display
+  // These columns match the TransactionRead interface and provide proper display.
+  // Recomputed when the language changes so headers/formatters re-localize.
   const columnDefinitions: ColDef<TransactionRead>[] = useMemo(() => [
     {
       field: 'transaction_date',
-      headerName: 'Date',
+      headerName: t('transactions.colDate'),
       sortable: true,
       sort: 'desc', // Default sort by date descending (most recent first)
       width: 120,
@@ -158,16 +165,16 @@ export function AgTransactionsGrid({
     },
     {
       field: 'category_name',
-      headerName: 'Category',
+      headerName: t('transactions.colCategory'),
       sortable: true,
       filter: true, // Enable AG Grid text filter - icon appears next to header
       width: 170,
       // Custom renderer to show category color circle and icon alongside the name
-      cellRenderer: CategoryNameRenderer,
+      cellRenderer: (params: ICellRendererParams<TransactionRead>) => CategoryNameRenderer(params, t),
     },
     {
       field: 'amount',
-      headerName: 'Amount',
+      headerName: t('transactions.colAmount'),
       sortable: true,
       width: 130,
       type: 'rightAligned', // Align numbers to the right for better readability
@@ -190,7 +197,7 @@ export function AgTransactionsGrid({
     },
     {
       field: 'description',
-      headerName: 'Description',
+      headerName: t('transactions.colDescription'),
       sortable: true,
       flex: 1, // Allow this column to grow and fill available space
       minWidth: 200,
@@ -201,22 +208,22 @@ export function AgTransactionsGrid({
     },
     {
       field: 'account_name',
-      headerName: 'Account',
+      headerName: t('transactions.colAccount'),
       sortable: true,
       filter: true, // Enable AG Grid text filter - icon appears next to header
       width: 170,
       // Custom renderer to show account color circle and icon alongside the name
-      cellRenderer: AccountNameRenderer,
+      cellRenderer: (params: ICellRendererParams<TransactionRead>) => AccountNameRenderer(params, t),
     },
     {
       field: 'transaction_type',
-      headerName: 'Type',
+      headerName: t('transactions.colType'),
       sortable: true,
       width: 100,
-      // Format value to capitalize first letter (expense -> Expense)
+      // Localize the transaction type enum (expense -> Expense / Despesa)
       valueFormatter: (params) => {
         if (!params.value) return '';
-        return params.value.charAt(0).toUpperCase() + params.value.slice(1);
+        return t(`enums.transactionType.${params.value}`);
       },
       // Apply dynamic styling based on transaction type (red for expense, green for income)
       cellStyle: (params) => {
@@ -230,15 +237,16 @@ export function AgTransactionsGrid({
     },
     {
       field: 'created_by_name',
-      headerName: 'Created By',
+      headerName: t('transactions.colCreatedBy'),
       sortable: true,
       width: 140,
       valueFormatter: (params) => {
         // Show the creator's display name, or "Unknown" if the user has no name set
-        return params.value || 'Unknown';
+        return params.value || t('transactions.unknownUser');
       },
     },
-  ], []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  ], [t, i18n.language]);
 
   // Handle row selection changes and notify parent component
   // Extracts transaction IDs from selected rows for bulk operations
@@ -265,10 +273,11 @@ export function AgTransactionsGrid({
         justifyContent="center"
         height="100%"
       >
-        <Typography variant="body1">Loading...</Typography>
+        <Typography variant="body1">{t('common.loading')}</Typography>
       </Box>
     );
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
 
   // Empty state overlay when no transactions match the filters
   // Provides user feedback that the query succeeded but returned no results
@@ -281,11 +290,12 @@ export function AgTransactionsGrid({
         height="100%"
       >
         <Typography variant="body1" color="text.secondary">
-          No transactions found
+          {t('transactions.noTransactionsFound')}
         </Typography>
       </Box>
     );
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [t]);
 
   return (
     <Box

@@ -4,6 +4,7 @@
 
 import React, { useState } from "react";
 import { useForm, Controller } from "react-hook-form";
+import { useTranslation } from "react-i18next";
 import {
   Box,
   TextField,
@@ -93,6 +94,7 @@ export function TransactionForm({
   isLoading = false,
   hideTitle = false,
 }: TransactionFormProps) {
+  const { t } = useTranslation();
   // Determine if this is create or edit mode based on initialData presence
   const isEditMode = !!initialData;
 
@@ -193,7 +195,7 @@ export function TransactionForm({
       {/* Form Title — hidden when rendered inside a modal Dialog */}
       {!hideTitle && (
         <Typography variant="h6" gutterBottom>
-          {isEditMode ? "Edit Transaction" : "Add Transaction"}
+          {isEditMode ? t("transactions.editTransaction") : t("transactions.addTransaction")}
         </Typography>
       )}
 
@@ -204,10 +206,9 @@ export function TransactionForm({
         <Controller
           name="account_id"
           control={control}
-          rules={{ required: "Account is required" }}
+          rules={{ required: t("transactions.accountRequired") }}
           render={({ field }) => (
             <AccountSelect
-              label="Account"
               value={field.value || null}
               onChange={(accountId) => field.onChange(accountId || "")}
               onCreateNew={() => setAddAccountModalOpen(true)}
@@ -218,7 +219,7 @@ export function TransactionForm({
               error={!!errors.account_id}
               helperText={
                 errors.account_id?.message ||
-                (isAccountsError ? "Error loading accounts" : undefined)
+                (isAccountsError ? t("transactions.accountLoadError") : undefined)
               }
             />
           )}
@@ -226,20 +227,20 @@ export function TransactionForm({
 
         {/* Transaction Type Selection - Required Field */}
         <FormControl fullWidth error={!!errors.transaction_type} required>
-          <InputLabel id="type-select-label">Type</InputLabel>
+          <InputLabel id="type-select-label">{t("transactions.type")}</InputLabel>
           <Controller
             name="transaction_type"
             control={control}
-            rules={{ required: "Type is required" }}
+            rules={{ required: t("transactions.typeRequired") }}
             render={({ field }) => (
               <Select
                 {...field}
                 labelId="type-select-label"
-                label="Type"
+                label={t("transactions.type")}
                 disabled={isLoading}
               >
-                <MenuItem value="expense">Expense</MenuItem>
-                <MenuItem value="income">Income</MenuItem>
+                <MenuItem value="expense">{t("enums.transactionType.expense")}</MenuItem>
+                <MenuItem value="income">{t("enums.transactionType.income")}</MenuItem>
               </Select>
             )}
           />
@@ -255,7 +256,7 @@ export function TransactionForm({
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <CircularProgress size={20} />
             <Typography variant="body2" color="text.secondary">
-              Loading categories...
+              {t("transactions.loadingCategories")}
             </Typography>
           </Box>
         ) : (
@@ -263,13 +264,12 @@ export function TransactionForm({
             name="category_id"
             control={control}
             rules={{
-              required: "Category is required",
+              required: t("transactions.categoryRequired"),
               validate: (value) =>
-                (value && value !== "") || "Please select a category",
+                (value && value !== "") || t("transactions.categorySelectPrompt"),
             }}
             render={({ field }) => (
               <CategorySelect
-                label="Category"
                 value={field.value || null}
                 onChange={(categoryId: string | null) => {
                   // Update form value when category selection changes
@@ -283,7 +283,7 @@ export function TransactionForm({
                 error={!!errors.category_id}
                 helperText={
                   errors.category_id?.message ||
-                  "Required - select a category to classify this transaction"
+                  t("transactions.categoryHelper")
                 }
                 // Open AddCategoryModal pre-filled with the user's search text and current kind
                 onCreateNew={(inputText) => {
@@ -297,22 +297,22 @@ export function TransactionForm({
 
         {/* Amount Input - Required Field with Validation */}
         <TextField
-          label="Amount"
+          label={t("transactions.amount")}
           type="text"
           required
           fullWidth
           error={!!errors.amount}
-          helperText={errors.amount?.message || "Enter a positive number"}
+          helperText={errors.amount?.message || t("transactions.amountHelper")}
           disabled={isLoading}
           {...register("amount", {
-            required: "Amount is required",
+            required: t("transactions.amountRequired"),
             validate: (value) => {
               const numValue = Number(value);
               if (isNaN(numValue)) {
-                return "Amount must be a valid number";
+                return t("transactions.amountInvalid");
               }
               if (numValue <= 0) {
-                return "Amount must be positive";
+                return t("transactions.amountPositive");
               }
               return true;
             },
@@ -322,21 +322,21 @@ export function TransactionForm({
         {/* Currency Selection - Required Field */}
         {/* Multi-currency support for international transactions */}
         <FormControl fullWidth error={!!errors.currency} required>
-          <InputLabel id="currency-select-label">Currency</InputLabel>
+          <InputLabel id="currency-select-label">{t("transactions.currency")}</InputLabel>
           <Controller
             name="currency"
             control={control}
-            rules={{ required: "Currency is required" }}
+            rules={{ required: t("transactions.currencyRequired") }}
             render={({ field }) => (
               <Select
                 {...field}
                 labelId="currency-select-label"
-                label="Currency"
+                label={t("transactions.currency")}
                 disabled={isLoading}
               >
-                <MenuItem value="BRL">Brazilian Real (BRL)</MenuItem>
-                <MenuItem value="USD">United States Dollar (USD)</MenuItem>
-                <MenuItem value="EUR">Euro (EUR)</MenuItem>
+                <MenuItem value="BRL">{t("transactions.currencyBRL")}</MenuItem>
+                <MenuItem value="USD">{t("transactions.currencyUSD")}</MenuItem>
+                <MenuItem value="EUR">{t("transactions.currencyEUR")}</MenuItem>
               </Select>
             )}
           />
@@ -351,10 +351,10 @@ export function TransactionForm({
           <Controller
             name="transaction_date"
             control={control}
-            rules={{ required: "Date is required" }}
+            rules={{ required: t("transactions.dateRequired") }}
             render={({ field }) => (
               <DatePicker
-                label="Date *"
+                label={t("transactions.date")}
                 format="dd-MMM-yyyy"
                 value={field.value ? (() => {
                   // Parse YYYY-MM-DD string into local Date to avoid timezone shifts
@@ -387,14 +387,14 @@ export function TransactionForm({
 
         {/* Description Input - Optional Field */}
         <TextField
-          label="Description"
+          label={t("transactions.description")}
           multiline
           rows={3}
           fullWidth
           error={!!errors.description}
           helperText={
             errors.description?.message ||
-            "Optional notes about this transaction"
+            t("transactions.descriptionHelper")
           }
           disabled={isLoading}
           {...register("description")}
@@ -407,7 +407,7 @@ export function TransactionForm({
             disabled={isLoading || isSubmitting}
             variant="outlined"
           >
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button
             type="submit"
@@ -416,10 +416,10 @@ export function TransactionForm({
             color="primary"
           >
             {isLoading || isSubmitting
-              ? "Saving..."
+              ? t("transactions.saving")
               : isEditMode
-                ? "Update"
-                : "Save"}
+                ? t("common.update")
+                : t("common.save")}
           </Button>
         </Stack>
       </Stack>

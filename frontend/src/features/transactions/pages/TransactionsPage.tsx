@@ -3,6 +3,7 @@
 
 import React, { useRef, useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Button,
@@ -57,6 +58,7 @@ import type { TransactionFilters, TransactionRead } from '../types';
  * - SearchInput: Filters by description text
  */
 export function TransactionsPage() {
+  const { t } = useTranslation();
   const { familyId } = useParams<{ familyId: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -172,7 +174,7 @@ export function TransactionsPage() {
       {/* Page Header */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          Transactions
+          {t('transactions.title')}
         </Typography>
 
         {/* Viewers are read-only — hide write actions entirely */}
@@ -185,7 +187,7 @@ export function TransactionsPage() {
                 startIcon={<FileUploadIcon />}
                 onClick={() => navigate(`/app/${familyId}/import-csv`)}
               >
-                Import CSV
+                {t('transactions.importCsv')}
               </Button>
               <Button
                 size="small"
@@ -210,7 +212,7 @@ export function TransactionsPage() {
                 }}
               >
                 <HistoryIcon fontSize="small" sx={{ mr: 1 }} />
-                See previous imports
+                {t('transactions.seePreviousImports')}
               </MenuItem>
             </Menu>
             <Button
@@ -219,7 +221,7 @@ export function TransactionsPage() {
               startIcon={<AddIcon />}
               onClick={handleAddTransaction}
             >
-              Add Transaction
+              {t('transactions.addTransaction')}
             </Button>
           </Stack>
         )}
@@ -228,7 +230,7 @@ export function TransactionsPage() {
       {/* Filters Section */}
       <Paper sx={{ p: 2, mb: 3 }}>
         <Typography variant="subtitle1" gutterBottom>
-          Filters
+          {t('transactions.filters')}
         </Typography>
 
         <Stack spacing={2}>
@@ -248,7 +250,7 @@ export function TransactionsPage() {
               variant="text"
               onClick={() => setUseCustomRange((open) => !open)}
             >
-              {useCustomRange ? 'Hide custom range' : 'Custom range'}
+              {useCustomRange ? t('transactions.hideCustomRange') : t('transactions.customRange')}
             </Button>
           </Box>
 
@@ -259,7 +261,7 @@ export function TransactionsPage() {
               startDate={localStartDate}
               endDate={localEndDate}
               onChange={handleDateRangeChange}
-              label="Filter by date"
+              label={t('transactions.filterByDate')}
             />
           </Collapse>
 
@@ -268,7 +270,7 @@ export function TransactionsPage() {
           <SearchInput
             value={localSearchQuery}
             onChange={handleSearchChange}
-            placeholder="Search transactions by description..."
+            placeholder={t('transactions.searchPlaceholder')}
             fullWidth
           />
         </Stack>
@@ -292,7 +294,7 @@ export function TransactionsPage() {
       {error && (
         <Paper sx={{ p: 3, bgcolor: 'error.light' }}>
           <Typography color="error.dark" variant="body1">
-            Error loading transactions: {error instanceof Error ? error.message : 'Unknown error'}
+            {t('transactions.loadError', { message: error instanceof Error ? error.message : t('transactions.unknownError') })}
           </Typography>
         </Paper>
       )}
@@ -315,14 +317,14 @@ export function TransactionsPage() {
       {!isLoading && !error && transactions.length === 0 && (
         <Paper sx={{ p: 4, textAlign: 'center' }}>
           <Typography variant="h6" color="text.secondary" gutterBottom>
-            No transactions found
+            {t('transactions.noTransactionsFound')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {localSearchQuery || localStartDate || localEndDate
-              ? 'Try adjusting your filters to see more results.'
+              ? t('transactions.adjustFilters')
               : isViewer
-              ? 'No transactions have been recorded yet.'
-              : 'Get started by adding your first transaction.'}
+              ? t('transactions.noTransactionsViewer')
+              : t('transactions.getStartedAdding')}
           </Typography>
           {!isViewer && (
             <Button
@@ -331,7 +333,7 @@ export function TransactionsPage() {
               startIcon={<AddIcon />}
               onClick={handleAddTransaction}
             >
-              Add Transaction
+              {t('transactions.addTransaction')}
             </Button>
           )}
         </Paper>
