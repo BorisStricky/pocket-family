@@ -100,5 +100,20 @@
     "inviteTokenDebug": "Token do Convite (para depuração):",
     "inviteNoToken": "Nenhum token de convite encontrado na URL. Use o link do seu e-mail de convite.",
     "backToLogin": "Voltar ao Login"
+  },
+  "landing": {
+    "heroTitle": "Pocket Family Tracker",
+    "heroTagline": "Assuma o controle das suas finanças. Acompanhe despesas, gerencie orçamentos e alcance suas metas financeiras.",
+    "goToDashboard": "Ir para o Painel",
+    "getStarted": "Começar",
+    "logIn": "Entrar",
+    "featuresTitle": "Recursos",
+    "trackExpensesTitle": "📊 Acompanhe Despesas",
+    "trackExpensesDesc": "Monitore seus gastos em várias contas e categorias",
+    "budgetTitle": "💰 Gestão de Orçamento",
+    "budgetDesc": "Defina orçamentos e obtenha insights sobre seus hábitos de consumo",
+    "reportsTitle": "📈 Relatórios Financeiros",
+    "reportsDesc": "Gere relatórios detalhados para entender sua saúde financeira",
+    "footer": "© 2025 Pocket Family. Todos os direitos reservados."
   }
 }

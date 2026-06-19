@@ -100,5 +100,20 @@
     "inviteTokenDebug": "Invitation Token (for debugging):",
     "inviteNoToken": "No invitation token found in the URL. Please use the link from your invitation email.",
     "backToLogin": "Back to Login"
+  },
+  "landing": {
+    "heroTitle": "Pocket Family Tracker",
+    "heroTagline": "Take control of your finances. Track expenses, manage budgets, and achieve your financial goals.",
+    "goToDashboard": "Go to Dashboard",
+    "getStarted": "Get Started",
+    "logIn": "Log In",
+    "featuresTitle": "Features",
+    "trackExpensesTitle": "📊 Track Expenses",
+    "trackExpensesDesc": "Monitor your spending across multiple accounts and categories",
+    "budgetTitle": "💰 Budget Management",
+    "budgetDesc": "Set budgets and get insights into your spending habits",
+    "reportsTitle": "📈 Financial Reports",
+    "reportsDesc": "Generate detailed reports to understand your financial health",
+    "footer": "© 2025 Pocket Family. All rights reserved."
   }
 }

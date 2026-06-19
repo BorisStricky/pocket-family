@@ -3,10 +3,12 @@
 
 import React from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { Box, Container, Typography, Button, Stack } from "@mui/material";
 import { useAuth } from "@/features/auth/hooks/useAuth";
 
 export default function LandingPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
 
@@ -49,11 +51,10 @@ export default function LandingPage() {
               gutterBottom
               sx={{ fontWeight: "bold" }}
             >
-              Pocket Family Tracker
+              {t("landing.heroTitle")}
             </Typography>
             <Typography variant="h5" component="p" sx={{ mb: 4, opacity: 0.9 }}>
-              Take control of your finances. Track expenses, manage budgets, and
-              achieve your financial goals.
+              {t("landing.heroTagline")}
             </Typography>
             <Stack
               direction={{ xs: "column", sm: "row" }}
@@ -72,7 +73,7 @@ export default function LandingPage() {
                   py: 1.5,
                 }}
               >
-                {isAuthenticated ? "Go to Dashboard" : "Get Started"}
+                {isAuthenticated ? t("landing.goToDashboard") : t("landing.getStarted")}
               </Button>
               {!isAuthenticated && (
                 <Button
@@ -90,7 +91,7 @@ export default function LandingPage() {
                     py: 1.5,
                   }}
                 >
-                  Log In
+                  {t("landing.logIn")}
                 </Button>
               )}
             </Stack>
@@ -107,7 +108,7 @@ export default function LandingPage() {
             gutterBottom
             sx={{ textAlign: "center", mb: 6 }}
           >
-            Features
+            {t("landing.featuresTitle")}
           </Typography>
           <Stack
             direction={{ xs: "column", md: "row" }}
@@ -116,26 +117,26 @@ export default function LandingPage() {
           >
             <Box sx={{ flex: 1, textAlign: "center" }}>
               <Typography variant="h5" gutterBottom>
-                📊 Track Expenses
+                {t("landing.trackExpensesTitle")}
               </Typography>
               <Typography color="text.secondary">
-                Monitor your spending across multiple accounts and categories
+                {t("landing.trackExpensesDesc")}
               </Typography>
             </Box>
             <Box sx={{ flex: 1, textAlign: "center" }}>
               <Typography variant="h5" gutterBottom>
-                💰 Budget Management
+                {t("landing.budgetTitle")}
               </Typography>
               <Typography color="text.secondary">
-                Set budgets and get insights into your spending habits
+                {t("landing.budgetDesc")}
               </Typography>
             </Box>
             <Box sx={{ flex: 1, textAlign: "center" }}>
               <Typography variant="h5" gutterBottom>
-                📈 Financial Reports
+                {t("landing.reportsTitle")}
               </Typography>
               <Typography color="text.secondary">
-                Generate detailed reports to understand your financial health
+                {t("landing.reportsDesc")}
               </Typography>
             </Box>
           </Stack>
@@ -153,7 +154,7 @@ export default function LandingPage() {
         }}
       >
         <Typography variant="body2">
-          © 2025 Pocket Family. All rights reserved.
+          {t("landing.footer")}
         </Typography>
       </Box>
     </Box>
