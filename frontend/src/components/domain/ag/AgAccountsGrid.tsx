@@ -3,6 +3,8 @@
 // Integrates with useAccounts hook and provides formatted columns for financial accounts
 
 import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
+import type { TFunction } from 'i18next';
 import { AgGridReact } from 'ag-grid-react';
 import { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { Box, Chip, Typography } from '@mui/material';
@@ -47,6 +49,8 @@ export function AgAccountsGrid({
   onRowClick,
   height = 600,
 }: AgAccountsGridProps) {
+  const { t, i18n } = useTranslation();
+
   // Map account type to color for visual differentiation
   // Helps users quickly identify account types at a glance
   const getAccountTypeColor = (type: AccountType): 'default' | 'primary' | 'secondary' | 'success' => {
@@ -62,15 +66,19 @@ export function AgAccountsGrid({
     }
   };
 
-  // React component for rendering account type as a MUI Chip
-  // This properly integrates with AG Grid's React rendering system
-  const AccountTypeRenderer = (params: ICellRendererParams<AccountRead>) => {
+  // Module-level cell renderer for account type chip — receives t as a parameter
+  // so column definitions (which depend on t) re-evaluate when language changes.
+  // Mirrors the pattern used in AgTransactionsGrid for consistency.
+  const AccountTypeRenderer = (
+    params: ICellRendererParams<AccountRead>,
+    tFn: TFunction,
+  ) => {
     if (!params.value) return <span>—</span>;
 
     const type = params.value as AccountType;
     const color = getAccountTypeColor(type);
-    // Capitalize first letter for display (cash -> Cash)
-    const label = type.charAt(0).toUpperCase() + type.slice(1);
+    // Use the shared enums.accountType translation keys for consistency across the app
+    const label = tFn(`enums.accountType.${type}`);
 
     return (
       <Chip
@@ -119,12 +127,15 @@ export function AgAccountsGrid({
     );
   };
 
-  // Define column configurations with formatters and custom renderers
-  // These columns match the AccountRead interface and provide proper display
+  // Define column configurations with formatters and custom renderers.
+  // i18n.language is included in the dependency array so column headers and
+  // cell renderers re-render when the user switches language — matching the
+  // pattern established in AgTransactionsGrid.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   const columnDefinitions: ColDef<AccountRead>[] = useMemo(() => [
     {
       field: 'name',
-      headerName: 'Account Name',
+      headerName: t('accounts.colAccountName'),
       sortable: true,
       sort: 'asc', // Default sort alphabetically by name
       flex: 1, // Allow this column to grow and fill available space
@@ -133,16 +144,17 @@ export function AgAccountsGrid({
     },
     {
       field: 'type',
-      headerName: 'Type',
+      headerName: t('accounts.colType'),
       sortable: true,
       width: 120,
       // Render account type as a colored chip for better visual recognition
       // Uses React component renderer for proper MUI Chip integration
-      cellRenderer: AccountTypeRenderer,
+      cellRenderer: (params: ICellRendererParams<AccountRead>) =>
+        AccountTypeRenderer(params, t),
     },
     {
       field: 'user_name',
-      headerName: 'Owner',
+      headerName: t('accounts.colOwner'),
       sortable: true,
       width: 150,
       valueFormatter: (params) => {
@@ -152,20 +164,20 @@ export function AgAccountsGrid({
     },
     {
       field: 'currency',
-      headerName: 'Currency',
+      headerName: t('accounts.colCurrency'),
       sortable: true,
       width: 100,
     },
     {
       field: 'balance',
-      headerName: 'Balance',
+      headerName: t('accounts.colBalance'),
       sortable: true,
       width: 150,
       type: 'rightAligned', // Align numbers to the right for better readability
       valueFormatter: (params) => {
-        // Format balance as currency using the account's currency code
-        // Balance may be null if account is shared with "hidden" visibility
-        if (params.value === null) return 'Hidden';
+        // Format balance as currency using the account's currency code.
+        // Balance may be null if account is shared with "hidden" visibility.
+        if (params.value === null) return t('accounts.hidden');
         if (!params.value || !params.data) return 'R$ 0.00';
 
         try {
@@ -197,7 +209,7 @@ export function AgAccountsGrid({
         };
       },
     },
-  ], []);
+  ], [t, i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Handle row click events to allow navigation to account details
   const handleRowClicked = (event: any) => {
@@ -205,8 +217,7 @@ export function AgAccountsGrid({
     onRowClick(event.data);
   };
 
-  // Loading state overlay configuration
-  // Shows message while data is being fetched
+  // Loading state overlay — depends on t so it re-renders on language change
   const loadingOverlayComponent = useMemo(() => {
     return () => (
       <Box
@@ -215,10 +226,10 @@ export function AgAccountsGrid({
         justifyContent="center"
         height="100%"
       >
-        <Typography variant="body1">Loading accounts...</Typography>
+        <Typography variant="body1">{t('accounts.loadingAccounts')}</Typography>
       </Box>
     );
-  }, []);
+  }, [t]);
 
   // Empty state overlay when no accounts exist
   // Provides user feedback that they need to create their first account
@@ -233,14 +244,14 @@ export function AgAccountsGrid({
         gap={2}
       >
         <Typography variant="body1" color="text.secondary">
-          No accounts found
+          {t('accounts.noAccountsFound')}
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Create your first account to start tracking finances
+          {t('accounts.createFirstAccountPrompt')}
         </Typography>
       </Box>
     );
-  }, []);
+  }, [t]);
 
   return (
     <Box

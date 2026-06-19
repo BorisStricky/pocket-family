@@ -3,6 +3,7 @@
 
 import React, { useMemo } from 'react';
 import { useForm, Controller } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogTitle,
@@ -72,6 +73,7 @@ export function ShareAccountDialog({
   onClose,
   currentFamilyId,
 }: ShareAccountDialogProps) {
+  const { t } = useTranslation();
   // Fetch user's families for dropdown options
   const { data: families, isLoading: isLoadingFamilies } = useFamilies();
 
@@ -153,7 +155,7 @@ export function ShareAccountDialog({
       maxWidth="sm"
       fullWidth
     >
-      <DialogTitle id="share-account-dialog-title">Share Account</DialogTitle>
+      <DialogTitle id="share-account-dialog-title">{t('accounts.shareDialogTitle')}</DialogTitle>
 
       <form onSubmit={handleSubmit(handleFormSubmit)}>
         <DialogContent>
@@ -161,19 +163,19 @@ export function ShareAccountDialog({
             {/* Error Display */}
             {createError && (
               <Alert severity="error">
-                {createError.message || 'Failed to share account'}
+                {createError.message || t('accounts.shareAccountFailed')}
               </Alert>
             )}
 
             {/* Loading State for Families */}
-            {isLoadingFamilies && <Alert severity="info">Loading families...</Alert>}
+            {isLoadingFamilies && <Alert severity="info">{t('accounts.loadingFamilies')}</Alert>}
 
             {/* No Families Available */}
             {!isLoadingFamilies && availableFamilies.length === 0 && (
               <Alert severity="warning">
                 {families && families.length === 0
-                  ? 'You are not a member of any other families'
-                  : 'This account is already shared with all your families'}
+                  ? t('accounts.notMemberOfOtherFamilies')
+                  : t('accounts.alreadySharedWithAllFamilies')}
               </Alert>
             )}
 
@@ -183,18 +185,18 @@ export function ShareAccountDialog({
                 <Controller
                   name="tenant_id"
                   control={control}
-                  rules={{ required: 'Please select a family to share with' }}
+                  rules={{ required: t('accounts.familyRequired') }}
                   render={({ field }) => (
                     <FormControl
                       fullWidth
                       error={!!errors.tenant_id}
                       disabled={isCreating}
                     >
-                      <InputLabel id="family-select-label">Family</InputLabel>
+                      <InputLabel id="family-select-label">{t('accounts.familyLabel')}</InputLabel>
                       <Select
                         {...field}
                         labelId="family-select-label"
-                        label="Family"
+                        label={t('accounts.familyLabel')}
                       >
                         {availableFamilies.map((family) => (
                           <MenuItem key={family.id} value={family.id}>
@@ -216,22 +218,22 @@ export function ShareAccountDialog({
                   render={({ field }) => (
                     <FormControl fullWidth disabled={isCreating}>
                       <InputLabel id="visibility-select-label">
-                        Visibility
+                        {t('accounts.visibility')}
                       </InputLabel>
                       <Select
                         {...field}
                         labelId="visibility-select-label"
-                        label="Visibility"
+                        label={t('accounts.visibility')}
                       >
                         <MenuItem value="hidden">
-                          Hidden (balance not visible)
+                          {t('accounts.visibilityHidden')}
                         </MenuItem>
                         <MenuItem value="visible">
-                          Visible (balance shown)
+                          {t('accounts.visibilityVisible')}
                         </MenuItem>
                       </Select>
                       <FormHelperText>
-                        Controls whether the shared family can see the account balance
+                        {t('accounts.visibilityHelper')}
                       </FormHelperText>
                     </FormControl>
                   )}
@@ -243,14 +245,14 @@ export function ShareAccountDialog({
 
         <DialogActions>
           <Button onClick={handleClose} disabled={isCreating}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             type="submit"
             variant="contained"
             disabled={isCreating || isLoadingFamilies || availableFamilies.length === 0}
           >
-            {isCreating ? 'Sharing...' : 'Share Account'}
+            {isCreating ? t('accounts.sharing') : t('accounts.shareAccount')}
           </Button>
         </DialogActions>
       </form>

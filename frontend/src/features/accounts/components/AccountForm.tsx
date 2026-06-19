@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   TextField,
@@ -75,6 +76,7 @@ export function AccountForm({
   isLoading = false,
   hideTitle = false,
 }: AccountFormProps) {
+  const { t } = useTranslation();
   // Determine if this is create or edit mode
   const isEditMode = mode === 'edit';
 
@@ -110,7 +112,7 @@ export function AccountForm({
       {/* Form Title — hidden when rendered inside a modal Dialog */}
       {!hideTitle && (
         <Typography variant="h6" gutterBottom>
-          {isEditMode ? 'Edit Account' : 'Add Account'}
+          {isEditMode ? t('accounts.formTitleEdit') : t('accounts.formTitleCreate')}
         </Typography>
       )}
 
@@ -118,14 +120,14 @@ export function AccountForm({
         {/* Account Name - Required Field */}
         <TextField
           {...register('name', {
-            required: 'Account name is required',
+            required: t('accounts.accountNameRequired'),
             minLength: {
               value: 1,
-              message: 'Account name cannot be empty',
+              message: t('accounts.accountNameEmpty'),
             },
           })}
-          label="Account Name"
-          placeholder="e.g., Checking Account, Credit Card"
+          label={t('accounts.accountName')}
+          placeholder={t('accounts.accountNamePlaceholder')}
           fullWidth
           required
           error={!!errors.name}
@@ -135,21 +137,23 @@ export function AccountForm({
 
         {/* Account Type Selection - Required Field */}
         <FormControl fullWidth error={!!errors.type} required>
-          <InputLabel id="type-select-label">Account Type</InputLabel>
+          <InputLabel id="type-select-label">{t('accounts.accountType')}</InputLabel>
           <Controller
             name="type"
             control={control}
-            rules={{ required: 'Account type is required' }}
+            rules={{ required: t('accounts.accountTypeRequired') }}
             render={({ field }) => (
               <Select
                 {...field}
                 labelId="type-select-label"
-                label="Account Type"
+                label={t('accounts.accountType')}
                 disabled={isLoading}
               >
-                <MenuItem value="cash">Cash</MenuItem>
-                <MenuItem value="debit">Debit (Checking/Savings)</MenuItem>
-                <MenuItem value="credit">Credit Card</MenuItem>
+                {/* Use enums.accountType keys for the standard labels, with a
+                    localised parenthetical clarifier for debit accounts */}
+                <MenuItem value="cash">{t('accounts.typeOptionCashLabel')}</MenuItem>
+                <MenuItem value="debit">{t('accounts.typeOptionDebitLabel')}</MenuItem>
+                <MenuItem value="credit">{t('accounts.typeOptionCreditLabel')}</MenuItem>
               </Select>
             )}
           />
@@ -160,21 +164,23 @@ export function AccountForm({
 
         {/* Currency Selection - Required Field with Default */}
         <FormControl fullWidth error={!!errors.currency} required>
-          <InputLabel id="currency-select-label">Currency</InputLabel>
+          <InputLabel id="currency-select-label">{t('accounts.currency')}</InputLabel>
           <Controller
             name="currency"
             control={control}
-            rules={{ required: 'Currency is required' }}
+            rules={{ required: t('accounts.currencyRequired') }}
             render={({ field }) => (
               <Select
                 {...field}
                 labelId="currency-select-label"
-                label="Currency"
+                label={t('accounts.currency')}
                 disabled={isLoading}
               >
-                <MenuItem value="BRL">BRL - Brazilian Real</MenuItem>
-                <MenuItem value="USD">USD - US Dollar</MenuItem>
-                <MenuItem value="EUR">EUR - Euro</MenuItem>
+                {/* Currency codes (BRL/USD/EUR) stay as ISO codes — only the
+                    descriptive name beside the code is translated */}
+                <MenuItem value="BRL">{t('accounts.currencyBRL')}</MenuItem>
+                <MenuItem value="USD">{t('accounts.currencyUSD')}</MenuItem>
+                <MenuItem value="EUR">{t('accounts.currencyEUR')}</MenuItem>
               </Select>
             )}
           />
@@ -194,26 +200,26 @@ export function AccountForm({
 
               // Check if it's a valid number
               if (isNaN(numValue)) {
-                return 'Balance must be a valid number';
+                return t('accounts.balanceMustBeNumber');
               }
 
               // For non-credit accounts, balance must be >= 0
               // Credit accounts can start with negative balance (debt)
               if (numValue < 0) {
-                return 'Balance cannot be negative';
+                return t('accounts.balanceCannotBeNegative');
               }
 
               return true;
             },
           })}
-          label="Initial Balance"
+          label={t('accounts.initialBalance')}
           type="number"
           placeholder="0.00"
           fullWidth
           error={!!errors.balance}
           helperText={
             errors.balance?.message ||
-            'Leave empty to default to 0'
+            t('accounts.balanceDefaultHint')
           }
           disabled={isLoading}
           inputProps={{
@@ -241,7 +247,7 @@ export function AccountForm({
             onClick={onCancel}
             disabled={isLoading}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             type="submit"
@@ -249,10 +255,10 @@ export function AccountForm({
             disabled={isLoading}
           >
             {isLoading
-              ? 'Saving...'
+              ? t('accounts.saving')
               : isEditMode
-              ? 'Update Account'
-              : 'Create Account'}
+              ? t('accounts.updateAccount')
+              : t('accounts.createAccount')}
           </Button>
         </Stack>
       </Stack>

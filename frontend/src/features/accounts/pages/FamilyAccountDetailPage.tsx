@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Button,
@@ -56,6 +57,7 @@ export function FamilyAccountDetailPage() {
     accountId: string;
   }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // Get current authenticated user to determine ownership
   const { user } = useAuth();
@@ -126,16 +128,13 @@ export function FamilyAccountDetailPage() {
         if (error.status === 409) {
           // Show specific message for multi-shared account conflict
           // Guide user to delete from main accounts page instead
-          setDeleteError(
-            'This account is shared with multiple families. ' +
-            'Please delete it from the main Accounts page.'
-          );
+          setDeleteError(t('accounts.deleteAccountMultiFamilyError'));
         } else {
           // Backend may return other errors:
           // - 404 if account not found
           // - 403 if user doesn't have permission to delete
           // - 400 for other validation errors
-          const errorMessage = error.message || 'Failed to delete account';
+          const errorMessage = error.message || t('accounts.deleteAccountFailed');
           setDeleteError(errorMessage);
         }
       },
@@ -194,8 +193,8 @@ export function FamilyAccountDetailPage() {
       <Box p={3}>
         <Alert severity="error">
           {accountError
-            ? `Failed to load account: ${(accountError as Error).message}`
-            : 'Account not found'}
+            ? t('accounts.loadAccountError', { message: (accountError as Error).message })
+            : t('accounts.accountNotFound')}
         </Alert>
         <Button
           variant="outlined"
@@ -203,7 +202,7 @@ export function FamilyAccountDetailPage() {
           sx={{ mt: 2 }}
           startIcon={<ArrowBackIcon />}
         >
-          Back to Accounts
+          {t('accounts.backToAccounts')}
         </Button>
       </Box>
     );
@@ -222,7 +221,7 @@ export function FamilyAccountDetailPage() {
         startIcon={<ArrowBackIcon />}
         sx={{ mb: 2 }}
       >
-        Back to Accounts
+        {t('accounts.backToAccounts')}
       </Button>
 
       {/* Delete Error Message */}
@@ -251,7 +250,7 @@ export function FamilyAccountDetailPage() {
             onClick={handleDelete}
             disabled={isDeleting}
           >
-            {isDeleting ? 'Deleting...' : 'Delete Account'}
+            {isDeleting ? t('common.deleting') : t('accounts.deleteAccount')}
           </Button>
         </Stack>
       )}
@@ -272,13 +271,13 @@ export function FamilyAccountDetailPage() {
 
       {/* Transactions Section */}
       <Typography variant="h5" component="h2" gutterBottom>
-        Transactions
+        {t('accounts.transactions')}
       </Typography>
 
       {/* Show error if transactions fetch failed */}
       {transactionsError && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          Failed to load transactions: {(transactionsError as Error).message}
+          {t('accounts.loadTransactionsError', { message: (transactionsError as Error).message })}
         </Alert>
       )}
 
@@ -293,22 +292,22 @@ export function FamilyAccountDetailPage() {
       {/* Helpful hint below grid when transactions exist */}
       {!isLoadingTransactions && transactions.length > 0 && (
         <Typography variant="body2" color="text.secondary" mt={2}>
-          Showing transactions for this account in the current family
+          {t('accounts.showingTransactionsForFamily')}
         </Typography>
       )}
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
         open={deleteDialogOpen}
-        title="Delete Account"
+        title={t('accounts.deleteAccount')}
         message={
           transactions.length > 0
-            ? `This account has ${transactions.length} transaction(s). Deleting this account may affect those transactions. Are you sure you want to continue? This action cannot be undone.`
-            : 'Are you sure you want to delete this account? This action cannot be undone.'
+            ? t('accounts.deleteAccountConfirmWithTransactions', { count: transactions.length })
+            : t('accounts.deleteAccountConfirmNoTransactions')
         }
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
-        confirmButtonText={isDeleting ? 'Deleting...' : 'Delete'}
+        confirmButtonText={isDeleting ? t('common.deleting') : t('common.delete')}
       />
 
       {/* Share Account Dialog */}

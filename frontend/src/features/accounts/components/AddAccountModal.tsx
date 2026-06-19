@@ -3,6 +3,7 @@
 // Supports both family-scoped (auto-shares with family) and global (no sharing) contexts.
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogTitle, DialogContent, Alert } from '@mui/material';
 import { AccountForm } from './AccountForm';
 import { useCreateAccount } from '../hooks/useCreateAccount';
@@ -27,6 +28,7 @@ interface AddAccountModalProps {
  * the user can share it with families later.
  */
 export function AddAccountModal({ open, onClose, familyId, onCreated }: AddAccountModalProps) {
+  const { t } = useTranslation();
   // Prevent closing on backdrop click to avoid accidental data loss on mobile
   const handleDialogClose = (_event: object, reason: string) => {
     if (reason === 'backdropClick') return;
@@ -58,12 +60,12 @@ export function AddAccountModal({ open, onClose, familyId, onCreated }: AddAccou
 
   return (
     <Dialog open={open} onClose={handleDialogClose} maxWidth="sm" fullWidth>
-      <DialogTitle>Add Account</DialogTitle>
+      <DialogTitle>{t('accounts.formTitleCreate')}</DialogTitle>
       <DialogContent>
         {/* API error displayed above the form */}
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
-            {error instanceof Error ? error.message : 'Failed to create account'}
+            {error instanceof Error ? error.message : t('accounts.failedToCreate')}
           </Alert>
         )}
 

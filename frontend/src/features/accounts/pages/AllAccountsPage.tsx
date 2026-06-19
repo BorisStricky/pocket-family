@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Box, Button, Typography, Paper } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { useAccounts } from '../hooks/useAccounts';
@@ -29,6 +30,7 @@ import type { AccountRead } from '@/types/account';
  */
 export default function AllAccountsPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // Modal state for inline account creation
   const [addModalOpen, setAddModalOpen] = useState(false);
@@ -53,11 +55,13 @@ export default function AllAccountsPage() {
     return (
       <Box sx={{ p: 3 }}>
         <Typography variant="h4" gutterBottom>
-          All My Accounts
+          {t('accounts.allMyAccounts')}
         </Typography>
         <Paper sx={{ p: 3, mt: 2, bgcolor: 'error.light' }}>
           <Typography color="error">
-            Error loading accounts: {error instanceof Error ? error.message : 'Unknown error'}
+            {t('accounts.errorLoadingAccounts', {
+              message: error instanceof Error ? error.message : t('accounts.unknownError'),
+            })}
           </Typography>
         </Paper>
       </Box>
@@ -69,14 +73,14 @@ export default function AllAccountsPage() {
       {/* Page header with title and add button */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          All My Accounts
+          {t('accounts.allMyAccounts')}
         </Typography>
         <Button
           variant="contained"
           startIcon={<AddIcon />}
           onClick={handleAddAccount}
         >
-          Add Account
+          {t('accounts.addAccount')}
         </Button>
       </Box>
 

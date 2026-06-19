@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Paper,
@@ -41,6 +42,7 @@ import type { AccountCreate } from '@/types/account';
 export function AddAccountPage() {
   const { familyId } = useParams<{ familyId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // Track error state for displaying error messages
   const [error, setError] = useState<string | null>(null);
@@ -88,7 +90,7 @@ export function AddAccountPage() {
       onError: (err) => {
         // Show error message inline using Alert component
         // Follows existing pattern in AccountsPage and FamilyAccountDetailPage
-        setError((err as Error).message || 'Failed to create account');
+        setError((err as Error).message || t('accounts.failedToCreate'));
         setIsSuccess(false);
       },
     });
@@ -109,13 +111,13 @@ export function AddAccountPage() {
         sx={{ mb: 2 }}
         disabled={isPending}
       >
-        Back to Accounts
+        {t('accounts.backToAccounts')}
       </Button>
 
       {/* Success Message */}
       {isSuccess && (
         <Alert severity="success" sx={{ mb: 3 }}>
-          Account created successfully! Redirecting...
+          {t('accounts.accountCreatedSuccess')}
         </Alert>
       )}
 

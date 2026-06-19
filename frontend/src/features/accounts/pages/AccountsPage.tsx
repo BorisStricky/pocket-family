@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Box, Button, Typography, Stack, Alert, Paper } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
 import { AgAccountsGrid } from '@/components/domain/ag/AgAccountsGrid';
@@ -35,6 +36,7 @@ import type { AccountRead } from '@/types/account';
 export function AccountsPage() {
   const { familyId } = useParams<{ familyId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   // Viewers have read-only access — hide account creation within the family context
   const currentRole = useCurrentRole();
   const isViewer = currentRole === 'viewer';
@@ -61,7 +63,7 @@ export function AccountsPage() {
     return (
       <Box>
         <Alert severity="error">
-          Failed to load accounts: {(error as Error).message}
+          {t('accounts.loadError', { message: (error as Error).message })}
         </Alert>
       </Box>
     );
@@ -77,7 +79,7 @@ export function AccountsPage() {
         mb={3}
       >
         <Typography variant="h4" component="h1">
-          Accounts
+          {t('accounts.title')}
         </Typography>
         {/* Viewers are read-only — hide account creation */}
         {!isViewer && (
@@ -86,7 +88,7 @@ export function AccountsPage() {
             startIcon={<AddIcon />}
             onClick={handleAddAccount}
           >
-            Add Account
+            {t('accounts.addAccount')}
           </Button>
         )}
       </Stack>
@@ -103,7 +105,7 @@ export function AccountsPage() {
 
           {/* Helpful hint below grid when accounts exist */}
           <Typography variant="body2" color="text.secondary" mt={2}>
-            Click on an account to view details and transactions
+            {t('accounts.clickToViewDetails')}
           </Typography>
         </>
       )}
@@ -112,12 +114,12 @@ export function AccountsPage() {
       {!isLoading && accounts.length === 0 && (
         <Paper sx={{ p: 4, textAlign: 'center' }}>
           <Typography variant="h6" color="text.secondary" gutterBottom>
-            No accounts yet
+            {t('accounts.noAccountsYet')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             {isViewer
-              ? 'No accounts have been shared with this family yet.'
-              : 'Add your first account to start tracking your finances.'}
+              ? t('accounts.noAccountsSharedWithFamily')
+              : t('accounts.addFirstAccountPrompt')}
           </Typography>
           {!isViewer && (
             <Button
@@ -126,7 +128,7 @@ export function AccountsPage() {
               startIcon={<AddIcon />}
               onClick={handleAddAccount}
             >
-              Add your first account
+              {t('accounts.addYourFirstAccount')}
             </Button>
           )}
         </Paper>

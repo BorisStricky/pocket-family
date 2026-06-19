@@ -2,6 +2,7 @@
 // Component for displaying account information in a summary card
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Card,
@@ -55,6 +56,8 @@ export function AccountSummary({
   onEdit,
   showEditButton = false,
 }: AccountSummaryProps) {
+  const { t } = useTranslation();
+
   // Map account type to color for badge display
   // Matches the color scheme used in AgAccountsGrid
   const getAccountTypeColor = (
@@ -72,16 +75,18 @@ export function AccountSummary({
     }
   };
 
-  // Format account type for display (capitalize first letter)
+  // Format account type using the shared enums.accountType translation keys
+  // for consistency with AgAccountsGrid and AccountSelect
   const formatAccountType = (type: AccountType): string => {
-    return type.charAt(0).toUpperCase() + type.slice(1);
+    return t(`enums.accountType.${type}`);
   };
 
-  // Format balance with currency symbol
-  // Returns "Hidden" if balance is null (shared account with hidden visibility)
+  // Format balance with currency symbol.
+  // Returns the localised "Hidden" label when balance is null
+  // (shared account with hidden visibility).
   const formatBalance = (): string => {
     if (account.balance === null) {
-      return 'Hidden';
+      return t('accounts.hidden');
     }
 
     try {
@@ -155,7 +160,7 @@ export function AccountSummary({
               startIcon={<EditIcon />}
               onClick={onEdit}
             >
-              Edit
+              {t('common.edit')}
             </Button>
           )}
         </Box>
@@ -173,7 +178,7 @@ export function AccountSummary({
         {/* Current Balance */}
         <Box mb={3}>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Current Balance
+            {t('accounts.currentBalance')}
           </Typography>
           <Typography
             variant="h4"
@@ -191,7 +196,7 @@ export function AccountSummary({
         {/* Account Owner */}
         <Box mb={2}>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Owner
+            {t('accounts.owner')}
           </Typography>
           <Typography variant="body1">{account.user_name}</Typography>
         </Box>
@@ -200,13 +205,13 @@ export function AccountSummary({
         <Stack direction="row" spacing={4} mt={2}>
           <Box>
             <Typography variant="caption" color="text.secondary" display="block">
-              Created
+              {t('accounts.created')}
             </Typography>
             <Typography variant="body2">{formatDate(account.created_at)}</Typography>
           </Box>
           <Box>
             <Typography variant="caption" color="text.secondary" display="block">
-              Last Updated
+              {t('accounts.lastUpdated')}
             </Typography>
             <Typography variant="body2">{formatDate(account.updated_at)}</Typography>
           </Box>
