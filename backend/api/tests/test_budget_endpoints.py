@@ -1920,7 +1920,7 @@ class TestValidation:
             headers=authorization_header(owner_token),
         )
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @pytest.mark.asyncio
     async def test_create_budget_with_zero_amount_rejected(
@@ -1944,7 +1944,7 @@ class TestValidation:
             headers=authorization_header(owner_token),
         )
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @pytest.mark.asyncio
     async def test_create_budget_with_non_existent_category_rejected(
@@ -1998,7 +1998,7 @@ class TestValidation:
             headers=authorization_header(owner_token),
         )
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @pytest.mark.asyncio
     async def test_create_budget_missing_name_rejected(
@@ -2021,7 +2021,7 @@ class TestValidation:
             headers=authorization_header(owner_token),
         )
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @pytest.mark.asyncio
     async def test_create_budget_missing_amount_rejected(
@@ -2044,7 +2044,7 @@ class TestValidation:
             headers=authorization_header(owner_token),
         )
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @pytest.mark.asyncio
     async def test_update_budget_with_negative_amount_rejected(
@@ -2073,7 +2073,7 @@ class TestValidation:
             headers=authorization_header(owner_token),
         )
 
-        assert response.status_code == status.HTTP_422_UNPROCESSABLE_ENTITY
+        assert response.status_code == status.HTTP_422_UNPROCESSABLE_CONTENT
 
     @pytest.mark.asyncio
     async def test_update_budget_with_non_existent_category_rejected(
