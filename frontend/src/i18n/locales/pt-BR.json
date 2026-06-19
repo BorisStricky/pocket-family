@@ -20,6 +20,85 @@
   },
   "common": {
     "cancel": "Cancelar",
-    "save": "Salvar"
+    "save": "Salvar",
+    "delete": "Excluir",
+    "deleting": "Excluindo...",
+    "edit": "Editar",
+    "add": "Adicionar",
+    "create": "Criar",
+    "update": "Atualizar",
+    "submit": "Enviar",
+    "remove": "Remover",
+    "close": "Fechar",
+    "back": "Voltar",
+    "clear": "Limpar",
+    "search": "Pesquisar...",
+    "loading": "Carregando...",
+    "previous": "Anterior",
+    "next": "Próximo"
+  },
+  "validation": {
+    "required": "Este campo é obrigatório",
+    "emailRequired": "O e-mail é obrigatório",
+    "emailInvalid": "Formato de e-mail inválido",
+    "passwordRequired": "A senha é obrigatória",
+    "passwordMinLength": "A senha deve ter pelo menos 6 caracteres",
+    "nameRequired": "O nome é obrigatório"
+  },
+  "enums": {
+    "accountType": {
+      "cash": "Dinheiro",
+      "debit": "Cartão de Débito",
+      "credit": "Cartão de Crédito"
+    },
+    "transactionType": {
+      "expense": "Despesa",
+      "income": "Receita"
+    }
+  },
+  "categorySelect": {
+    "label": "Categoria",
+    "placeholder": "Selecione uma categoria",
+    "createNew": "+ Criar nova categoria",
+    "createNewWithText": "Criar \"{{text}}\" como nova categoria",
+    "inParent": "em {{parent}}",
+    "noCategoriesOfKind": "Nenhuma categoria de {{kind}} encontrada",
+    "noCategories": "Nenhuma categoria encontrada"
+  },
+  "accountSelect": {
+    "label": "Conta",
+    "placeholder": "Selecione uma conta",
+    "createNew": "+ Criar nova conta",
+    "noAccounts": "Nenhuma conta encontrada"
+  },
+  "dateRange": {
+    "label": "Período",
+    "startDate": "Data Inicial",
+    "endDate": "Data Final",
+    "to": "até"
+  },
+  "auth": {
+    "createAccount": "Criar Conta",
+    "welcomeBack": "Bem-vindo de Volta",
+    "name": "Nome",
+    "email": "E-mail",
+    "password": "Senha",
+    "signUp": "Cadastrar",
+    "logIn": "Entrar",
+    "alreadyHaveAccount": "Já tem uma conta?",
+    "dontHaveAccount": "Não tem uma conta?",
+    "logInLink": "Entrar",
+    "signUpLink": "Cadastre-se",
+    "tryDemo": "Experimentar a Demonstração",
+    "demoCaption": "Entra como a conta de demonstração compartilhada. Os dados são reiniciados diariamente.",
+    "orSignIn": "ou entre",
+    "signupDisabledTitle": "A criação de contas está desativada",
+    "signupDisabledMessage": "Esta é a demonstração pública do Pocket Family. Não é possível criar novas contas aqui — entre com a conta de demonstração compartilhada na página de login para explorar o aplicativo.",
+    "goToLogin": "Ir para o login",
+    "inviteTitle": "Convite para a Família",
+    "inviteComingSoon": "A aceitação de convites estará disponível em breve. A implementação no backend para validar os tokens de convite está em andamento.",
+    "inviteTokenDebug": "Token do Convite (para depuração):",
+    "inviteNoToken": "Nenhum token de convite encontrado na URL. Use o link do seu e-mail de convite.",
+    "backToLogin": "Voltar ao Login"
   }
 }

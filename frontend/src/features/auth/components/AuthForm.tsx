@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { TextField, Button, Box, Typography, Alert, CircularProgress } from '@mui/material';
 import { IS_DEMO_MODE } from '@/lib/constants';
 
@@ -18,6 +19,7 @@ interface AuthFormProps {
  * Reusable form for login and signup with validation
  */
 export function AuthForm({ mode, onSubmit, isLoading = false, error = null }: AuthFormProps) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
@@ -30,21 +32,21 @@ export function AuthForm({ mode, onSubmit, isLoading = false, error = null }: Au
 
     // Email validation
     if (!email) {
-      errors.email = 'Email is required';
+      errors.email = t('validation.emailRequired');
     } else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      errors.email = 'Invalid email format';
+      errors.email = t('validation.emailInvalid');
     }
 
     // Password validation
     if (!password) {
-      errors.password = 'Password is required';
+      errors.password = t('validation.passwordRequired');
     } else if (password.length < 6) {
-      errors.password = 'Password must be at least 6 characters';
+      errors.password = t('validation.passwordMinLength');
     }
 
     // Name validation (signup only)
     if (isSignup && !name) {
-      errors.name = 'Name is required';
+      errors.name = t('validation.nameRequired');
     }
 
     setValidationErrors(errors);
@@ -84,7 +86,7 @@ export function AuthForm({ mode, onSubmit, isLoading = false, error = null }: Au
       }}
     >
       <Typography variant="h4" component="h1" sx={{ mb: 2, textAlign: 'center' }}>
-        {isSignup ? 'Create Account' : 'Welcome Back'}
+        {isSignup ? t('auth.createAccount') : t('auth.welcomeBack')}
       </Typography>
 
       {error && (
@@ -95,7 +97,7 @@ export function AuthForm({ mode, onSubmit, isLoading = false, error = null }: Au
 
       {isSignup && (
         <TextField
-          label="Name"
+          label={t('auth.name')}
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
@@ -108,7 +110,7 @@ export function AuthForm({ mode, onSubmit, isLoading = false, error = null }: Au
       )}
 
       <TextField
-        label="Email"
+        label={t('auth.email')}
         type="email"
         value={email}
         onChange={(e) => setEmail(e.target.value)}
@@ -120,7 +122,7 @@ export function AuthForm({ mode, onSubmit, isLoading = false, error = null }: Au
       />
 
       <TextField
-        label="Password"
+        label={t('auth.password')}
         type="password"
         value={password}
         onChange={(e) => setPassword(e.target.value)}
@@ -142,9 +144,9 @@ export function AuthForm({ mode, onSubmit, isLoading = false, error = null }: Au
         {isLoading ? (
           <CircularProgress size={24} color="inherit" />
         ) : isSignup ? (
-          'Sign Up'
+          t('auth.signUp')
         ) : (
-          'Log In'
+          t('auth.logIn')
         )}
       </Button>
 
@@ -154,12 +156,12 @@ export function AuthForm({ mode, onSubmit, isLoading = false, error = null }: Au
       {(!IS_DEMO_MODE || isSignup) && (
         <Box sx={{ textAlign: 'center', mt: 2 }}>
           <Typography variant="body2">
-            {isSignup ? 'Already have an account?' : "Don't have an account?"}{' '}
+            {isSignup ? t('auth.alreadyHaveAccount') : t('auth.dontHaveAccount')}{' '}
             <Link
               to={isSignup ? '/login' : '/signup'}
               style={{ color: '#044218', textDecoration: 'none' }}
             >
-              {isSignup ? 'Log in' : 'Sign up'}
+              {isSignup ? t('auth.logInLink') : t('auth.signUpLink')}
             </Link>
           </Typography>
         </Box>

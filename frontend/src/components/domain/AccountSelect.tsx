@@ -3,6 +3,7 @@
 // Follows the same Autocomplete pattern as CategorySelect for consistent UX.
 
 import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Autocomplete, TextField, Box, Typography } from '@mui/material';
 import { Plus } from 'lucide-react';
 import type { AccountRead } from '@/types/account';
@@ -99,8 +100,9 @@ export function AccountSelect({
   value,
   onChange,
   accounts,
-  label = 'Account',
-  placeholder = 'Select an account',
+  // Default to the shared translated label/placeholder; callers may override.
+  label,
+  placeholder,
   disabled = false,
   required = false,
   error = false,
@@ -108,6 +110,13 @@ export function AccountSelect({
   loading = false,
   onCreateNew,
 }: AccountSelectProps) {
+  const { t } = useTranslation();
+  const resolvedLabel = label ?? t('accountSelect.label');
+  const resolvedPlaceholder = placeholder ?? t('accountSelect.placeholder');
+
+  // Localize an account's type enum for display (e.g. cash → Dinheiro).
+  const accountTypeLabel = (type: string) => t(`enums.accountType.${type}`);
+
   // Sort accounts alphabetically by name for consistent ordering
   const sortedAccounts = useMemo(
     () => [...accounts].sort((a, b) => a.name.localeCompare(b.name)),
@@ -133,7 +142,7 @@ export function AccountSelect({
       options={sortedAccounts}
       getOptionLabel={(option) => {
         if (option.id === CREATE_NEW_ID) return '';
-        return `${option.name} (${option.type})`;
+        return `${option.name} (${accountTypeLabel(option.type)})`;
       }}
       isOptionEqualToValue={(option, compareValue) => option.id === compareValue.id}
       disabled={disabled}
@@ -145,7 +154,9 @@ export function AccountSelect({
         const realOptions = options.filter((option) => option.id !== CREATE_NEW_ID);
         const filtered = searchTerm
           ? realOptions.filter((option) =>
-              `${option.name} (${option.type})`.toLowerCase().includes(searchTerm),
+              `${option.name} (${accountTypeLabel(option.type)})`
+                .toLowerCase()
+                .includes(searchTerm),
             )
           : realOptions;
 
@@ -157,8 +168,8 @@ export function AccountSelect({
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
-          placeholder={placeholder}
+          label={resolvedLabel}
+          placeholder={resolvedPlaceholder}
           required={required}
           error={error}
           helperText={helperText}
@@ -191,7 +202,7 @@ export function AccountSelect({
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 <Plus size={16} />
                 <Typography variant="body2" color="primary" fontWeight={600}>
-                  + Create new account
+                  {t('accountSelect.createNew')}
                 </Typography>
               </Box>
             </Box>
@@ -206,13 +217,13 @@ export function AccountSelect({
                 {option.name}
               </Typography>
               <Typography variant="caption" color="text.secondary">
-                {option.type} · {option.currency}
+                {accountTypeLabel(option.type)} · {option.currency}
               </Typography>
             </Box>
           </Box>
         );
       }}
-      noOptionsText="No accounts found"
+      noOptionsText={t('accountSelect.noAccounts')}
     />
   );
 }

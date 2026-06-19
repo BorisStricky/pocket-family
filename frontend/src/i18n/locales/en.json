@@ -20,6 +20,85 @@
   },
   "common": {
     "cancel": "Cancel",
-    "save": "Save"
+    "save": "Save",
+    "delete": "Delete",
+    "deleting": "Deleting...",
+    "edit": "Edit",
+    "add": "Add",
+    "create": "Create",
+    "update": "Update",
+    "submit": "Submit",
+    "remove": "Remove",
+    "close": "Close",
+    "back": "Back",
+    "clear": "Clear",
+    "search": "Search...",
+    "loading": "Loading...",
+    "previous": "Previous",
+    "next": "Next"
+  },
+  "validation": {
+    "required": "This field is required",
+    "emailRequired": "Email is required",
+    "emailInvalid": "Invalid email format",
+    "passwordRequired": "Password is required",
+    "passwordMinLength": "Password must be at least 6 characters",
+    "nameRequired": "Name is required"
+  },
+  "enums": {
+    "accountType": {
+      "cash": "Cash",
+      "debit": "Debit Card",
+      "credit": "Credit Card"
+    },
+    "transactionType": {
+      "expense": "Expense",
+      "income": "Income"
+    }
+  },
+  "categorySelect": {
+    "label": "Category",
+    "placeholder": "Select a category",
+    "createNew": "+ Create new category",
+    "createNewWithText": "Create \"{{text}}\" as new category",
+    "inParent": "in {{parent}}",
+    "noCategoriesOfKind": "No {{kind}} categories found",
+    "noCategories": "No categories found"
+  },
+  "accountSelect": {
+    "label": "Account",
+    "placeholder": "Select an account",
+    "createNew": "+ Create new account",
+    "noAccounts": "No accounts found"
+  },
+  "dateRange": {
+    "label": "Date Range",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "to": "to"
+  },
+  "auth": {
+    "createAccount": "Create Account",
+    "welcomeBack": "Welcome Back",
+    "name": "Name",
+    "email": "Email",
+    "password": "Password",
+    "signUp": "Sign Up",
+    "logIn": "Log In",
+    "alreadyHaveAccount": "Already have an account?",
+    "dontHaveAccount": "Don't have an account?",
+    "logInLink": "Log in",
+    "signUpLink": "Sign up",
+    "tryDemo": "Try the Demo",
+    "demoCaption": "Signs you in as the shared demo account. Data resets daily.",
+    "orSignIn": "or sign in",
+    "signupDisabledTitle": "Account creation is disabled",
+    "signupDisabledMessage": "This is the public demo of Pocket Family. New accounts cannot be created here — sign in with the shared demo account on the login page to explore the app.",
+    "goToLogin": "Go to login",
+    "inviteTitle": "Family Invitation",
+    "inviteComingSoon": "Invite acceptance is coming soon. The backend implementation for validating invitation tokens is in progress.",
+    "inviteTokenDebug": "Invitation Token (for debugging):",
+    "inviteNoToken": "No invitation token found in the URL. Please use the link from your invitation email.",
+    "backToLogin": "Back to Login"
   }
 }

@@ -4,6 +4,7 @@ import {
   ChevronLeft as ChevronLeftIcon,
   ChevronRight as ChevronRightIcon,
 } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 
 /**
  * MonthPicker component for navigating one calendar month at a time.
@@ -70,12 +71,6 @@ function formatToISODate(date: Date): string {
   return `${year}-${month}-${day}`;
 }
 
-/** Month names for the label; index 0 = January to align with the 1-indexed `month` via `month - 1`. */
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
-
 /**
  * Compare two { year, month } pairs as a single ordinal so boundary checks are simple.
  * Returns a number that is negative/zero/positive when `a` is before/equal/after `b`.
@@ -95,6 +90,11 @@ export const MonthPicker: React.FC<MonthPickerProps> = ({
   maxMonth,
   label,
 }) => {
+  // Read the active language so the month name localizes with the UI (e.g.
+  // "junho de 2026" in pt-BR). Intl handles the localization, so no month
+  // name lists need to be maintained per language.
+  const { i18n } = useTranslation();
+
   // Stepping months must roll the year over at the December/January boundary.
   // We build the candidate target first so we can also honor min/max limits.
   const goToPreviousMonth = () => {
@@ -115,7 +115,12 @@ export const MonthPicker: React.FC<MonthPickerProps> = ({
   const isPreviousDisabled = minMonth ? compareYearMonth(previousTarget, minMonth) < 0 : false;
   const isNextDisabled = maxMonth ? compareYearMonth(nextTarget, maxMonth) > 0 : false;
 
-  const monthLabel = `${MONTH_NAMES[month - 1]} ${year}`;
+  // Build "<Month> <Year>" localized to the active language via Intl. Day 1 of
+  // the month is arbitrary — only the month/year parts are formatted.
+  const monthLabel = new Intl.DateTimeFormat(i18n.language, {
+    month: 'long',
+    year: 'numeric',
+  }).format(new Date(year, month - 1, 1));
 
   return (
     <Box>
