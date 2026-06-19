@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import { CheckCircle as CheckCircleIcon } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { executeImport } from '../../api/importsApi';
 import { useJobStatus } from '../../hooks/useJobStatus';
 import type { ExecuteRequest } from '../../types';
@@ -36,6 +37,7 @@ interface ImportStepProps {
 export function ImportStep({ executeRequest, onStartOver }: ImportStepProps) {
   const { familyId } = useParams<{ familyId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // React StrictMode (dev) intentionally double-invokes effects. Without this
   // ref guard, the import job would be dispatched twice on mount and every
@@ -70,7 +72,9 @@ export function ImportStep({ executeRequest, onStartOver }: ImportStepProps) {
         setIsDispatching(false);
       })
       .catch((error: unknown) => {
-        setDispatchError(error instanceof Error ? error.message : 'Failed to start import');
+        setDispatchError(
+          error instanceof Error ? error.message : t('imports.importDispatchErrorFallback'),
+        );
         setIsDispatching(false);
       });
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -104,18 +108,25 @@ export function ImportStep({ executeRequest, onStartOver }: ImportStepProps) {
         <Stack spacing={2} alignItems="center" sx={{ py: 4 }}>
           <CircularProgress size={48} />
           <Typography variant="h6">
-            {importStatus === 'pending' ? 'Queuing import…' : 'Importing transactions…'}
+            {/* Distinguish "queuing" (job accepted, worker not started yet) from
+                "importing" (worker is actively processing rows) */}
+            {importStatus === 'pending'
+              ? t('imports.importQueuing')
+              : t('imports.importInProgress')}
           </Typography>
           {progressPercent !== undefined && (
             <>
               <LinearProgress variant="determinate" value={progressPercent} sx={{ width: '100%' }} />
               <Typography variant="body2" color="text.secondary">
-                {jobStatus?.imported} of {jobStatus?.total} transactions processed
+                {t('imports.importProgressDetail', {
+                  imported: jobStatus?.imported,
+                  total: jobStatus?.total,
+                })}
               </Typography>
             </>
           )}
           <Typography variant="caption" color="text.secondary">
-            This may take a few seconds. Do not close this tab.
+            {t('imports.importWaitMessage')}
           </Typography>
         </Stack>
       )}
@@ -124,15 +135,16 @@ export function ImportStep({ executeRequest, onStartOver }: ImportStepProps) {
       {isDone && (
         <Stack spacing={2} alignItems="center" sx={{ py: 4 }}>
           <CheckCircleIcon sx={{ fontSize: 56, color: 'success.main' }} />
-          <Typography variant="h6">Import complete!</Typography>
+          <Typography variant="h6">{t('imports.importComplete')}</Typography>
           <Typography variant="body2" color="text.secondary">
-            {jobStatus?.imported} transaction{jobStatus?.imported !== 1 ? 's' : ''} imported successfully.
+            {/* Pluralise: "1 transaction imported" vs "N transactions imported" */}
+            {t('imports.importSuccessDetail', { count: jobStatus?.imported ?? 0 })}
           </Typography>
           <Button
             variant="contained"
             onClick={() => navigate(`/app/${familyId}/transactions`)}
           >
-            View Transactions
+            {t('imports.importViewTransactions')}
           </Button>
         </Stack>
       )}
@@ -141,10 +153,10 @@ export function ImportStep({ executeRequest, onStartOver }: ImportStepProps) {
       {isFailed && (
         <Stack spacing={2} sx={{ py: 2 }} alignItems="stretch">
           <Alert severity="error" sx={{ textAlign: 'left' }}>
-            {dispatchError ?? jobStatus?.error ?? 'The import failed. Please check your CSV and try again.'}
+            {dispatchError ?? jobStatus?.error ?? t('imports.importFailedFallback')}
           </Alert>
           <Button variant="outlined" onClick={onStartOver}>
-            Start Over
+            {t('imports.importStartOver')}
           </Button>
         </Stack>
       )}

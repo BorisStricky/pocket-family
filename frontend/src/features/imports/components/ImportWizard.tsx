@@ -17,6 +17,7 @@ import {
 } from '@mui/material';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import type {
   AnalyzeResponse,
   ColumnMapping,
@@ -31,8 +32,6 @@ import { UploadStep } from './steps/UploadStep';
 import { MapColumnsStep } from './steps/MapColumnsStep';
 import { ReviewStep } from './steps/ReviewStep';
 import { ImportStep } from './steps/ImportStep';
-
-const STEPS = ['Upload CSV', 'Map Columns', 'Review & Edit', 'Import'];
 
 const initialWizardState: WizardState = {
   fileKey: null,
@@ -59,8 +58,18 @@ const initialWizardState: WizardState = {
  */
 export function ImportWizard() {
   const { familyId } = useParams<{ familyId: string }>();
+  const { t } = useTranslation();
   const [activeStep, setActiveStep] = useState(0);
   const [wizardState, setWizardState] = useState<WizardState>(initialWizardState);
+
+  // Step labels are translated so the stepper renders in the user's locale.
+  // These are defined inside the component so the translation hook is in scope.
+  const steps = [
+    t('imports.stepUpload'),
+    t('imports.stepMapColumns'),
+    t('imports.stepReview'),
+    t('imports.stepImport'),
+  ];
 
   // ── Step 0: Upload ──────────────────────────────────────────────────────────
 
@@ -173,11 +182,11 @@ export function ImportWizard() {
   return (
     <Box sx={{ maxWidth: wizardMaxWidth, mx: 'auto' }}>
       <Typography variant="h4" component="h1" gutterBottom>
-        Import Transactions from CSV
+        {t('imports.pageTitle')}
       </Typography>
 
       <Stepper activeStep={activeStep} sx={{ mb: 4 }}>
-        {STEPS.map((label) => (
+        {steps.map((label) => (
           <Step key={label}>
             <StepLabel>{label}</StepLabel>
           </Step>
@@ -216,14 +225,14 @@ export function ImportWizard() {
                 onClick={handleBack}
                 variant="outlined"
               >
-                Back
+                {t('imports.backButton')}
               </Button>
               <Button
                 variant="contained"
                 onClick={() => setActiveStep(3)}
                 disabled={includedRows.length === 0}
               >
-                Import {includedRows.length} transaction{includedRows.length !== 1 ? 's' : ''}
+                {t('imports.importButton', { count: includedRows.length })}
               </Button>
             </Box>
           </>

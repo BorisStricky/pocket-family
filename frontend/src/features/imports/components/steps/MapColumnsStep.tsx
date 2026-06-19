@@ -21,6 +21,7 @@ import {
   Typography,
 } from '@mui/material';
 import { InfoOutlined as InfoOutlinedIcon } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import { useAccounts } from '@/features/accounts/hooks/useAccounts';
 import { AccountSelect } from '@/components/domain/AccountSelect';
 import { useAnalyzeCsv } from '../../hooks/useAnalyzeCsv';
@@ -60,6 +61,8 @@ export function MapColumnsStep({
   wizardState,
   onAnalyzed,
 }: MapColumnsStepProps) {
+  const { t } = useTranslation();
+
   // Auto-propose initial mappings based on column name patterns
   const [dateColumn, setDateColumn] = useState(
     wizardState.columnMapping?.date_column ?? proposeColumn(detectedColumns, DATE_KEYWORDS) ?? ''
@@ -139,12 +142,12 @@ export function MapColumnsStep({
     );
   };
 
-  // Options reused by the two "optional" mapping dropdowns. The empty value
-  // here represents "leave this field unmapped" — Description and Type are
-  // both safe to omit.
+  // The "(not mapped)" option represents leaving a field unmapped.
+  // Description and Type are both safe to omit from the mapping.
   const optionalColumnItems = [
-    <MenuItem key="__unmapped" value="">(not mapped)</MenuItem>,
+    <MenuItem key="__unmapped" value="">{t('imports.mapColumnsNotMapped')}</MenuItem>,
     ...detectedColumns.map((column) => (
+      // Column names from the user's CSV file are user data — render them verbatim
       <MenuItem key={column} value={column}>{column}</MenuItem>
     )),
   ];
@@ -152,26 +155,26 @@ export function MapColumnsStep({
   return (
     <Box sx={{ maxWidth: 640, mx: 'auto' }}>
       <Typography variant="body1" color="text.secondary" gutterBottom>
-        Tell us which CSV column maps to each transaction field. Auto-proposals are based
-        on column name patterns — adjust any that look wrong.
+        {t('imports.mapColumnsIntro')}
       </Typography>
 
       <Stack spacing={3} sx={{ mt: 3 }}>
         {/* Required fields */}
         <Typography variant="subtitle2" color="text.secondary">
-          Required
+          {t('imports.mapColumnsRequired')}
         </Typography>
 
         <TextField
           select
           fullWidth
           required
-          label="Date column"
+          label={t('imports.mapColumnsDateLabel')}
           value={dateColumn}
           error={!dateColumn}
-          helperText={!dateColumn ? 'Select the column that contains the transaction date' : undefined}
+          helperText={!dateColumn ? t('imports.mapColumnsDateHelper') : undefined}
           onChange={(event) => setDateColumn(event.target.value)}
         >
+          {/* Column names from the user's CSV are user data — do not translate */}
           {detectedColumns.map((column) => (
             <MenuItem key={column} value={column}>{column}</MenuItem>
           ))}
@@ -181,12 +184,13 @@ export function MapColumnsStep({
           select
           fullWidth
           required
-          label="Amount column"
+          label={t('imports.mapColumnsAmountLabel')}
           value={amountColumn}
           error={!amountColumn}
-          helperText={!amountColumn ? 'Select the column that contains the monetary amount' : undefined}
+          helperText={!amountColumn ? t('imports.mapColumnsAmountHelper') : undefined}
           onChange={(event) => setAmountColumn(event.target.value)}
         >
+          {/* Column names from the user's CSV are user data — do not translate */}
           {detectedColumns.map((column) => (
             <MenuItem key={column} value={column}>{column}</MenuItem>
           ))}
@@ -196,37 +200,38 @@ export function MapColumnsStep({
           value={accountId || null}
           onChange={(id) => setAccountId(id ?? '')}
           accounts={accounts}
-          label="Account"
+          label={t('accountSelect.label')}
           required
           loading={isLoadingAccounts}
           disabled={isLoadingAccounts}
           error={!accountId}
-          helperText={!accountId ? 'Select the account these transactions belong to' : undefined}
+          helperText={!accountId ? t('imports.mapColumnsAccountHelper') : undefined}
         />
 
         <TextField
           select
           fullWidth
-          label="Currency"
+          label={t('imports.mapColumnsCurrencyLabel')}
           value={currency}
           onChange={(event) => setCurrency(event.target.value)}
         >
-          <MenuItem value="BRL">BRL — Brazilian Real</MenuItem>
-          <MenuItem value="USD">USD — US Dollar</MenuItem>
-          <MenuItem value="EUR">EUR — Euro</MenuItem>
+          {/* ISO currency codes are international identifiers — only translate the description */}
+          <MenuItem value="BRL">{t('imports.mapColumnsCurrencyBRL')}</MenuItem>
+          <MenuItem value="USD">{t('imports.mapColumnsCurrencyUSD')}</MenuItem>
+          <MenuItem value="EUR">{t('imports.mapColumnsCurrencyEUR')}</MenuItem>
         </TextField>
 
         <Divider />
 
         {/* Optional fields */}
         <Typography variant="subtitle2" color="text.secondary">
-          Optional
+          {t('imports.mapColumnsOptional')}
         </Typography>
 
         <TextField
           select
           fullWidth
-          label="Description column"
+          label={t('imports.mapColumnsDescriptionLabel')}
           value={descriptionColumn}
           onChange={(event) => setDescriptionColumn(event.target.value)}
         >
@@ -236,10 +241,10 @@ export function MapColumnsStep({
         <TextField
           select
           fullWidth
-          label="Type column"
+          label={t('imports.mapColumnsTypeLabel')}
           value={typeColumn}
           onChange={(event) => setTypeColumn(event.target.value)}
-          helperText="If omitted, the type is inferred from the amount sign (negative = expense, positive = income)"
+          helperText={t('imports.mapColumnsTypeHelper')}
         >
           {optionalColumnItems}
         </TextField>
@@ -262,11 +267,8 @@ export function MapColumnsStep({
           }
           label={
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
-              Use positive values as expenses
-              <Tooltip
-                title="Controls how the sign of the amount is classified. When on, positive amounts are expenses and negative amounts are income — the convention for credit-card statements. When off, negative = expense and positive = income (bank/debit statements). Only applies when no Type column is mapped."
-                arrow
-              >
+              {t('imports.mapColumnsPositiveAreExpenses')}
+              <Tooltip title={t('imports.mapColumnsPositiveAreExpensesTooltip')} arrow>
                 <InfoOutlinedIcon fontSize="small" color="action" aria-label="info" />
               </Tooltip>
             </Box>
@@ -274,18 +276,18 @@ export function MapColumnsStep({
         />
 
         <TextField
-          label="Header row index"
+          label={t('imports.mapColumnsHeaderRowLabel')}
           type="number"
           value={startRow}
           onChange={(e) => setStartRow(Math.max(0, parseInt(e.target.value, 10) || 0))}
-          helperText="0 = first row is the header. Increase if your CSV has metadata rows above the headers."
+          helperText={t('imports.mapColumnsHeaderRowHelper')}
           inputProps={{ min: 0 }}
         />
       </Stack>
 
       {error && (
         <Alert severity="error" sx={{ mt: 3 }}>
-          {error instanceof Error ? error.message : 'Analysis failed. Check your column mapping and try again.'}
+          {error instanceof Error ? error.message : t('imports.mapColumnsAnalyzeErrorFallback')}
         </Alert>
       )}
 
@@ -296,7 +298,7 @@ export function MapColumnsStep({
         startIcon={isPending ? <CircularProgress size={16} /> : undefined}
         sx={{ mt: 3 }}
       >
-        {isPending ? 'Analyzing…' : 'Analyze CSV'}
+        {isPending ? t('imports.mapColumnsAnalyzing') : t('imports.mapColumnsAnalyzeButton')}
       </Button>
     </Box>
   );

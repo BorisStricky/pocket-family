@@ -19,6 +19,7 @@ import {
   Typography,
 } from '@mui/material';
 import { CloudUpload as CloudUploadIcon } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import { useUploadCsv } from '../../hooks/useUploadCsv';
 import type { ImportUploadResponse } from '../../types';
 
@@ -33,6 +34,7 @@ interface UploadStepProps {
  * columns so the parent wizard can advance to the mapping step.
  */
 export function UploadStep({ onUploaded }: UploadStepProps) {
+  const { t } = useTranslation();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [preview, setPreview] = useState<ImportUploadResponse | null>(null);
@@ -59,11 +61,10 @@ export function UploadStep({ onUploaded }: UploadStepProps) {
   return (
     <Box sx={{ maxWidth: 720, mx: 'auto' }}>
       <Typography variant="body1" color="text.secondary" gutterBottom>
-        Select a CSV file exported from your bank or financial tool.
-        The first row must contain column names. Maximum file size: 5 MB.
+        {t('imports.uploadIntro')}
       </Typography>
 
-      {/* File selector */}
+      {/* File selector — clicking the styled dropzone opens the hidden file input */}
       <Paper
         variant="outlined"
         sx={{
@@ -79,7 +80,8 @@ export function UploadStep({ onUploaded }: UploadStepProps) {
       >
         <CloudUploadIcon sx={{ fontSize: 48, color: 'text.secondary', mb: 1 }} />
         <Typography variant="body1" gutterBottom>
-          {selectedFile ? selectedFile.name : 'Click to browse or drag a CSV file here'}
+          {/* Show the chosen file name once selected; otherwise show the invite prompt */}
+          {selectedFile ? selectedFile.name : t('imports.uploadDropzonePrompt')}
         </Typography>
         {selectedFile && (
           <Typography variant="caption" color="text.secondary">
@@ -97,7 +99,7 @@ export function UploadStep({ onUploaded }: UploadStepProps) {
 
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {error instanceof Error ? error.message : 'Upload failed. Please try again.'}
+          {error instanceof Error ? error.message : t('imports.uploadErrorFallback')}
         </Alert>
       )}
 
@@ -107,17 +109,19 @@ export function UploadStep({ onUploaded }: UploadStepProps) {
         disabled={!selectedFile || isPending}
         startIcon={isPending ? <CircularProgress size={16} /> : undefined}
       >
-        {isPending ? 'Uploading…' : 'Upload'}
+        {isPending ? t('imports.uploadButtonUploading') : t('imports.uploadButtonUpload')}
       </Button>
 
-      {/* Column and sample data preview shown after a successful upload */}
+      {/* Column and sample data preview shown after a successful upload.
+          Column headers in the table are the user's own CSV column names —
+          these are user data and must NOT be translated. */}
       {preview && (
         <Box sx={{ mt: 4 }}>
           <Typography variant="subtitle1" gutterBottom>
-            Preview — {preview.row_count} data rows detected
+            {t('imports.uploadPreviewTitle', { count: preview.row_count })}
           </Typography>
           <Typography variant="body2" color="text.secondary" gutterBottom>
-            Detected columns: {preview.detected_columns.join(', ')}
+            {t('imports.uploadDetectedColumns')} {preview.detected_columns.join(', ')}
           </Typography>
 
           {preview.sample_rows.length > 0 && (
