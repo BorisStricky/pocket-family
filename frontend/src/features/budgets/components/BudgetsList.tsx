@@ -11,6 +11,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ColDef } from 'ag-grid-community';
 import { Box, Chip, IconButton, LinearProgress, Stack, Typography } from '@mui/material';
 import { Edit as EditIcon, Delete as DeleteIcon } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 import type { BudgetRead } from '../types';
 import { Icon } from '@/components/atoms/Icon';
 import type { IconName } from '@/components/atoms/Icon';
@@ -79,13 +80,17 @@ export function BudgetsList({
   onDelete,
   height = 500,
 }: BudgetsListProps) {
+  // useTranslation provides t() for column headers and cell labels;
+  // i18n.language is included in useMemo deps so columns re-render when language changes
+  const { t, i18n } = useTranslation();
+
   // Column definitions for the AG Grid
   // Each column maps to a BudgetRead field with appropriate formatting
   const columnDefinitions: ColDef<BudgetRead>[] = useMemo(
     () => [
       {
         field: 'name',
-        headerName: 'Name',
+        headerName: t('budgets.colName'),
         sortable: true,
         flex: 1,
         minWidth: 150,
@@ -128,7 +133,7 @@ export function BudgetsList({
       },
       {
         field: 'amount',
-        headerName: 'Amount',
+        headerName: t('budgets.colAmount'),
         sortable: true,
         width: 140,
         type: 'rightAligned',
@@ -140,13 +145,13 @@ export function BudgetsList({
       },
       {
         field: 'currency',
-        headerName: 'Currency',
+        headerName: t('budgets.colCurrency'),
         sortable: true,
         width: 100,
       },
       {
         field: 'spent',
-        headerName: 'Spent',
+        headerName: t('budgets.colSpent'),
         sortable: true,
         width: 140,
         type: 'rightAligned',
@@ -157,7 +162,7 @@ export function BudgetsList({
         },
       },
       {
-        headerName: 'Progress',
+        headerName: t('budgets.colProgress'),
         width: 180,
         sortable: false,
         // Custom cell renderer showing a color-coded progress bar with percentage text
@@ -187,7 +192,7 @@ export function BudgetsList({
         },
       },
       {
-        headerName: 'Categories',
+        headerName: t('budgets.colCategories'),
         flex: 1,
         minWidth: 200,
         sortable: false,
@@ -201,7 +206,7 @@ export function BudgetsList({
           if (!budgetCategories || budgetCategories.length === 0) {
             return (
               <Box sx={{ display: 'flex', alignItems: 'center', height: '100%' }}>
-                <Chip label="All Categories" size="small" variant="outlined" color="info" />
+                <Chip label={t('budgets.allCategories')} size="small" variant="outlined" color="info" />
               </Box>
             );
           }
@@ -216,7 +221,7 @@ export function BudgetsList({
         },
       },
       {
-        headerName: 'Actions',
+        headerName: t('budgets.colActions'),
         width: 120,
         sortable: false,
         // Action buttons for editing and deleting individual budgets
@@ -253,28 +258,33 @@ export function BudgetsList({
         },
       },
     ],
-    [onEdit, onDelete]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [onEdit, onDelete, i18n.language]
   );
 
   // Loading overlay shown while budget data is being fetched
+  // Recreated when language changes so the translated text stays current
   const loadingOverlayComponent = useMemo(() => {
     return () => (
       <Box display="flex" alignItems="center" justifyContent="center" height="100%">
-        <Typography variant="body1">Loading budgets...</Typography>
+        <Typography variant="body1">{t('budgets.loadingBudgets')}</Typography>
       </Box>
     );
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i18n.language]);
 
   // Empty state overlay shown when no budgets exist for the tenant
+  // Recreated when language changes so the translated text stays current
   const noRowsOverlayComponent = useMemo(() => {
     return () => (
       <Box display="flex" alignItems="center" justifyContent="center" height="100%">
         <Typography variant="body1" color="text.secondary">
-          No budgets found
+          {t('budgets.noBudgetsFound')}
         </Typography>
       </Box>
     );
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [i18n.language]);
 
   return (
     <Box

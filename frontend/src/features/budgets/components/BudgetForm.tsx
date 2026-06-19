@@ -8,6 +8,7 @@
 
 import React, { useState } from 'react';
 import { useForm, Controller } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogTitle,
@@ -88,6 +89,9 @@ export function BudgetForm({
   onCancel,
   isSubmitting = false,
 }: BudgetFormProps) {
+  // useTranslation provides t() for all user-visible strings in this form dialog
+  const { t } = useTranslation();
+
   // Fetch all categories for the family to populate the multi-select dropdown
   // Categories are tenant-scoped, so we need the familyId to load the correct set
   const { data: allCategories = [], isLoading: isCategoriesLoading } = useCategories(familyId);
@@ -177,7 +181,7 @@ export function BudgetForm({
       maxWidth="sm"
       fullWidth
     >
-      <DialogTitle>{mode === 'create' ? 'Create Budget' : 'Edit Budget'}</DialogTitle>
+      <DialogTitle>{mode === 'create' ? t('budgets.createBudget') : t('budgets.editBudget')}</DialogTitle>
 
       <form onSubmit={handleSubmit(handleFormSubmit)}>
         <DialogContent>
@@ -187,17 +191,17 @@ export function BudgetForm({
               name="name"
               control={control}
               rules={{
-                required: 'Budget name is required',
-                minLength: { value: 1, message: 'Budget name cannot be empty' },
+                required: t('budgets.formFieldNameRequired'),
+                minLength: { value: 1, message: t('budgets.formFieldNameEmpty') },
               }}
               render={({ field }) => (
                 <TextField
                   {...field}
-                  label="Name"
+                  label={t('budgets.formFieldName')}
                   fullWidth
                   error={!!errors.name}
                   helperText={errors.name?.message}
-                  placeholder="e.g., Monthly Entertainment"
+                  placeholder={t('budgets.formFieldNamePlaceholder')}
                   autoFocus
                 />
               )}
@@ -208,23 +212,23 @@ export function BudgetForm({
               name="amount"
               control={control}
               rules={{
-                required: 'Amount is required',
+                required: t('budgets.formFieldAmountRequired'),
                 validate: (value) => {
                   const numericValue = parseFloat(value);
-                  if (isNaN(numericValue)) return 'Amount must be a number';
-                  if (numericValue <= 0) return 'Amount must be greater than 0';
+                  if (isNaN(numericValue)) return t('budgets.formFieldAmountMustBeNumber');
+                  if (numericValue <= 0) return t('budgets.formFieldAmountMustBePositive');
                   return true;
                 },
               }}
               render={({ field }) => (
                 <TextField
                   {...field}
-                  label="Amount"
+                  label={t('budgets.formFieldAmount')}
                   type="number"
                   fullWidth
                   error={!!errors.amount}
                   helperText={errors.amount?.message}
-                  placeholder="e.g., 500.00"
+                  placeholder={t('budgets.formFieldAmountPlaceholder')}
                   inputProps={{ min: 0.01, step: 0.01 }}
                 />
               )}
@@ -235,15 +239,16 @@ export function BudgetForm({
             <Controller
               name="currency"
               control={control}
-              rules={{ required: 'Currency is required' }}
+              rules={{ required: t('budgets.formFieldCurrencyRequired') }}
               render={({ field }) => (
                 <FormControl fullWidth error={!!errors.currency}>
-                  <InputLabel id="budget-currency-label">Currency</InputLabel>
+                  <InputLabel id="budget-currency-label">{t('budgets.formFieldCurrency')}</InputLabel>
                   <Select
                     {...field}
                     labelId="budget-currency-label"
-                    label="Currency"
+                    label={t('budgets.formFieldCurrency')}
                   >
+                    {/* BRL is the only supported currency code — ISO code stays untranslated */}
                     <MenuItem value="BRL">BRL</MenuItem>
                   </Select>
                   {errors.currency && (
@@ -272,9 +277,13 @@ export function BudgetForm({
                   renderInput={(params) => (
                     <TextField
                       {...params}
-                      label="Categories"
-                      placeholder={value.length === 0 ? 'All Categories (universal budget)' : 'Add categories...'}
-                      helperText="Leave empty to track all tenant spending"
+                      label={t('budgets.formFieldCategories')}
+                      placeholder={
+                        value.length === 0
+                          ? t('budgets.formFieldCategoriesPlaceholder')
+                          : t('budgets.formFieldCategoriesAddMore')
+                      }
+                      helperText={t('budgets.formFieldCategoriesHelper')}
                       InputProps={{
                         ...params.InputProps,
                         endAdornment: (
@@ -316,10 +325,10 @@ export function BudgetForm({
 
         <DialogActions>
           <Button onClick={onCancel} disabled={isSubmitting}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" variant="contained" disabled={isSubmitting}>
-            {isSubmitting ? 'Saving...' : mode === 'create' ? 'Create' : 'Save'}
+            {isSubmitting ? t('budgets.saving') : mode === 'create' ? t('common.create') : t('common.save')}
           </Button>
         </DialogActions>
       </form>

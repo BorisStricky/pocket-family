@@ -15,6 +15,7 @@ import {
   DialogActions,
   Button,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import type { BudgetRead } from '../types';
 
 /**
@@ -46,6 +47,9 @@ export function DeleteBudgetConfirm({
   onCancel,
   isDeleting = false,
 }: DeleteBudgetConfirmProps) {
+  // useTranslation provides t() for the dialog title, message, and button labels
+  const { t } = useTranslation();
+
   return (
     <Dialog
       open={open}
@@ -57,16 +61,17 @@ export function DeleteBudgetConfirm({
       maxWidth="xs"
       fullWidth
     >
-      <DialogTitle>Delete Budget</DialogTitle>
+      <DialogTitle>{t('budgets.deleteBudget')}</DialogTitle>
       <DialogContent>
+        {/* Budget name is interpolated into the message via {{name}} so the user
+            knows exactly which budget they are about to delete */}
         <DialogContentText>
-          Are you sure you want to delete the budget{' '}
-          <strong>{budget?.name ?? ''}</strong>? This action cannot be undone.
+          {t('budgets.deleteConfirmMessage', { name: budget?.name ?? '' })}
         </DialogContentText>
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel} disabled={isDeleting}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button
           onClick={onConfirm}
@@ -74,7 +79,7 @@ export function DeleteBudgetConfirm({
           variant="contained"
           disabled={isDeleting}
         >
-          {isDeleting ? 'Deleting...' : 'Delete'}
+          {isDeleting ? t('common.deleting') : t('common.delete')}
         </Button>
       </DialogActions>
     </Dialog>
