@@ -29,6 +29,7 @@ import { useCategories } from '@/features/category/hooks/useCategories';
 import { useCreateCategory } from '@/features/category/hooks/useCreateCategory';
 import type { CategoryRead, CategoryCreate } from '@/types/category';
 import type { ParsedRow, PossibleDuplicateMatch, RowEdit } from '../../types';
+import { translateParseError } from '../../lib/parseErrorMessages';
 
 interface ReviewStepProps {
   analyzedRows: ParsedRow[];
@@ -135,8 +136,9 @@ function DescriptionCellRenderer(params: ICellRendererParams<ParsedRow>) {
   const row = params.data!;
   const ctx = params.context as ReviewContext;
   if (row.parse_error) {
-    // parse_error is a backend-generated technical message — rendered as-is (not translated)
-    return <Typography variant="caption" color="error">{row.parse_error}</Typography>;
+    // Translate the backend technical exception string to a localised user-friendly
+    // message via translateParseError; unknown patterns fall back to the raw string.
+    return <Typography variant="caption" color="error">{translateParseError(row.parse_error, ctx.t)}</Typography>;
   }
   const skipped = isRowSkipped(row, ctx.rowEdits);
   // Uncontrolled input keyed by row + edit version so React keeps the user's

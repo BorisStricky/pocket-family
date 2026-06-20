@@ -360,11 +360,11 @@
     "noMembersYet": "Nenhum membro ainda",
     "invitePrompt": "Convide membros da família para colaborar nas finanças",
     "youSuffix": "(você)",
-    "roleOwner": "owner",
-    "roleMember": "member",
-    "roleViewer": "viewer",
-    "statusPending": "pending",
-    "statusRevoked": "revoked",
+    "roleOwner": "Proprietário",
+    "roleMember": "Membro",
+    "roleViewer": "Visualizador",
+    "statusPending": "Pendente",
+    "statusRevoked": "Revogado",
     "removeMemberMenuItem": "Remover membro",
     "removeMemberDialogTitle": "Remover Membro",
     "removeMemberConfirm": "Tem certeza de que deseja remover {{email}} da família? Ele/ela perderá acesso a todos os dados da família.",
@@ -482,7 +482,13 @@
     "statusPending": "Pendente",
     "statusStarted": "Iniciado",
     "statusDone": "Concluído",
-    "statusFailed": "Falhou"
+    "statusFailed": "Falhou",
+    "parseError": {
+      "invalidAmount": "Valor inválido",
+      "invalidDate": "Data inválida",
+      "dateOutOfRange": "Data fora do intervalo válido",
+      "unrecognizedDateFormat": "Formato de data não reconhecido"
+    }
   },
   "reports": {
     "title": "Relatórios",

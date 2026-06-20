@@ -360,11 +360,11 @@
     "noMembersYet": "No members yet",
     "invitePrompt": "Invite family members to start collaborating on finances",
     "youSuffix": "(you)",
-    "roleOwner": "owner",
-    "roleMember": "member",
-    "roleViewer": "viewer",
-    "statusPending": "pending",
-    "statusRevoked": "revoked",
+    "roleOwner": "Owner",
+    "roleMember": "Member",
+    "roleViewer": "Viewer",
+    "statusPending": "Pending",
+    "statusRevoked": "Revoked",
     "removeMemberMenuItem": "Remove member",
     "removeMemberDialogTitle": "Remove Member",
     "removeMemberConfirm": "Are you sure you want to remove {{email}} from the family? They will lose access to all family data.",
@@ -482,7 +482,13 @@
     "statusPending": "Pending",
     "statusStarted": "Started",
     "statusDone": "Done",
-    "statusFailed": "Failed"
+    "statusFailed": "Failed",
+    "parseError": {
+      "invalidAmount": "Invalid amount",
+      "invalidDate": "Invalid date",
+      "dateOutOfRange": "Date is out of range",
+      "unrecognizedDateFormat": "Unrecognized date format"
+    }
   },
   "reports": {
     "title": "Reports",
