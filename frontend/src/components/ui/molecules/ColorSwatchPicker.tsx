@@ -3,6 +3,7 @@
 // accounts, and budgets. No external library — just styled MUI Box elements.
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, Tooltip, Typography } from '@mui/material';
 
 // 16 distinct colors aligned with the chart palette used across the app.
@@ -33,10 +34,11 @@ interface ColorSwatchPickerProps {
 }
 
 export const ColorSwatchPicker: React.FC<ColorSwatchPickerProps> = ({ value, onChange, disabled = false }) => {
+  const { t } = useTranslation();
   return (
     <Box>
       <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-        Color
+        {t('categories.colorLabel')}
       </Typography>
       <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
         {/* "None" option — a swatch with a diagonal strikethrough to indicate no color */}

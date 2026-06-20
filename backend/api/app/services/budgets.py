@@ -20,7 +20,7 @@ from decimal import Decimal
 from datetime import datetime, timezone
 
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import func, extract
+from sqlalchemy import func, extract, cast, String
 from sqlalchemy.orm import aliased
 
 from ..schemas import BudgetCreate, BudgetUpdate
@@ -215,7 +215,13 @@ async def calculate_spent_for_budgets(
                 BudgetCategory.tenant_id == tenant_id,
                 Transaction.tenant_id == tenant_id,
                 Transaction.transaction_type == CategoryKind.EXPENSE,
-                Transaction.currency == Budget.currency,
+                # Transaction.currency and Budget.currency are backed by *different*
+                # PostgreSQL enum types (``transaction_currency`` vs ``account_currency``),
+                # and Postgres has no ``=`` operator between distinct enum types. Both
+                # derive from the same Python ``Currency`` enum, so their stored labels
+                # (e.g. 'BRL') are identical — cast both to text to compare by value.
+                # (SQLite, used in tests, stores enums as text so this is a no-op there.)
+                cast(Transaction.currency, String) == cast(Budget.currency, String),
                 extract("month", Transaction.transaction_date) == month,
                 extract("year", Transaction.transaction_date) == year,
             )

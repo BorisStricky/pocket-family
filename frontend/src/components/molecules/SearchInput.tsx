@@ -1,6 +1,7 @@
 import React from 'react';
 import { TextField, InputAdornment, IconButton } from '@mui/material';
 import { Search as SearchIcon, Close as CloseIcon } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 
 /**
  * SearchInput component with search icon and clear button
@@ -34,11 +35,16 @@ export interface SearchInputProps {
 export const SearchInput: React.FC<SearchInputProps> = ({
   value,
   onChange,
-  placeholder = 'Search...',
+  // Falls back to the shared translated "Search..." placeholder; callers can
+  // pass a feature-specific placeholder (already translated) to override it.
+  placeholder,
   disabled = false,
   fullWidth = false,
   onClear,
 }) => {
+  const { t } = useTranslation();
+  const resolvedPlaceholder = placeholder ?? t('common.search');
+
   // Handle input change
   const handleChange = (event: React.ChangeEvent<HTMLInputElement>) => {
     onChange(event.target.value);
@@ -57,7 +63,7 @@ export const SearchInput: React.FC<SearchInputProps> = ({
     <TextField
       value={value}
       onChange={handleChange}
-      placeholder={placeholder}
+      placeholder={resolvedPlaceholder}
       disabled={disabled}
       fullWidth={fullWidth}
       size="small"

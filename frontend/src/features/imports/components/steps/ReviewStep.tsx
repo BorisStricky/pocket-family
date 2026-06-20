@@ -22,12 +22,14 @@ import {
 } from '@mui/material';
 import { AgGridReact } from 'ag-grid-react';
 import type { CellClassParams, ColDef, ICellRendererParams } from 'ag-grid-community';
+import { useTranslation } from 'react-i18next';
 import { CategorySelect } from '@/components/domain/CategorySelect';
 import { AddCategoryModal } from '@/features/category/components/AddCategoryModal';
 import { useCategories } from '@/features/category/hooks/useCategories';
 import { useCreateCategory } from '@/features/category/hooks/useCreateCategory';
 import type { CategoryRead, CategoryCreate } from '@/types/category';
 import type { ParsedRow, PossibleDuplicateMatch, RowEdit } from '../../types';
+import { translateParseError } from '../../lib/parseErrorMessages';
 
 interface ReviewStepProps {
   analyzedRows: ParsedRow[];
@@ -37,10 +39,13 @@ interface ReviewStepProps {
 }
 
 // Shared state made available to every cell renderer via params.context.
+// The t() function is included so cell renderers (which live outside the
+// component tree) can still produce translated strings.
 interface ReviewContext {
   rowEdits: Record<number, RowEdit>;
   onEditRow: (rowIndex: number, edit: Partial<RowEdit>) => void;
   categories: CategoryRead[];
+  t: (key: string, options?: Record<string, unknown>) => string;
   /** Opens AddCategoryModal pre-filled with the search text and row's transaction kind. */
   onCreateCategory?: (inputText: string | undefined, rowIndex: number, kind?: 'expense' | 'income') => void;
 }
@@ -90,8 +95,9 @@ function TypeCellRenderer(params: ICellRendererParams<ParsedRow>) {
         fontWeight: 500,
       }}
     >
-      <MenuItem value="expense">Expense</MenuItem>
-      <MenuItem value="income">Income</MenuItem>
+      {/* Reuse shared enums translations so expense/income labels are consistent app-wide */}
+      <MenuItem value="expense">{ctx.t('enums.transactionType.expense')}</MenuItem>
+      <MenuItem value="income">{ctx.t('enums.transactionType.income')}</MenuItem>
     </Select>
   );
 }
@@ -103,20 +109,24 @@ function TypeCellRenderer(params: ICellRendererParams<ParsedRow>) {
  * whether to uncheck (exclude) the row. Unlike exact duplicates, the row is
  * left included by default.
  */
-function possibleDuplicateTooltip(matches: PossibleDuplicateMatch[]) {
+function possibleDuplicateTooltip(
+  matches: PossibleDuplicateMatch[],
+  t: (key: string) => string,
+) {
   return (
     <Box>
       <Typography variant="caption" sx={{ fontWeight: 600, display: 'block' }}>
-        Possible duplicate — a similar transaction was already logged 1–2 days earlier:
+        {t('imports.reviewPossibleDuplicateTooltipTitle')}
       </Typography>
       {matches.map((match) => (
+        // transaction_date, amount and description come from an existing DB record — user data, not translated
         <Typography key={match.transaction_id} variant="caption" component="div">
           • {match.transaction_date} · {match.amount}
           {match.description ? ` · ${match.description}` : ''}
         </Typography>
       ))}
       <Typography variant="caption" component="div" sx={{ mt: 0.5, fontStyle: 'italic' }}>
-        Uncheck this row to exclude it.
+        {t('imports.reviewPossibleDuplicateUncheck')}
       </Typography>
     </Box>
   );
@@ -126,7 +136,9 @@ function DescriptionCellRenderer(params: ICellRendererParams<ParsedRow>) {
   const row = params.data!;
   const ctx = params.context as ReviewContext;
   if (row.parse_error) {
-    return <Typography variant="caption" color="error">{row.parse_error}</Typography>;
+    // Translate the backend technical exception string to a localised user-friendly
+    // message via translateParseError; unknown patterns fall back to the raw string.
+    return <Typography variant="caption" color="error">{translateParseError(row.parse_error, ctx.t)}</Typography>;
   }
   const skipped = isRowSkipped(row, ctx.rowEdits);
   // Uncontrolled input keyed by row + edit version so React keeps the user's
@@ -141,7 +153,7 @@ function DescriptionCellRenderer(params: ICellRendererParams<ParsedRow>) {
       key={`${row.row_index}-${initialValue}`}
       onBlur={(event) => ctx.onEditRow(row.row_index, { description: event.target.value })}
       disabled={skipped}
-      placeholder="Add description…"
+      placeholder={ctx.t('imports.reviewDescriptionPlaceholder')}
       fullWidth
       sx={{ '& input': { fontSize: '0.8rem', py: 0 } }}
     />
@@ -172,7 +184,7 @@ function CategoryCellRenderer(params: ICellRendererParams<ParsedRow>) {
         kind={effectiveType}
         categories={ctx.categories}
         label=""
-        placeholder="Optional…"
+        placeholder={ctx.t('imports.reviewCategoryPlaceholder')}
         disabled={skipped}
         onCreateNew={
           ctx.onCreateCategory
@@ -186,13 +198,14 @@ function CategoryCellRenderer(params: ICellRendererParams<ParsedRow>) {
 
 function StatusCellRenderer(params: ICellRendererParams<ParsedRow>) {
   const row = params.data!;
+  const ctx = params.context as ReviewContext;
   if (row.parse_error) {
-    return <Chip label="Error" color="error" size="small" variant="outlined" />;
+    return <Chip label={ctx.t('imports.reviewStatusError')} color="error" size="small" variant="outlined" />;
   }
   if (row.is_duplicate) {
     return (
-      <Tooltip title="A transaction with the same date and amount already exists in this account">
-        <Chip label="Duplicate" color="warning" size="small" variant="outlined" />
+      <Tooltip title={ctx.t('imports.reviewDuplicateTooltip')}>
+        <Chip label={ctx.t('imports.reviewStatusDuplicate')} color="warning" size="small" variant="outlined" />
       </Tooltip>
     );
   }
@@ -202,9 +215,9 @@ function StatusCellRenderer(params: ICellRendererParams<ParsedRow>) {
   const possibleMatches = row.possible_duplicate ? row.possible_duplicate_matches ?? [] : [];
   if (possibleMatches.length > 0) {
     return (
-      <Tooltip title={possibleDuplicateTooltip(possibleMatches)} arrow>
+      <Tooltip title={possibleDuplicateTooltip(possibleMatches, ctx.t)} arrow>
         <Chip
-          label="Possible duplicate"
+          label={ctx.t('imports.reviewStatusPossibleDuplicate')}
           color="warning"
           size="small"
           variant="outlined"
@@ -224,6 +237,7 @@ function StatusCellRenderer(params: ICellRendererParams<ParsedRow>) {
  * Category and description are editable per row.
  */
 export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: ReviewStepProps) {
+  const { t } = useTranslation();
   const { data: categoriesResponse } = useCategories(familyId);
   const categories = Array.isArray(categoriesResponse) ? categoriesResponse : [];
   const gridRef = useRef<AgGridReact<ParsedRow>>(null);
@@ -275,6 +289,16 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
     gridRef.current?.api?.refreshCells({ force: true });
   }, [rowEdits, categories]);
 
+  // Pass t into context so AG Grid cell renderers (which are plain functions,
+  // not React components with hook access) can produce translated strings.
+  const reviewContext: ReviewContext = {
+    rowEdits,
+    onEditRow,
+    categories,
+    t,
+    onCreateCategory: handleCreateCategoryRequest,
+  };
+
   const columnDefinitions: ColDef<ParsedRow>[] = useMemo(() => {
     const skippedOpacity = (params: CellClassParams<ParsedRow>): Record<string, string | number> => {
       const row = params.data;
@@ -299,7 +323,8 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
       },
       {
         field: 'transaction_date',
-        headerName: 'Date',
+        // Column headers use translation keys so the grid header row is localised
+        headerName: t('imports.reviewColDate'),
         width: 110,
         sortable: true,
         valueFormatter: (params) => (params.data?.parse_error ? '—' : params.value ?? ''),
@@ -307,7 +332,7 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
       },
       {
         field: 'amount',
-        headerName: 'Amount',
+        headerName: t('imports.reviewColAmount'),
         width: 120,
         type: 'rightAligned',
         sortable: true,
@@ -316,21 +341,21 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
       },
       {
         field: 'transaction_type',
-        headerName: 'Type',
+        headerName: t('imports.reviewColType'),
         width: 130,
         cellRenderer: TypeCellRenderer,
         cellStyle: (params: CellClassParams<ParsedRow>) => ({ display: 'flex', alignItems: 'center', ...skippedOpacity(params) }),
       },
       {
         field: 'description',
-        headerName: 'Description',
+        headerName: t('imports.reviewColDescription'),
         flex: 1.4,
         minWidth: 220,
         cellRenderer: DescriptionCellRenderer,
         cellStyle: (params: CellClassParams<ParsedRow>) => ({ display: 'flex', alignItems: 'center', ...skippedOpacity(params) }),
       },
       {
-        headerName: 'Category',
+        headerName: t('imports.reviewColCategory'),
         colId: 'category',
         flex: 1,
         minWidth: 320,
@@ -338,25 +363,28 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
         cellStyle: (params: CellClassParams<ParsedRow>) => ({ display: 'flex', alignItems: 'center', ...skippedOpacity(params) }),
       },
       {
-        headerName: 'Status',
+        headerName: t('imports.reviewColStatus'),
         colId: 'status',
         width: 120,
         cellRenderer: StatusCellRenderer,
         cellStyle: { display: 'flex', alignItems: 'center' } as Record<string, string | number>,
       },
     ];
-  }, []);
+    // t is stable across renders (react-i18next guarantees referential stability),
+    // so including it here is safe and keeps the linter satisfied.
+  }, [t]);
 
   return (
     <>
     <Box>
       <Stack direction="row" spacing={2} alignItems="center" justifyContent="center" sx={{ mb: 2 }}>
         <Typography variant="body1">
-          {includedCount} of {analyzedRows.length} rows will be imported
+          {/* Interpolate both counts directly — i18next handles the substitution */}
+          {t('imports.reviewSummary', { included: includedCount, total: analyzedRows.length })}
         </Typography>
         {duplicateCount > 0 && (
           <Chip
-            label={`${duplicateCount} duplicates pre-skipped`}
+            label={t('imports.reviewDuplicatesPreSkipped', { count: duplicateCount })}
             color="warning"
             size="small"
             variant="outlined"
@@ -364,7 +392,7 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
         )}
         {possibleDuplicateCount > 0 && (
           <Chip
-            label={`${possibleDuplicateCount} possible duplicates flagged`}
+            label={t('imports.reviewPossibleDuplicatesFlagged', { count: possibleDuplicateCount })}
             color="warning"
             size="small"
             variant="outlined"
@@ -372,7 +400,7 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
         )}
         {parseErrorCount > 0 && (
           <Chip
-            label={`${parseErrorCount} parse errors`}
+            label={t('imports.reviewParseErrors', { count: parseErrorCount })}
             color="error"
             size="small"
             variant="outlined"
@@ -380,11 +408,12 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
         )}
       </Stack>
 
+      {/* Info alert uses split keys so the bold "Possible duplicate" phrase can be
+          rendered as a <strong> element regardless of locale. */}
       <Alert severity="info" sx={{ mb: 2 }}>
-        Uncheck a row to skip it. Duplicate rows (matching an existing transaction by date and amount)
-        are pre-skipped — uncheck to include anyway. Rows with a{' '}
-        <strong>Possible duplicate</strong> status may duplicate a transaction logged 1–2 days
-        earlier; hover the status to see the match and uncheck the row if it is a duplicate.
+        {t('imports.reviewInfoAlertMain')}{' '}
+        <strong>{t('imports.reviewInfoAlertPossibleDuplicate')}</strong>{' '}
+        {t('imports.reviewInfoAlertEnd')}
       </Alert>
 
       <Box className="ag-theme-alpine" sx={{ height: 480, width: '100%' }}>
@@ -392,7 +421,7 @@ export function ReviewStep({ analyzedRows, rowEdits, familyId, onEditRow }: Revi
           ref={gridRef}
           rowData={analyzedRows}
           columnDefs={columnDefinitions}
-          context={{ rowEdits, onEditRow, categories, onCreateCategory: handleCreateCategoryRequest }}
+          context={reviewContext}
           theme="legacy"
           getRowId={(params) => String(params.data.row_index)}
           rowHeight={52}

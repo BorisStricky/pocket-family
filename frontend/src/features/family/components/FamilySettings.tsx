@@ -19,6 +19,7 @@ import {
   Box,
 } from '@mui/material';
 import { LogOut, Trash2 } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { TenantRead, MembershipRead } from '@/types/family';
 
 /**
@@ -61,6 +62,7 @@ export function FamilySettings({
   error,
   activeOwnerCount = 0,
 }: FamilySettingsProps) {
+  const { t } = useTranslation();
   const [leaveDialogOpen, setLeaveDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleteConfirmationName, setDeleteConfirmationName] = useState('');
@@ -90,7 +92,7 @@ export function FamilySettings({
   return (
     <Paper sx={{ padding: 3 }}>
       <Typography variant="h6" gutterBottom>
-        Family Settings
+        {t('family.settingsTitle')}
       </Typography>
 
       {error && (
@@ -102,11 +104,11 @@ export function FamilySettings({
       {/* Family information */}
       <Box sx={{ marginBottom: 3 }}>
         <Typography variant="body2" color="text.secondary">
-          Family Name
+          {t('family.settingsFamilyName')}
         </Typography>
         <Typography variant="body1">{family.name}</Typography>
         <Typography variant="body2" color="text.secondary" sx={{ marginTop: 1 }}>
-          Created: {formatDisplayDate(family.created_at)}
+          {t('family.settingsCreated', { date: formatDisplayDate(family.created_at) })}
         </Typography>
       </Box>
 
@@ -120,7 +122,7 @@ export function FamilySettings({
             onClick={() => setLeaveDialogOpen(true)}
             disabled={isLoading}
           >
-            Leave Family
+            {t('family.leaveFamily')}
           </Button>
         )}
 
@@ -133,7 +135,7 @@ export function FamilySettings({
             onClick={() => setDeleteDialogOpen(true)}
             disabled={isLoading}
           >
-            Delete Family
+            {t('family.deleteFamily')}
           </Button>
         )}
       </Stack>
@@ -148,17 +150,15 @@ export function FamilySettings({
         }}
         aria-labelledby="leave-family-dialog-title"
       >
-        <DialogTitle id="leave-family-dialog-title">Leave Family</DialogTitle>
+        <DialogTitle id="leave-family-dialog-title">{t('family.leaveDialogTitle')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to leave <strong>{family.name}</strong>?
-            You will lose access to all family data including transactions,
-            accounts, and categories.
+            {t('family.leaveDialogMessage', { name: family.name })}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setLeaveDialogOpen(false)} disabled={isLoading}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleConfirmLeave}
@@ -166,7 +166,7 @@ export function FamilySettings({
             variant="contained"
             disabled={isLoading}
           >
-            {isLoading ? 'Leaving...' : 'Leave Family'}
+            {isLoading ? t('family.leaving') : t('family.leaveFamilyConfirm')}
           </Button>
         </DialogActions>
       </Dialog>
@@ -183,23 +183,23 @@ export function FamilySettings({
         aria-labelledby="delete-family-dialog-title"
       >
         <DialogTitle id="delete-family-dialog-title" sx={{ color: 'error.main' }}>
-          Delete Family
+          {t('family.deleteDialogTitle')}
         </DialogTitle>
         <DialogContent>
           <Alert severity="error" sx={{ marginBottom: 2 }}>
-            This action is permanent and cannot be undone!
+            {t('family.deletePermanentWarning')}
           </Alert>
           <DialogContentText sx={{ marginBottom: 2 }}>
-            Deleting <strong>{family.name}</strong> will permanently remove:
+            {t('family.deleteDialogIntro', { name: family.name })}
           </DialogContentText>
           <Box component="ul" sx={{ paddingLeft: 2, marginBottom: 2 }}>
-            <li>All family members and their access</li>
-            <li>All transactions and financial records</li>
-            <li>All accounts and balances</li>
-            <li>All categories and budgets</li>
+            <li>{t('family.deleteListMembers')}</li>
+            <li>{t('family.deleteListTransactions')}</li>
+            <li>{t('family.deleteListAccounts')}</li>
+            <li>{t('family.deleteListCategories')}</li>
           </Box>
           <DialogContentText sx={{ marginBottom: 2 }}>
-            To confirm, type the family name: <strong>{family.name}</strong>
+            {t('family.deleteTypePrompt', { name: family.name })}
           </DialogContentText>
           <TextField
             autoFocus
@@ -211,7 +211,7 @@ export function FamilySettings({
             error={deleteConfirmationName.length > 0 && !isDeleteConfirmed}
             helperText={
               deleteConfirmationName.length > 0 && !isDeleteConfirmed
-                ? 'Name does not match'
+                ? t('family.deleteNameMismatch')
                 : undefined
             }
           />
@@ -224,7 +224,7 @@ export function FamilySettings({
             }}
             disabled={isLoading}
           >
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleConfirmDelete}
@@ -232,7 +232,7 @@ export function FamilySettings({
             variant="contained"
             disabled={isLoading || !isDeleteConfirmed}
           >
-            {isLoading ? 'Deleting...' : 'Permanently Delete Family'}
+            {isLoading ? t('family.deleting') : t('family.permanentlyDelete')}
           </Button>
         </DialogActions>
       </Dialog>

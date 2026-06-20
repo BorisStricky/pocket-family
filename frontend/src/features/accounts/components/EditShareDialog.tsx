@@ -3,6 +3,7 @@
 
 import React, { useEffect } from 'react';
 import { useForm, Controller } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogTitle,
@@ -68,6 +69,7 @@ export function EditShareDialog({
   open,
   onClose,
 }: EditShareDialogProps) {
+  const { t } = useTranslation();
   // Mutation for updating share
   const {
     mutate: updateShare,
@@ -141,7 +143,7 @@ export function EditShareDialog({
       maxWidth="sm"
       fullWidth
     >
-      <DialogTitle id="edit-share-dialog-title">Edit Share Settings</DialogTitle>
+      <DialogTitle id="edit-share-dialog-title">{t('accounts.editShareTitle')}</DialogTitle>
 
       <form onSubmit={handleSubmit(handleFormSubmit)}>
         <DialogContent>
@@ -149,13 +151,13 @@ export function EditShareDialog({
             {/* Error Display */}
             {updateError && (
               <Alert severity="error">
-                {updateError.message || 'Failed to update share'}
+                {updateError.message || t('accounts.updateShareFailed')}
               </Alert>
             )}
 
             {/* Family Name (Read-Only) */}
             <Typography variant="body1" color="text.secondary">
-              <strong>Family:</strong> {share.tenant_name}
+              <strong>{t('accounts.familyColon')}</strong> {share.tenant_name}
             </Typography>
 
             {/* Visibility Selection */}
@@ -165,20 +167,20 @@ export function EditShareDialog({
               render={({ field }) => (
                 <FormControl fullWidth disabled={isUpdating}>
                   <InputLabel id="edit-visibility-select-label">
-                    Visibility
+                    {t('accounts.visibility')}
                   </InputLabel>
                   <Select
                     {...field}
                     labelId="edit-visibility-select-label"
-                    label="Visibility"
+                    label={t('accounts.visibility')}
                   >
                     <MenuItem value="hidden">
-                      Hidden (balance not visible)
+                      {t('accounts.visibilityHidden')}
                     </MenuItem>
-                    <MenuItem value="visible">Visible (balance shown)</MenuItem>
+                    <MenuItem value="visible">{t('accounts.visibilityVisible')}</MenuItem>
                   </Select>
                   <FormHelperText>
-                    Controls whether the shared family can see the account balance
+                    {t('accounts.visibilityHelper')}
                   </FormHelperText>
                 </FormControl>
               )}
@@ -188,10 +190,10 @@ export function EditShareDialog({
 
         <DialogActions>
           <Button onClick={handleClose} disabled={isUpdating}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button type="submit" variant="contained" disabled={isUpdating}>
-            {isUpdating ? 'Updating...' : 'Update'}
+            {isUpdating ? t('accounts.updating') : t('common.update')}
           </Button>
         </DialogActions>
       </form>

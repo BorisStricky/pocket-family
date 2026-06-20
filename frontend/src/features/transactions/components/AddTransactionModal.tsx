@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { Dialog, DialogTitle, DialogContent, Alert } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { TransactionForm } from './TransactionForm';
 import { useCreateTransaction } from '../hooks/useCreateTransaction';
 import type { TransactionCreate } from '../types';
@@ -65,6 +66,7 @@ function writeSessionDefaults(data: TransactionCreate): void {
  * remounts on each open, picking up fresh defaultValues from sessionStorage.
  */
 export function AddTransactionModal({ open, familyId, onClose }: AddTransactionModalProps) {
+  const { t } = useTranslation();
   const { mutate: createTransaction, isPending, error } = useCreateTransaction();
 
   // Load session defaults once when the modal mounts
@@ -91,12 +93,12 @@ export function AddTransactionModal({ open, familyId, onClose }: AddTransactionM
       maxWidth="sm"
       fullWidth
     >
-      <DialogTitle>Add Transaction</DialogTitle>
+      <DialogTitle>{t('transactions.addTransaction')}</DialogTitle>
       <DialogContent>
         {/* API error displayed above the form */}
         {error && (
           <Alert severity="error" sx={{ mb: 2 }}>
-            {error instanceof Error ? error.message : 'Failed to create transaction'}
+            {error instanceof Error ? error.message : t('transactions.createTransactionFailed')}
           </Alert>
         )}
 

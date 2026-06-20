@@ -3,6 +3,7 @@
 
 import React from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Box, Typography, Paper, IconButton } from '@mui/material';
 import { ArrowBack as ArrowBackIcon } from '@mui/icons-material';
 import { TransactionForm } from '../components/TransactionForm';
@@ -30,6 +31,7 @@ import type { TransactionCreate } from '../types';
  * refetch and display the new transaction.
  */
 export function AddTransactionPage() {
+  const { t } = useTranslation();
   const { familyId } = useParams<{ familyId: string }>();
   const navigate = useNavigate();
 
@@ -70,7 +72,7 @@ export function AddTransactionPage() {
         </IconButton>
 
         <Typography variant="h4" component="h1">
-          Add Transaction
+          {t('transactions.addTransaction')}
         </Typography>
       </Box>
 
@@ -87,7 +89,7 @@ export function AddTransactionPage() {
             }}
           >
             <Typography color="error.dark">
-              Error creating transaction: {error instanceof Error ? error.message : 'Unknown error'}
+              {t('transactions.createError', { message: error instanceof Error ? error.message : t('transactions.unknownError') })}
             </Typography>
           </Box>
         )}
@@ -104,7 +106,7 @@ export function AddTransactionPage() {
       {/* Helper Text */}
       <Box sx={{ mt: 2, maxWidth: 600 }}>
         <Typography variant="body2" color="text.secondary">
-          All fields marked with * are required. The transaction will be saved to your current family's records.
+          {t('transactions.addPageHelper')}
         </Typography>
       </Box>
     </Box>

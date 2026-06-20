@@ -3,6 +3,7 @@
 // Full implementation requires a backend endpoint for token validation
 
 import { useSearchParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Container,
   Paper,
@@ -33,6 +34,7 @@ import { ROUTES } from '@/lib/constants';
  * Route: /accept-invite (public, no auth required)
  */
 export function AcceptInvitePage() {
+  const { t } = useTranslation();
   const [searchParams] = useSearchParams();
   const inviteToken = searchParams.get('token');
 
@@ -57,14 +59,13 @@ export function AcceptInvitePage() {
 
           {/* Title */}
           <Typography variant="h4" component="h1">
-            Family Invitation
+            {t('auth.inviteTitle')}
           </Typography>
 
           {/* Placeholder message */}
           <Alert severity="info" sx={{ textAlign: 'left' }}>
             <Typography variant="body2">
-              Invite acceptance is coming soon. The backend implementation for
-              validating invitation tokens is in progress.
+              {t('auth.inviteComingSoon')}
             </Typography>
           </Alert>
 
@@ -72,7 +73,7 @@ export function AcceptInvitePage() {
           {inviteToken && (
             <Box sx={{ width: '100%' }}>
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Invitation Token (for debugging):
+                {t('auth.inviteTokenDebug')}
               </Typography>
               <Typography
                 variant="caption"
@@ -93,8 +94,7 @@ export function AcceptInvitePage() {
           {!inviteToken && (
             <Alert severity="warning" sx={{ textAlign: 'left' }}>
               <Typography variant="body2">
-                No invitation token found in the URL. Please use the link from
-                your invitation email.
+                {t('auth.inviteNoToken')}
               </Typography>
             </Alert>
           )}
@@ -106,7 +106,7 @@ export function AcceptInvitePage() {
             variant="outlined"
             startIcon={<ArrowLeft size={18} />}
           >
-            Back to Login
+            {t('auth.backToLogin')}
           </Button>
         </Stack>
       </Paper>

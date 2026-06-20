@@ -3,6 +3,7 @@
 // accounts, and budgets. The user can also clear the selection by choosing "None".
 
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Box, IconButton, Tooltip, Typography } from '@mui/material';
 import { Icon } from '@/components/atoms/Icon';
 import type { IconName } from '@/components/atoms/Icon';
@@ -44,10 +45,11 @@ interface IconPickerProps {
 }
 
 export const IconPicker: React.FC<IconPickerProps> = ({ value, onChange, disabled = false }) => {
+  const { t } = useTranslation();
   return (
     <Box>
       <Typography variant="caption" color="text.secondary" sx={{ mb: 0.5, display: 'block' }}>
-        Icon
+        {t('categories.iconLabel')}
       </Typography>
       <Box
         sx={{

@@ -3,6 +3,7 @@
 // Supports collapsible nodes and inline actions (add child, edit, delete)
 
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   IconButton,
@@ -106,6 +107,8 @@ function CategoryTreeItem({
   onEdit,
   onDelete,
 }: CategoryTreeItemProps) {
+  const { t } = useTranslation();
+
   // Track expanded/collapsed state for this node
   const [isExpanded, setIsExpanded] = useState(true);
   const hasChildren = category.children.length > 0;
@@ -177,7 +180,7 @@ function CategoryTreeItem({
           )}
           <Typography variant="body1">{category.name}</Typography>
           <Chip
-            label={category.kind}
+            label={t(`enums.transactionType.${category.kind}`)}
             size="small"
             color={category.kind === 'expense' ? 'error' : 'success'}
             sx={{ height: 20, fontSize: '0.75rem' }}
@@ -268,6 +271,8 @@ export function CategoryTree({
   onAddRoot,
   className,
 }: CategoryTreeProps) {
+  const { t } = useTranslation();
+
   // Build tree structure from flat category array
   const treeData = buildCategoryTree(categories);
 
@@ -289,10 +294,10 @@ export function CategoryTree({
         }}
       >
         <Typography variant="body1" color="text.secondary" gutterBottom>
-          No categories yet
+          {t('categories.noCategoriesYet')}
         </Typography>
         <Typography variant="body2" color="text.secondary">
-          Add your first category to start organizing transactions
+          {t('categories.addFirstCategoryPrompt')}
         </Typography>
         {onAddRoot && (
           <Stack direction="row" spacing={2} justifyContent="center" sx={{ marginTop: 2 }}>
@@ -303,7 +308,7 @@ export function CategoryTree({
             >
               <Plus size={20} />
               <Typography variant="body2" sx={{ marginLeft: 1 }}>
-                Add Expense
+                {t('categories.addExpense')}
               </Typography>
             </IconButton>
             <IconButton
@@ -313,7 +318,7 @@ export function CategoryTree({
             >
               <Plus size={20} />
               <Typography variant="body2" sx={{ marginLeft: 1 }}>
-                Add Income
+                {t('categories.addIncome')}
               </Typography>
             </IconButton>
           </Stack>
@@ -338,7 +343,7 @@ export function CategoryTree({
           }}
         >
           <Typography variant="h6">
-            Expenses
+            {t('categories.expenses')}
           </Typography>
           {onAddRoot && (
             <Tooltip title="Add expense category">
@@ -354,7 +359,7 @@ export function CategoryTree({
         </Box>
         {expenseCategories.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ paddingY: 2 }}>
-            No expense categories
+            {t('categories.noExpenseCategories')}
           </Typography>
         ) : (
           expenseCategories.map((category) => (
@@ -384,7 +389,7 @@ export function CategoryTree({
           }}
         >
           <Typography variant="h6">
-            Income
+            {t('categories.income')}
           </Typography>
           {onAddRoot && (
             <Tooltip title="Add income category">
@@ -400,7 +405,7 @@ export function CategoryTree({
         </Box>
         {incomeCategories.length === 0 ? (
           <Typography variant="body2" color="text.secondary" sx={{ paddingY: 2 }}>
-            No income categories
+            {t('categories.noIncomeCategories')}
           </Typography>
         ) : (
           incomeCategories.map((category) => (

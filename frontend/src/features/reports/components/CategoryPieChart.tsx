@@ -13,6 +13,7 @@ import {
   useMediaQuery,
   useTheme,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { ReportSelection, ReportSlice } from '../types';
 import { CHART_COLORS, formatReportAmount } from '../utils';
@@ -34,6 +35,8 @@ export default function CategoryPieChart({
   selection,
   onSelect,
 }: CategoryPieChartProps) {
+  // t() resolves locale-aware strings; reuse dashboard keys for identical English labels.
+  const { t } = useTranslation();
   const theme = useTheme();
   const isMobileViewport = useMediaQuery(theme.breakpoints.down('md'));
   const activeCategoryId = selection?.dimension === 'category' ? selection.value : null;
@@ -43,7 +46,8 @@ export default function CategoryPieChart({
     if (activeCategoryId === slice.id) {
       onSelect(null);
     } else {
-      onSelect({ dimension: 'category', value: slice.id, label: `Category: ${slice.label}` });
+      // Cross-filter chip label e.g. "Category: Food" — prefix is translated, name is user data.
+      onSelect({ dimension: 'category', value: slice.id, label: `${t('reports.categoryPrefix')}${slice.label}` });
     }
   };
 
@@ -51,7 +55,7 @@ export default function CategoryPieChart({
     <Card sx={{ height: '100%' }}>
       <CardContent>
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 1 }}>
-          <Typography variant="h6">Expenses by Category</Typography>
+          <Typography variant="h6">{t('reports.expensesByCategory')}</Typography>
           {/* Roll-up is controlled by the page so the aggregation hook re-runs with it. */}
           <FormControlLabel
             control={
@@ -61,13 +65,13 @@ export default function CategoryPieChart({
                 size="small"
               />
             }
-            label="Roll up subcategories"
+            label={t('reports.rollUpSubcategories')}
           />
         </Box>
 
         {data.length === 0 ? (
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, color: 'text.secondary' }}>
-            <Typography>No expense data for this period</Typography>
+            <Typography>{t('dashboard.noExpenseData')}</Typography>
           </Box>
         ) : (
           <ResponsiveContainer width="100%" height={300}>

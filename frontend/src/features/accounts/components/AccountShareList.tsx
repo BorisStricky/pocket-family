@@ -2,6 +2,7 @@
 // Component for displaying and managing account shares
 
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { formatDisplayDate } from '@/lib/dateUtils';
 import {
   Box,
@@ -70,6 +71,7 @@ export function AccountShareList({
   onShareClick,
   onEditShare,
 }: AccountShareListProps) {
+  const { t } = useTranslation();
   const [deleteConfirmOpen, setDeleteConfirmOpen] = useState(false);
   const [shareToDelete, setShareToDelete] = useState<AccountShareRead | null>(
     null
@@ -140,7 +142,7 @@ export function AccountShareList({
           {/* Header */}
           <Box display="flex" justifyContent="space-between" alignItems="center" mb={2}>
             <Typography variant="h6" component="h3">
-              Account Sharing
+              {t('accounts.accountSharing')}
             </Typography>
             <Button
               variant="contained"
@@ -149,28 +151,28 @@ export function AccountShareList({
               onClick={onShareClick}
               disabled={isLoading}
             >
-              Share Account
+              {t('accounts.shareAccount')}
             </Button>
           </Box>
 
           {/* Loading State */}
           {isLoading && (
             <Typography variant="body2" color="text.secondary">
-              Loading shares...
+              {t('accounts.loadingShares')}
             </Typography>
           )}
 
           {/* Error State */}
           {error && (
             <Typography variant="body2" color="error">
-              Error loading shares: {error.message}
+              {t('accounts.loadSharesError', { message: error.message })}
             </Typography>
           )}
 
           {/* Empty State */}
           {!isLoading && !error && shares && shares.length === 0 && (
             <Typography variant="body2" color="text.secondary" sx={{ fontStyle: 'italic' }}>
-              This account is not shared with any families
+              {t('accounts.notSharedWithAnyFamily')}
             </Typography>
           )}
 
@@ -222,7 +224,7 @@ export function AccountShareList({
                         />
                       </Stack>
                     }
-                    secondary={`Shared on ${formatDisplayDate(share.granted_at)}`}
+                    secondary={t('accounts.sharedOn', { date: formatDisplayDate(share.granted_at) })}
                   />
                 </ListItem>
               ))}
@@ -241,16 +243,15 @@ export function AccountShareList({
         }}
         aria-labelledby="delete-share-dialog-title"
       >
-        <DialogTitle id="delete-share-dialog-title">Remove Share</DialogTitle>
+        <DialogTitle id="delete-share-dialog-title">{t('accounts.removeShare')}</DialogTitle>
         <DialogContent>
           <DialogContentText>
-            Are you sure you want to stop sharing this account? The family will
-            immediately lose access to this account.
+            {t('accounts.removeShareConfirm')}
           </DialogContentText>
         </DialogContent>
         <DialogActions>
           <Button onClick={handleDeleteCancel} disabled={isDeleting}>
-            Cancel
+            {t('common.cancel')}
           </Button>
           <Button
             onClick={handleDeleteConfirm}
@@ -258,7 +259,7 @@ export function AccountShareList({
             variant="contained"
             disabled={isDeleting}
           >
-            {isDeleting ? 'Removing...' : 'Remove Share'}
+            {isDeleting ? t('accounts.removing') : t('accounts.removeShare')}
           </Button>
         </DialogActions>
       </Dialog>

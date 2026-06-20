@@ -10,6 +10,7 @@ import {
   DialogActions,
   Button,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Props for DeleteConfirmDialog component
@@ -45,9 +46,13 @@ export function DeleteConfirmDialog({
   message,
   onConfirm,
   onCancel,
-  confirmButtonText = 'Delete',
-  cancelButtonText = 'Cancel',
+  // Default to the shared translated verbs; callers can override per action.
+  confirmButtonText,
+  cancelButtonText,
 }: DeleteConfirmDialogProps) {
+  const { t } = useTranslation();
+  const resolvedConfirmText = confirmButtonText ?? t('common.delete');
+  const resolvedCancelText = cancelButtonText ?? t('common.cancel');
   return (
     <Dialog
       open={open}
@@ -69,10 +74,10 @@ export function DeleteConfirmDialog({
       </DialogContent>
       <DialogActions>
         <Button onClick={onCancel} color="inherit">
-          {cancelButtonText}
+          {resolvedCancelText}
         </Button>
         <Button onClick={onConfirm} color="error" variant="contained" autoFocus>
-          {confirmButtonText}
+          {resolvedConfirmText}
         </Button>
       </DialogActions>
     </Dialog>

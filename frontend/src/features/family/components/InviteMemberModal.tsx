@@ -18,6 +18,7 @@ import {
   MenuItem,
   Stack,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import type { MembershipRole } from '@/types/family';
 
 /**
@@ -64,6 +65,7 @@ export function InviteMemberModal({
   error,
   successMessage,
 }: InviteMemberModalProps) {
+  const { t } = useTranslation();
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<MembershipRole>('member');
   const [validationError, setValidationError] = useState('');
@@ -73,11 +75,11 @@ export function InviteMemberModal({
    */
   const validateEmail = (emailValue: string): boolean => {
     if (!emailValue.trim()) {
-      setValidationError('Email address is required');
+      setValidationError(t('family.emailRequired'));
       return false;
     }
     if (!isValidEmail(emailValue.trim())) {
-      setValidationError('Please enter a valid email address');
+      setValidationError(t('family.emailInvalid'));
       return false;
     }
     setValidationError('');
@@ -112,7 +114,7 @@ export function InviteMemberModal({
       fullWidth
       aria-labelledby="invite-member-dialog-title"
     >
-      <DialogTitle id="invite-member-dialog-title">Invite Member</DialogTitle>
+      <DialogTitle id="invite-member-dialog-title">{t('family.inviteDialogTitle')}</DialogTitle>
       <DialogContent>
         <Stack spacing={2} sx={{ marginTop: 1 }}>
           {/* Show success message after invitation sent */}
@@ -127,7 +129,7 @@ export function InviteMemberModal({
 
           <TextField
             autoFocus
-            label="Email Address"
+            label={t('family.emailLabel')}
             type="email"
             fullWidth
             value={email}
@@ -139,7 +141,7 @@ export function InviteMemberModal({
               }
             }}
             error={!!validationError}
-            helperText={validationError || 'Enter the email address of the person to invite'}
+            helperText={validationError || t('family.emailHelper')}
             disabled={isLoading}
             onKeyDown={(event) => {
               if (event.key === 'Enter' && !isLoading) {
@@ -150,24 +152,24 @@ export function InviteMemberModal({
 
           {/* Role selector for the invited member */}
           <FormControl fullWidth>
-            <InputLabel id="invite-role-label">Role</InputLabel>
+            <InputLabel id="invite-role-label">{t('family.roleLabel')}</InputLabel>
             <Select
               labelId="invite-role-label"
               value={role}
-              label="Role"
+              label={t('family.roleLabel')}
               onChange={(event) => setRole(event.target.value as MembershipRole)}
               disabled={isLoading}
             >
-              <MenuItem value="owner">Owner - full control including member management</MenuItem>
-              <MenuItem value="member">Member - can create and edit transactions</MenuItem>
-              <MenuItem value="viewer">Viewer - read-only access</MenuItem>
+              <MenuItem value="owner">{t('family.roleOwnerOption')}</MenuItem>
+              <MenuItem value="member">{t('family.roleMemberOption')}</MenuItem>
+              <MenuItem value="viewer">{t('family.roleViewerOption')}</MenuItem>
             </Select>
           </FormControl>
         </Stack>
       </DialogContent>
       <DialogActions>
         <Button onClick={handleClose} disabled={isLoading}>
-          Cancel
+          {t('common.cancel')}
         </Button>
         <Button
           onClick={handleSubmit}
@@ -175,7 +177,7 @@ export function InviteMemberModal({
           disabled={isLoading || !email.trim()}
           startIcon={isLoading ? <CircularProgress size={16} /> : undefined}
         >
-          {isLoading ? 'Sending...' : 'Send Invitation'}
+          {isLoading ? t('family.sending') : t('family.sendInvitation')}
         </Button>
       </DialogActions>
     </Dialog>

@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Paper,
@@ -44,6 +45,7 @@ export function EditAccountPage() {
     accountId: string;
   }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // Track error state for displaying error messages
   const [error, setError] = useState<string | null>(null);
@@ -104,7 +106,7 @@ export function EditAccountPage() {
         onError: (err) => {
           // Show error message inline using Alert component
           // Follows existing pattern in other pages
-          setError((err as Error).message || 'Failed to update account');
+          setError((err as Error).message || t('accounts.updateShareFailed'));
           setIsSuccess(false);
         },
       }
@@ -136,8 +138,8 @@ export function EditAccountPage() {
       <Box p={3}>
         <Alert severity="error">
           {fetchError
-            ? `Failed to load account: ${(fetchError as Error).message}`
-            : 'Account not found'}
+            ? t('accounts.loadAccountError', { message: (fetchError as Error).message })
+            : t('accounts.accountNotFound')}
         </Alert>
         <Button
           variant="outlined"
@@ -145,7 +147,7 @@ export function EditAccountPage() {
           sx={{ mt: 2 }}
           startIcon={<ArrowBackIcon />}
         >
-          Back to Account
+          {t('accounts.backToAccount')}
         </Button>
       </Box>
     );
@@ -173,13 +175,13 @@ export function EditAccountPage() {
         sx={{ mb: 2 }}
         disabled={isUpdating}
       >
-        Back to Account
+        {t('accounts.backToAccount')}
       </Button>
 
       {/* Success Message */}
       {isSuccess && (
         <Alert severity="success" sx={{ mb: 3 }}>
-          Account updated successfully! Redirecting...
+          {t('accounts.accountUpdatedSuccess')}
         </Alert>
       )}
 

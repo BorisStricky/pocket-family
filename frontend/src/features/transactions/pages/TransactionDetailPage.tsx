@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Button,
@@ -44,6 +45,7 @@ import type { TransactionUpdate } from '../types';
  * of the transactions list, ensuring data consistency across the app.
  */
 export function TransactionDetailPage() {
+  const { t } = useTranslation();
   const { familyId, transactionId } = useParams<{ familyId: string; transactionId: string }>();
   const navigate = useNavigate();
 
@@ -122,13 +124,13 @@ export function TransactionDetailPage() {
           </IconButton>
 
           <Typography variant="h4" component="h1">
-            Transaction Not Found
+            {t('transactions.transactionNotFound')}
           </Typography>
         </Box>
 
         <Paper sx={{ p: 3, bgcolor: 'error.light' }}>
           <Typography color="error.dark" variant="body1">
-            {error instanceof Error ? error.message : 'Transaction not found. It may have been deleted or you may not have permission to view it.'}
+            {error instanceof Error ? error.message : t('transactions.transactionNotFoundMessage')}
           </Typography>
 
           <Button
@@ -136,7 +138,7 @@ export function TransactionDetailPage() {
             variant="contained"
             sx={{ mt: 2 }}
           >
-            Back to Transactions
+            {t('transactions.backToTransactions')}
           </Button>
         </Paper>
       </Box>
@@ -158,7 +160,7 @@ export function TransactionDetailPage() {
           </IconButton>
 
           <Typography variant="h4" component="h1">
-            Transaction Details
+            {t('transactions.transactionDetails')}
           </Typography>
         </Box>
 
@@ -169,7 +171,7 @@ export function TransactionDetailPage() {
           onClick={() => setDeleteDialogOpen(true)}
           disabled={isDeleting}
         >
-          Delete
+          {t('common.delete')}
         </Button>
       </Box>
 
@@ -186,7 +188,7 @@ export function TransactionDetailPage() {
             }}
           >
             <Typography color="error.dark">
-              Error updating transaction: {updateError instanceof Error ? updateError.message : 'Unknown error'}
+              {t('transactions.updateError', { message: updateError instanceof Error ? updateError.message : t('transactions.unknownError') })}
             </Typography>
           </Box>
         )}
@@ -204,13 +206,13 @@ export function TransactionDetailPage() {
       {/* Transaction Metadata */}
       <Paper sx={{ p: 2, mt: 2, maxWidth: 600 }}>
         <Typography variant="subtitle2" color="text.secondary" gutterBottom>
-          Transaction Information
+          {t('transactions.transactionInformation')}
         </Typography>
 
         <Stack spacing={1}>
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" color="text.secondary">
-              Created:
+              {t('transactions.created')}
             </Typography>
             <Typography variant="body2">
               {new Date(transaction.created_at).toLocaleString()}
@@ -219,7 +221,7 @@ export function TransactionDetailPage() {
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" color="text.secondary">
-              Last Updated:
+              {t('transactions.lastUpdated')}
             </Typography>
             <Typography variant="body2">
               {new Date(transaction.updated_at).toLocaleString()}
@@ -228,7 +230,7 @@ export function TransactionDetailPage() {
 
           <Box sx={{ display: 'flex', justifyContent: 'space-between' }}>
             <Typography variant="body2" color="text.secondary">
-              Transaction ID:
+              {t('transactions.transactionId')}
             </Typography>
             <Typography variant="body2" sx={{ fontFamily: 'monospace', fontSize: '0.75rem' }}>
               {transaction.id}
@@ -240,12 +242,10 @@ export function TransactionDetailPage() {
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
         open={deleteDialogOpen}
-        title="Delete Transaction"
-        message={`Are you sure you want to delete this transaction? This action cannot be undone.`}
+        title={t('transactions.deleteTransactionTitle')}
+        message={t('transactions.deleteTransactionMessage')}
         onConfirm={handleDelete}
         onCancel={() => setDeleteDialogOpen(false)}
-        confirmButtonText="Delete"
-        cancelButtonText="Cancel"
       />
     </Box>
   );

@@ -4,6 +4,7 @@
 // Family tab: members list, invite, leave/delete family settings
 
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Container,
   Typography,
@@ -51,6 +52,7 @@ import type { MembershipRole } from '@/types/family';
  * - Notifications: (Future) Notification preferences
  */
 export function SettingsPage() {
+  const { t } = useTranslation();
   const { familyId } = useParams<{ familyId: string }>();
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -244,7 +246,7 @@ export function SettingsPage() {
         {/* Page Header */}
         <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
           <Typography variant="h4" component="h1">
-            Settings
+            {t('settings.pageTitle')}
           </Typography>
           {/* Show context-appropriate action button based on active tab */}
           {activeTab === 'categories' && (
@@ -253,7 +255,7 @@ export function SettingsPage() {
               startIcon={<Plus size={20} />}
               onClick={() => handleOpenAddModal()}
             >
-              Add Category
+              {t('categories.addCategory')}
             </Button>
           )}
           {activeTab === 'family' && isCurrentUserOwner && (
@@ -265,7 +267,7 @@ export function SettingsPage() {
                 setInviteModalOpen(true);
               }}
             >
-              Invite Member
+              {t('settings.inviteMember')}
             </Button>
           )}
         </Box>
@@ -273,15 +275,15 @@ export function SettingsPage() {
         {/* Error Alert */}
         {fetchError && (
           <Alert severity="error">
-            Failed to load categories: {fetchError.message}
+            {t('categories.loadError', { message: fetchError.message })}
           </Alert>
         )}
 
         {/* Tabs Navigation */}
         <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
           <Tabs value={activeTab} onChange={handleTabChange} aria-label="settings tabs">
-            <Tab label="Categories" value="categories" />
-            <Tab label="Family" value="family" />
+            <Tab label={t('settings.tabCategories')} value="categories" />
+            <Tab label={t('settings.tabFamily')} value="family" />
             {/* Future tabs: Profile, Notifications, Preferences */}
           </Tabs>
         </Box>
@@ -290,11 +292,10 @@ export function SettingsPage() {
         {activeTab === 'categories' && (
           <Paper sx={{ padding: 3 }}>
             <Typography variant="h6" gutterBottom>
-              Categories
+              {t('settings.categoriesSectionTitle')}
             </Typography>
             <Typography variant="body2" color="text.secondary" paragraph>
-              Organize your transactions with custom categories. Create parent categories and
-              subcategories to build a hierarchy that works for your family.
+              {t('settings.categoriesSectionDescription')}
             </Typography>
 
             {/* Category Tree */}
@@ -315,10 +316,10 @@ export function SettingsPage() {
               {/* Members section header */}
               <Box>
                 <Typography variant="h6" gutterBottom>
-                  Members
+                  {t('settings.membersSectionTitle')}
                 </Typography>
                 <Typography variant="body2" color="text.secondary">
-                  Manage who has access to this family's financial data.
+                  {t('settings.membersSectionDescription')}
                 </Typography>
               </Box>
 
@@ -408,7 +409,7 @@ export function SettingsPage() {
         onInvite={handleInviteMember}
         isLoading={isInviting}
         error={inviteError?.message}
-        successMessage={isInviteSuccess ? 'Invitation sent successfully!' : undefined}
+        successMessage={isInviteSuccess ? t('settings.inviteSentSuccess') : undefined}
       />
     </Container>
   );

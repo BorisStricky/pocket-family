@@ -12,6 +12,7 @@ import React, { useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { Box, Button, Typography, CircularProgress, Paper, Alert } from '@mui/material';
 import { Add as AddIcon } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 
 import { useBudgets } from '../hooks/useBudgets';
 import { useCreateBudget } from '../hooks/useCreateBudget';
@@ -54,6 +55,8 @@ type FormMode = null | 'create' | 'edit';
 export function BudgetsPage() {
   // Extract familyId from URL params (set by React Router's :familyId segment)
   const { familyId } = useParams<{ familyId: string }>();
+  // useTranslation provides the t() function for all user-visible strings on this page
+  const { t } = useTranslation();
   // Viewers have read-only access — hide budget creation and editing
   const currentRole = useCurrentRole();
   const isViewer = currentRole === 'viewer';
@@ -140,7 +143,7 @@ export function BudgetsPage() {
       {/* Page Header - Title and Add Budget button */}
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 3 }}>
         <Typography variant="h4" component="h1">
-          Budgets
+          {t('budgets.title')}
         </Typography>
 
         {/* Owners only can create budgets — hide the button for viewers and members */}
@@ -151,7 +154,7 @@ export function BudgetsPage() {
             startIcon={<AddIcon />}
             onClick={handleOpenCreateForm}
           >
-            Add Budget
+            {t('budgets.addBudget')}
           </Button>
         )}
       </Box>
@@ -159,7 +162,7 @@ export function BudgetsPage() {
       {/* Viewer notice — budget creation is restricted to owners */}
       {isViewer && (
         <Alert severity="info" sx={{ mb: 2 }}>
-          You have viewer access. Only family owners can create or modify budgets.
+          {t('budgets.viewerNotice')}
         </Alert>
       )}
 
@@ -173,7 +176,9 @@ export function BudgetsPage() {
       {/* Error State - shown when the fetch request fails */}
       {error && (
         <Alert severity="error" sx={{ mb: 3 }}>
-          Error loading budgets: {error instanceof Error ? error.message : 'Unknown error'}
+          {t('budgets.loadError', {
+            message: error instanceof Error ? error.message : t('budgets.unknownError'),
+          })}
         </Alert>
       )}
 
@@ -193,10 +198,10 @@ export function BudgetsPage() {
       {!isLoading && !error && budgets.length === 0 && (
         <Paper sx={{ p: 4, textAlign: 'center' }}>
           <Typography variant="h6" color="text.secondary" gutterBottom>
-            No budgets yet
+            {t('budgets.noBudgetsYet')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Create your first budget to start tracking your spending!
+            {t('budgets.noBudgetsYetPrompt')}
           </Typography>
           <Button
             variant="contained"
@@ -204,7 +209,7 @@ export function BudgetsPage() {
             startIcon={<AddIcon />}
             onClick={handleOpenCreateForm}
           >
-            Add Budget
+            {t('budgets.addBudget')}
           </Button>
         </Paper>
       )}

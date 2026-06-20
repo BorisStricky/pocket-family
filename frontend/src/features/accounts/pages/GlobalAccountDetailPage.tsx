@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import {
   Box,
   Button,
@@ -50,6 +51,7 @@ import type { AccountShareRead } from '@/types/account';
 export function GlobalAccountDetailPage() {
   const { accountId } = useParams<{ accountId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
 
   // Get current authenticated user to determine ownership
   const { user } = useAuth();
@@ -120,7 +122,7 @@ export function GlobalAccountDetailPage() {
 
         // In global context, multi-shared accounts can be deleted
         // Backend handles cascading share deletions and transaction updates
-        const errorMessage = error.message || 'Failed to delete account';
+        const errorMessage = error.message || t('accounts.deleteAccountFailed');
         setDeleteError(errorMessage);
       },
     });
@@ -183,8 +185,8 @@ export function GlobalAccountDetailPage() {
       <Box p={3}>
         <Alert severity="error">
           {accountError
-            ? `Failed to load account: ${(accountError as Error).message}`
-            : 'Account not found'}
+            ? t('accounts.loadAccountError', { message: (accountError as Error).message })
+            : t('accounts.accountNotFound')}
         </Alert>
         <Button
           variant="outlined"
@@ -192,7 +194,7 @@ export function GlobalAccountDetailPage() {
           sx={{ mt: 2 }}
           startIcon={<ArrowBackIcon />}
         >
-          Back to All Accounts
+          {t('accounts.backToAllAccounts')}
         </Button>
       </Box>
     );
@@ -211,7 +213,7 @@ export function GlobalAccountDetailPage() {
         startIcon={<ArrowBackIcon />}
         sx={{ mb: 2 }}
       >
-        Back to All Accounts
+        {t('accounts.backToAllAccounts')}
       </Button>
 
       {/* Delete Error Message */}
@@ -240,7 +242,7 @@ export function GlobalAccountDetailPage() {
             onClick={handleDelete}
             disabled={isDeleting}
           >
-            {isDeleting ? 'Deleting...' : 'Delete Account'}
+            {isDeleting ? t('common.deleting') : t('accounts.deleteAccount')}
           </Button>
         </Stack>
       )}
@@ -261,13 +263,13 @@ export function GlobalAccountDetailPage() {
 
       {/* Transactions Section */}
       <Typography variant="h5" component="h2" gutterBottom>
-        All Transactions
+        {t('accounts.allTransactions')}
       </Typography>
 
       {/* Show error if transactions fetch failed */}
       {transactionsError && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          Failed to load transactions: {(transactionsError as Error).message}
+          {t('accounts.loadTransactionsError', { message: (transactionsError as Error).message })}
         </Alert>
       )}
 
@@ -282,22 +284,22 @@ export function GlobalAccountDetailPage() {
       {/* Helpful hint below grid when transactions exist */}
       {!isLoadingTransactions && transactions.length > 0 && (
         <Typography variant="body2" color="text.secondary" mt={2}>
-          Showing all transactions for this account across all families
+          {t('accounts.showingTransactionsAllFamilies')}
         </Typography>
       )}
 
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
         open={deleteDialogOpen}
-        title="Delete Account"
+        title={t('accounts.deleteAccount')}
         message={
           transactions.length > 0
-            ? `This account has ${transactions.length} transaction(s). Deleting this account will set their account_id to NULL, preserving transaction history. Are you sure you want to continue? This action cannot be undone.`
-            : 'Are you sure you want to delete this account? This action cannot be undone.'
+            ? t('accounts.deleteAccountConfirmGlobalWithTransactions', { count: transactions.length })
+            : t('accounts.deleteAccountConfirmNoTransactions')
         }
         onConfirm={handleConfirmDelete}
         onCancel={handleCancelDelete}
-        confirmButtonText={isDeleting ? 'Deleting...' : 'Delete'}
+        confirmButtonText={isDeleting ? t('common.deleting') : t('common.delete')}
       />
 
       {/* Share Account Dialog */}

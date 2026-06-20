@@ -4,6 +4,7 @@
 
 import { Box, Typography, Chip, Stack } from '@mui/material';
 import { Users } from 'lucide-react';
+import { useTranslation } from 'react-i18next';
 import type { TenantRead } from '@/types/family';
 
 /**
@@ -23,6 +24,7 @@ interface FamilyHeaderProps {
  * The member count chip helps owners understand family size at a glance.
  */
 export function FamilyHeader({ family, memberCount }: FamilyHeaderProps) {
+  const { t } = useTranslation();
   return (
     <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
       <Stack direction="row" spacing={2} alignItems="center">
@@ -32,7 +34,7 @@ export function FamilyHeader({ family, memberCount }: FamilyHeaderProps) {
         {memberCount !== undefined && (
           <Chip
             icon={<Users size={16} />}
-            label={`${memberCount} ${memberCount === 1 ? 'member' : 'members'}`}
+            label={t('family.memberCount', { count: memberCount })}
             variant="outlined"
             size="small"
           />

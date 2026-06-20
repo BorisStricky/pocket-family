@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import type { ReportSelection, ReportSlice } from '../types';
 import { CHART_COLORS, formatReportAmount } from '../utils';
@@ -24,17 +25,21 @@ export default function UserAccountDonut({
   selection,
   onSelect,
 }: UserAccountDonutProps) {
+  // t() resolves locale-aware strings; reuse dashboard keys for identical English labels.
+  const { t } = useTranslation();
   const activeUserId = selection?.dimension === 'user' ? selection.value : null;
   const activeAccountId = selection?.dimension === 'account' ? selection.value : null;
 
   const handleUserClick = (slice: ReportSlice) => {
     if (activeUserId === slice.id) onSelect(null);
-    else onSelect({ dimension: 'user', value: slice.id, label: `User: ${slice.label}` });
+    // Cross-filter chip label: prefix is translated, slice.label is a user name (backend data).
+    else onSelect({ dimension: 'user', value: slice.id, label: `${t('reports.userPrefix')}${slice.label}` });
   };
 
   const handleAccountClick = (slice: ReportSlice) => {
     if (activeAccountId === slice.id) onSelect(null);
-    else onSelect({ dimension: 'account', value: slice.id, label: `Account: ${slice.label}` });
+    // Cross-filter chip label: prefix is translated, slice.label is an account name (backend data).
+    else onSelect({ dimension: 'account', value: slice.id, label: `${t('reports.accountPrefix')}${slice.label}` });
   };
 
   const hasData = byUser.length > 0 || byAccount.length > 0;
@@ -43,11 +48,11 @@ export default function UserAccountDonut({
     <Card sx={{ height: '100%' }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          Expenses by User &amp; Account
+          {t('reports.expensesByUserAndAccount')}
         </Typography>
         {!hasData ? (
           <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: 300, color: 'text.secondary' }}>
-            <Typography>No expense data for this period</Typography>
+            <Typography>{t('dashboard.noExpenseData')}</Typography>
           </Box>
         ) : (
           <ResponsiveContainer width="100%" height={300}>

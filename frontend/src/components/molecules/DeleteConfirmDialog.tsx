@@ -8,6 +8,7 @@ import {
   Button,
   CircularProgress,
 } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 
 /**
  * DeleteConfirmDialog component for confirming delete operations
@@ -50,12 +51,17 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
   open,
   title,
   message,
-  confirmLabel = 'Delete',
-  cancelLabel = 'Cancel',
+  // Default the button labels to the shared translated verbs. They stay optional
+  // props so callers can override with a more specific label when needed.
+  confirmLabel,
+  cancelLabel,
   onConfirm,
   onCancel,
   loading = false,
 }) => {
+  const { t } = useTranslation();
+  const resolvedConfirmLabel = confirmLabel ?? t('common.delete');
+  const resolvedCancelLabel = cancelLabel ?? t('common.cancel');
   // Handle dialog close (via ESC key only, not backdrop click)
   const handleClose = (_event: object, reason: string) => {
     // Prevent closing during loading state
@@ -100,7 +106,7 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
           variant="outlined"
           color="inherit"
         >
-          {cancelLabel}
+          {resolvedCancelLabel}
         </Button>
 
         {/* Confirm Button - Styled for dangerous action */}
@@ -114,7 +120,7 @@ export const DeleteConfirmDialog: React.FC<DeleteConfirmDialogProps> = ({
             loading ? <CircularProgress size={18} thickness={5} color="inherit" /> : null
           }
         >
-          {loading ? 'Deleting...' : confirmLabel}
+          {loading ? t('common.deleting') : resolvedConfirmLabel}
         </Button>
       </DialogActions>
     </Dialog>

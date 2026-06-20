@@ -5,6 +5,7 @@ import { LocalizationProvider } from '@mui/x-date-pickers/LocalizationProvider';
 import { AdapterDateFns } from '@mui/x-date-pickers/AdapterDateFns';
 import { enUS } from 'date-fns/locale';
 import { Close as CloseIcon } from '@mui/icons-material';
+import { useTranslation } from 'react-i18next';
 
 /**
  * DateRangePicker component for selecting a date range
@@ -73,8 +74,12 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
   onChange,
   minDate,
   maxDate,
-  label = 'Date Range',
+  // Falls back to the shared translated "Date Range" label; callers may override.
+  label,
 }) => {
+  const { t } = useTranslation();
+  const resolvedLabel = label ?? t('dateRange.label');
+
   // Convert ISO strings to Date objects for the date picker
   const startDateValue = parseISODate(startDate);
   const endDateValue = parseISODate(endDate);
@@ -117,7 +122,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
     <LocalizationProvider dateAdapter={AdapterDateFns} adapterLocale={enUS}>
       <Box>
         {/* Label with clear button */}
-        {label && (
+        {resolvedLabel && (
           <Box
             sx={{
               display: 'flex',
@@ -127,7 +132,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
             }}
           >
             <Typography variant="subtitle2" color="text.secondary">
-              {label}
+              {resolvedLabel}
             </Typography>
             {hasValues && (
               <IconButton
@@ -146,7 +151,7 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
         <Box sx={{ display: 'flex', gap: 2, alignItems: 'center' }}>
           {/* Start Date - format prop ensures keyboard input follows dd-MMM-yyyy pattern */}
           <DatePicker
-            label="Start Date"
+            label={t('dateRange.startDate')}
             value={startDateValue}
             onChange={handleStartDateChange}
             minDate={minDateValue}
@@ -162,12 +167,12 @@ export const DateRangePicker: React.FC<DateRangePickerProps> = ({
 
           {/* Separator */}
           <Typography variant="body2" color="text.secondary">
-            to
+            {t('dateRange.to')}
           </Typography>
 
           {/* End Date - format prop ensures keyboard input follows dd-MMM-yyyy pattern */}
           <DatePicker
-            label="End Date"
+            label={t('dateRange.endDate')}
             value={endDateValue}
             onChange={handleEndDateChange}
             minDate={startDateValue || minDateValue} // End date cannot be before start date

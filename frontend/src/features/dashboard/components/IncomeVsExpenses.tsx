@@ -5,6 +5,7 @@
 
 import React from 'react';
 import { Card, CardContent, Typography, Box } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import {
   BarChart,
   Bar,
@@ -59,13 +60,15 @@ function CustomDateTick({ x = 0, y = 0, payload }: CustomDateTickProps) {
  * When no data exists, shows an empty state message.
  */
 export default function IncomeVsExpenses({ dailyTrends }: IncomeVsExpensesProps) {
+  const { t } = useTranslation();
+
   // Empty state when no transaction data exists for the period
   if (dailyTrends.length === 0) {
     return (
       <Card sx={{ height: '100%' }}>
         <CardContent>
           <Typography variant="h6" gutterBottom>
-            Income vs Expenses
+            {t('dashboard.incomeVsExpenses')}
           </Typography>
           <Box
             sx={{
@@ -76,7 +79,7 @@ export default function IncomeVsExpenses({ dailyTrends }: IncomeVsExpensesProps)
               color: 'text.secondary',
             }}
           >
-            <Typography>No transaction data for this period</Typography>
+            <Typography>{t('dashboard.noTransactionData')}</Typography>
           </Box>
         </CardContent>
       </Card>
@@ -87,7 +90,7 @@ export default function IncomeVsExpenses({ dailyTrends }: IncomeVsExpensesProps)
     <Card sx={{ height: '100%' }}>
       <CardContent>
         <Typography variant="h6" gutterBottom>
-          Income vs Expenses
+          {t('dashboard.incomeVsExpenses')}
         </Typography>
         <ResponsiveContainer width="100%" height={300}>
           <BarChart data={dailyTrends}>
@@ -103,13 +106,13 @@ export default function IncomeVsExpenses({ dailyTrends }: IncomeVsExpensesProps)
               formatter={(value: unknown) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(Number(value))}
               labelFormatter={(label: string) => {
                 // Show full formatted date in tooltip hover
-                return `Date: ${formatDisplayDate(label)}`;
+                return t('dashboard.chartDateLabel', { date: formatDisplayDate(label) });
               }}
             />
             <Legend />
             {/* Income bars in green, expenses in red for intuitive visual distinction */}
-            <Bar dataKey="income" name="Income" fill="#4CAF50" radius={[4, 4, 0, 0]} />
-            <Bar dataKey="expenses" name="Expenses" fill="#F44336" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="income" name={t('dashboard.income')} fill="#4CAF50" radius={[4, 4, 0, 0]} />
+            <Bar dataKey="expenses" name={t('dashboard.expenses')} fill="#F44336" radius={[4, 4, 0, 0]} />
           </BarChart>
         </ResponsiveContainer>
       </CardContent>

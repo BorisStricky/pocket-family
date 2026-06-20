@@ -5,6 +5,7 @@
 
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Box, Button, Container, Divider, Paper, Typography } from '@mui/material';
 import { AuthForm } from '@/features/auth/components/AuthForm';
 import { useLogin } from '@/features/auth/hooks/useLogin';
@@ -13,6 +14,7 @@ import { getErrorMessage } from '@/lib/errorUtils';
 import { DEMO_CREDENTIALS, IS_DEMO_MODE } from '@/lib/constants';
 
 export default function LoginPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const loginMutation = useLogin();
@@ -62,12 +64,12 @@ export default function LoginPage() {
                 disabled={loginMutation.isPending}
                 fullWidth
               >
-                Try the Demo
+                {t('auth.tryDemo')}
               </Button>
               <Typography variant="caption" color="text.secondary" sx={{ textAlign: 'center' }}>
-                Signs you in as the shared demo account. Data resets daily.
+                {t('auth.demoCaption')}
               </Typography>
-              <Divider sx={{ my: 2 }}>or sign in</Divider>
+              <Divider sx={{ my: 2 }}>{t('auth.orSignIn')}</Divider>
             </Box>
           )}
 

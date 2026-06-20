@@ -22,6 +22,7 @@ import {
   FileUpload as FileUploadIcon,
 } from '@mui/icons-material';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { AgGridReact } from 'ag-grid-react';
 import type { ColDef, ICellRendererParams } from 'ag-grid-community';
 import { useImportJobs } from '../hooks/useImportJobs';
@@ -37,16 +38,36 @@ const STATUS_CHIP_COLOR: Record<ImportJobStatus, 'default' | 'info' | 'success' 
   failed: 'error',
 };
 
+// Map each backend status value to the imports.status* translation key.
+// Every possible ImportJobStatus value must have an entry here — a missing key
+// would cause i18next to render the raw key string instead of translated text.
+const STATUS_TRANSLATION_KEY: Record<ImportJobStatus, string> = {
+  pending: 'imports.statusPending',
+  started: 'imports.statusStarted',
+  done: 'imports.statusDone',
+  failed: 'imports.statusFailed',
+};
+
+// Context passed to the status cell renderer so it can call t() without being
+// inside the React component tree (AG Grid cell renderers are plain functions).
+interface HistoryGridContext {
+  t: (key: string) => string;
+}
+
 function StatusCellRenderer(params: ICellRendererParams<ImportJobRead>) {
   const row = params.data;
   if (!row) return null;
+  const ctx = params.context as HistoryGridContext;
+  // Translate the raw backend status to the user's locale via the lookup table.
+  // Falling back to row.status ensures nothing renders as blank if an unexpected
+  // status value arrives from the server.
+  const translatedLabel = ctx.t(STATUS_TRANSLATION_KEY[row.status] ?? row.status);
   const chip = (
     <Chip
-      label={row.status}
+      label={translatedLabel}
       color={STATUS_CHIP_COLOR[row.status]}
       size="small"
       variant={row.status === 'done' ? 'filled' : 'outlined'}
-      sx={{ textTransform: 'capitalize' }}
     />
   );
   // Failed rows surface their error message via a tooltip so the whole table
@@ -63,6 +84,7 @@ function StatusCellRenderer(params: ICellRendererParams<ImportJobRead>) {
 export function ImportHistoryPage() {
   const { familyId } = useParams<{ familyId: string }>();
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const currentRole = useCurrentRole();
 
   // Viewers have read-only access to family data — import history is an
@@ -75,10 +97,14 @@ export function ImportHistoryPage() {
 
   const { data: importJobs, isLoading, error } = useImportJobs(familyId!);
 
+  // Pass t into the grid context so the StatusCellRenderer (a plain function,
+  // not a React component) can produce translated chip labels.
+  const gridContext: HistoryGridContext = useMemo(() => ({ t }), [t]);
+
   const columnDefinitions: ColDef<ImportJobRead>[] = useMemo(() => [
     {
       field: 'created_at',
-      headerName: 'Date',
+      headerName: t('imports.historyColDate'),
       sortable: true,
       sort: 'desc',
       width: 180,
@@ -91,24 +117,26 @@ export function ImportHistoryPage() {
     },
     {
       field: 'account_name',
-      headerName: 'Account',
+      headerName: t('imports.historyColAccount'),
       sortable: true,
       filter: true,
       flex: 1,
       minWidth: 160,
+      // account_name is a user-defined account name — render verbatim
       valueFormatter: (params) => params.value || '—',
     },
     {
       field: 'filename',
-      headerName: 'File',
+      headerName: t('imports.historyColFile'),
       sortable: true,
       filter: true,
       flex: 1.4,
       minWidth: 220,
+      // filename is the user's uploaded file name — render verbatim
       valueFormatter: (params) => params.value || '—',
     },
     {
-      headerName: 'Imported / Total',
+      headerName: t('imports.historyColProgress'),
       colId: 'progress',
       width: 160,
       valueGetter: (params) => {
@@ -120,12 +148,12 @@ export function ImportHistoryPage() {
     },
     {
       field: 'status',
-      headerName: 'Status',
+      headerName: t('imports.historyColStatus'),
       width: 130,
       cellRenderer: StatusCellRenderer,
       filter: true,
     },
-  ], []);
+  ], [t]);
 
   return (
     <Box>
@@ -137,7 +165,7 @@ export function ImportHistoryPage() {
             onClick={() => navigate(`/app/${familyId}/transactions`)}
             variant="text"
           >
-            Back to transactions
+            {t('imports.historyBackToTransactions')}
           </Button>
         </Stack>
         {currentRole !== 'viewer' && (
@@ -146,17 +174,16 @@ export function ImportHistoryPage() {
             startIcon={<FileUploadIcon />}
             onClick={() => navigate(`/app/${familyId}/import-csv`)}
           >
-            New Import
+            {t('imports.historyNewImport')}
           </Button>
         )}
       </Box>
 
       <Typography variant="h4" component="h1" gutterBottom>
-        Previous Imports
+        {t('imports.historyPageTitle')}
       </Typography>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 3 }}>
-        Every CSV import dispatched from this family appears here with its
-        current status. Running imports refresh automatically.
+        {t('imports.historyPageDescription')}
       </Typography>
 
       {/* Loading state */}
@@ -169,7 +196,7 @@ export function ImportHistoryPage() {
       {/* Error state */}
       {error && (
         <Alert severity="error" sx={{ mb: 2 }}>
-          {error instanceof Error ? error.message : 'Could not load import history.'}
+          {error instanceof Error ? error.message : t('imports.historyLoadError')}
         </Alert>
       )}
 
@@ -177,10 +204,10 @@ export function ImportHistoryPage() {
       {!isLoading && !error && importJobs && importJobs.length === 0 && (
         <Paper sx={{ p: 4, textAlign: 'center' }}>
           <Typography variant="h6" color="text.secondary" gutterBottom>
-            No imports yet
+            {t('imports.historyEmptyTitle')}
           </Typography>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Once you import a CSV it will appear here with its status.
+            {t('imports.historyEmptyBody')}
           </Typography>
           {currentRole !== 'viewer' && (
             <Button
@@ -188,7 +215,7 @@ export function ImportHistoryPage() {
               startIcon={<FileUploadIcon />}
               onClick={() => navigate(`/app/${familyId}/import-csv`)}
             >
-              Import CSV
+              {t('imports.historyImportCsv')}
             </Button>
           )}
         </Paper>
@@ -200,6 +227,7 @@ export function ImportHistoryPage() {
           <AgGridReact<ImportJobRead>
             rowData={importJobs}
             columnDefs={columnDefinitions}
+            context={gridContext}
             theme="legacy"
             getRowId={(params) => params.data.id}
             rowHeight={52}

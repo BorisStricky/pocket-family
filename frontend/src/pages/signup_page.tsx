@@ -5,6 +5,7 @@
 
 import React, { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Box, Button, Container, Paper, Typography } from '@mui/material';
 import { AuthForm } from '@/features/auth/components/AuthForm';
 import { useSignup } from '@/features/auth/hooks/useSignup';
@@ -13,6 +14,7 @@ import { getErrorMessage } from '@/lib/errorUtils';
 import { IS_DEMO_MODE, ROUTES } from '@/lib/constants';
 
 export default function SignupPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const signupMutation = useSignup();
@@ -47,12 +49,10 @@ export default function SignupPage() {
           {IS_DEMO_MODE ? (
             <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2, textAlign: 'center' }}>
               <Typography variant="h4" component="h1">
-                Account creation is disabled
+                {t('auth.signupDisabledTitle')}
               </Typography>
               <Typography variant="body1" color="text.secondary">
-                This is the public demo of Pocket Family. New accounts cannot
-                be created here — sign in with the shared demo account on the
-                login page to explore the app.
+                {t('auth.signupDisabledMessage')}
               </Typography>
               <Button
                 variant="contained"
@@ -60,7 +60,7 @@ export default function SignupPage() {
                 onClick={() => navigate(ROUTES.LOGIN)}
                 sx={{ mt: 2 }}
               >
-                Go to login
+                {t('auth.goToLogin')}
               </Button>
             </Box>
           ) : (

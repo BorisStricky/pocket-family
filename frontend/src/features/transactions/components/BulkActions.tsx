@@ -3,6 +3,7 @@
 
 import React, { useState } from 'react';
 import { Box, Button, Typography, Stack, Chip } from '@mui/material';
+import { useTranslation } from 'react-i18next';
 import DeleteIcon from '@mui/icons-material/Delete';
 import FileDownloadIcon from '@mui/icons-material/FileDownload';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -46,6 +47,7 @@ export function BulkActions({
   onExport,
   onClearSelection,
 }: BulkActionsProps) {
+  const { t } = useTranslation();
   // Track delete confirmation dialog open state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
@@ -86,9 +88,7 @@ export function BulkActions({
             size="small"
           />
           <Typography variant="body1">
-            {selectedCount === 1
-              ? 'transaction selected'
-              : 'transactions selected'}
+            {t('transactions.selectedSuffix', { count: selectedCount })}
           </Typography>
         </Box>
 
@@ -101,7 +101,7 @@ export function BulkActions({
               startIcon={<ClearIcon />}
               size="small"
             >
-              Clear Selection
+              {t('transactions.clearSelection')}
             </Button>
           )}
 
@@ -113,7 +113,7 @@ export function BulkActions({
               variant="outlined"
               size="small"
             >
-              Export to CSV
+              {t('transactions.exportCsv')}
             </Button>
           )}
 
@@ -125,7 +125,7 @@ export function BulkActions({
             variant="contained"
             size="small"
           >
-            Delete Selected
+            {t('transactions.deleteSelected')}
           </Button>
         </Stack>
       </Box>
@@ -133,12 +133,10 @@ export function BulkActions({
       {/* Delete Confirmation Dialog */}
       <DeleteConfirmDialog
         open={deleteDialogOpen}
-        title="Delete Transactions"
-        message={`Are you sure you want to delete ${selectedCount} transaction${selectedCount === 1 ? '' : 's'}? This action cannot be undone.`}
+        title={t('transactions.deleteTransactionsTitle')}
+        message={t('transactions.deleteTransactionsMessage', { count: selectedCount })}
         onConfirm={handleConfirmDelete}
         onCancel={() => setDeleteDialogOpen(false)}
-        confirmButtonText="Delete"
-        cancelButtonText="Cancel"
       />
     </>
   );

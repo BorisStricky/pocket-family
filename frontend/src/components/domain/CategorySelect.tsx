@@ -4,6 +4,7 @@
 // Optionally shows a "Create new category" sentinel option at the bottom of the list
 
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Autocomplete,
   TextField,
@@ -112,14 +113,20 @@ export function CategorySelect({
   onChange,
   kind,
   categories,
-  label = 'Category',
-  placeholder = 'Select a category',
+  // Default to the shared translated label/placeholder; callers may override
+  // with their own (already-translated) text.
+  label,
+  placeholder,
   error = false,
   helperText,
   disabled = false,
   required = false,
   onCreateNew,
 }: CategorySelectProps) {
+  const { t } = useTranslation();
+  const resolvedLabel = label ?? t('categorySelect.label');
+  const resolvedPlaceholder = placeholder ?? t('categorySelect.placeholder');
+
   // Track search input value for custom filtering
   const [inputValue, setInputValue] = useState('');
 
@@ -205,8 +212,8 @@ export function CategorySelect({
       renderInput={(params) => (
         <TextField
           {...params}
-          label={label}
-          placeholder={placeholder}
+          label={resolvedLabel}
+          placeholder={resolvedPlaceholder}
           required={required}
           error={error}
           helperText={helperText}
@@ -252,8 +259,8 @@ export function CategorySelect({
         // Render the "Create new category" sentinel distinctively
         if (option.id === CREATE_NEW_ID) {
           const createLabel = inputValue
-            ? `Create "${inputValue}" as new category`
-            : '+ Create new category';
+            ? t('categorySelect.createNewWithText', { text: inputValue })
+            : t('categorySelect.createNew');
           return (
             <Box
               component="li"
@@ -319,12 +326,12 @@ export function CategorySelect({
               {/* Parent name for context (shown for child categories) */}
               {option.parent_name && (
                 <Typography variant="caption" color="text.secondary">
-                  in {option.parent_name}
+                  {t('categorySelect.inParent', { parent: option.parent_name })}
                 </Typography>
               )}
-              {/* Category kind badge */}
+              {/* Category kind badge — localize the expense/income kind label */}
               <Chip
-                label={option.kind}
+                label={t(`enums.transactionType.${option.kind}`)}
                 size="small"
                 color={option.kind === 'expense' ? 'error' : 'success'}
                 sx={{ height: 18, fontSize: '0.7rem' }}
@@ -336,8 +343,10 @@ export function CategorySelect({
       // No options text is only reached when onCreateNew is not provided and no matches exist
       noOptionsText={
         kind
-          ? `No ${kind} categories found`
-          : 'No categories found'
+          ? t('categorySelect.noCategoriesOfKind', {
+              kind: t(`enums.transactionType.${kind}`).toLowerCase(),
+            })
+          : t('categorySelect.noCategories')
       }
     />
   );

@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Box, Typography, CircularProgress, Container, Button, Stack } from '@mui/material';
 import { Plus } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useFamilies } from '../hooks/useFamilies';
 import { useCreateFamily } from '../hooks/useCreateFamily';
 import { useSwitchFamily } from '../hooks/useSwitchFamily';
@@ -22,6 +23,7 @@ import { CreateFamilyModal } from '../components/CreateFamilyModal';
  * Route: /app/families
  */
 export default function FamiliesPage() {
+  const { t } = useTranslation();
   const navigate = useNavigate();
   const { data: families = [], isLoading } = useFamilies();
   const { mutate: createFamily, isPending: isCreating, error: createError } = useCreateFamily();
@@ -57,10 +59,10 @@ export default function FamiliesPage() {
       <Stack spacing={4}>
         <Box sx={{ textAlign: 'center' }}>
           <Typography variant="h3" gutterBottom sx={{ fontWeight: 'bold' }}>
-            Your Families
+            {t('family.yourFamilies')}
           </Typography>
           <Typography variant="body1" color="text.secondary">
-            Select a family to access its financial data
+            {t('family.subtitle')}
           </Typography>
         </Box>
 
@@ -72,7 +74,7 @@ export default function FamiliesPage() {
             onClick={() => setCreateModalOpen(true)}
             size="large"
           >
-            Create New Family
+            {t('family.createNewFamily')}
           </Button>
         </Box>
 
